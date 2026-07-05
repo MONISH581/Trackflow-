@@ -1,0 +1,997 @@
+import { create } from "zustand";
+import { io, Socket } from "socket.io-client";
+
+export interface UserInfo {
+  userId: string;
+  name: string;
+  email: string;
+  role: "coordinator" | "student";
+  avatar: string;
+  department: string;
+  year?: string;
+  status: "pending" | "approved" | "rejected";
+  githubUsername?: string;
+  githubToken?: string;
+  verificationCode?: string;
+  skills?: string[];
+  interestedCategories?: string[];
+  appliedOpportunities?: string[];
+  college?: string;
+  notificationPreferences?: {
+    newOpportunities: boolean;
+    deadlineReminders: boolean;
+  };
+  createdAt?: string;
+}
+
+export interface FileData {
+  name: string;
+  url: string;
+  fileType: string;
+  size: number;
+  uploadedAt: string;
+}
+
+export interface ProjectInfo {
+  id: string;
+  _id?: string;
+  name: string;
+  department: string;
+  abstract: string;
+  description: string;
+  objectives: string;
+  methodology: string;
+  techStack: string[];
+  modules: string;
+  references: string;
+  futureEnhancements: string;
+  teamMembers: string[];
+  teamLeader: string;
+  progress: number;
+  status: "Active" | "At Risk" | "Completed";
+  files: FileData[];
+  githubRepo?: string;
+  createdAt?: string;
+}
+
+export interface TaskInfo {
+  id: string;
+  _id?: string;
+  title: string;
+  status: "Not Started" | "In Progress" | "Completed" | "Overdue";
+  date: string;
+  assigneeId: string;
+  assigneeName: string;
+  projectId: string;
+  projectName: string;
+  createdBy: string;
+  priority: "low" | "medium" | "high";
+  estimatedHours: number;
+}
+
+export interface NotificationInfo {
+  id: string;
+  _id?: string;
+  userId: string;
+  title: string;
+  message: string;
+  read: boolean;
+  relatedId?: string;
+  type: "general" | "team";
+  createdAt?: string;
+}
+
+export interface MessageInfo {
+  id: string;
+  _id?: string;
+  user: string;
+  userId: string;
+  text: string;
+  projectId: string;
+  createdAt?: string;
+}
+
+interface ToastMessage {
+  id: string;
+  message: string;
+  type: "success" | "error" | "info";
+}
+
+export interface OpportunityInfo {
+  id?: string;
+  _id?: string;
+  title: string;
+  description: string;
+  category: string;
+  organizer: string;
+  organizerLogo: string;
+  bannerImage: string;
+  website: string;
+  registrationLink: string;
+  location: string;
+  mode: "Online" | "Offline" | "Hybrid";
+  freeOrPaid: "Free" | "Paid";
+  targetAudience: "Student Only" | "College" | "International";
+  prizePool: string;
+  registrationDeadline: string;
+  eventStartDate: string;
+  eventEndDate: string;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  eligibility: string;
+  timeline: string;
+  rules: string;
+  judgingCriteria: string;
+  tags: string[];
+  featured: boolean;
+  trending: boolean;
+  views: number;
+  bookmarks: string[];
+  approved?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface AppState {
+  currentUser: UserInfo | null;
+  activeProject: ProjectInfo | null;
+  projects: ProjectInfo[];
+  tasks: TaskInfo[];
+  notifications: NotificationInfo[];
+  messages: MessageInfo[];
+  socket: Socket | null;
+  toasts: ToastMessage[];
+  loading: boolean;
+
+  opportunities: OpportunityInfo[];
+  featuredOpportunities: { featured: OpportunityInfo[]; trending: OpportunityInfo[]; newest: OpportunityInfo[] } | null;
+  bookmarkedOpportunities: OpportunityInfo[];
+  
+  // Actions
+  addToast: (message: string, type: ToastMessage["type"]) => void;
+  removeToast: (id: string) => void;
+  setLoading: (loading: boolean) => void;
+  
+  // Auth
+  login: (userData: Partial<UserInfo>) => Promise<boolean>;
+  logout: () => void;
+  updateProfile: (userId: string, data: Partial<UserInfo>) => Promise<boolean>;
+  checkSession: () => void;
+
+  // Coordinator approvals
+  fetchApprovals: () => Promise<UserInfo[]>;
+  approveStudent: (studentId: string, approve: boolean) => Promise<boolean>;
+  
+  // Student Records
+  fetchStudentRecords: () => Promise<any[]>;
+
+  // Attendance & Lab Access
+  fetchApprovedStudents: () => Promise<UserInfo[]>;
+  quickAddStudent: (studentData: { name: string; email: string; department: string; year: string }) => Promise<boolean>;
+  fetchAttendance: (date: string) => Promise<any[]>;
+  saveAttendance: (date: string, records: Array<{ studentId: string; status: string }>) => Promise<boolean>;
+  fetchActiveLabAccess: () => Promise<any[]>;
+  checkInStudent: (studentId: string) => Promise<boolean>;
+  checkOutStudent: (studentId: string) => Promise<boolean>;
+
+  // Projects
+  fetchProjects: () => Promise<void>;
+  createProject: (name: string, department: string) => Promise<ProjectInfo | null>;
+  updateProject: (projectId: string, updates: Partial<ProjectInfo>) => Promise<boolean>;
+  uploadFile: (projectId: string, file: File) => Promise<boolean>;
+  fetchAbstractHistory: (projectId: string) => Promise<any[]>;
+  fetchDailyReports: (projectId: string) => Promise<any[]>;
+  submitDailyReport: (reportData: any) => Promise<boolean>;
+  checkDailyReportSubmittedToday: (studentId: string) => Promise<boolean>;
+  analyzeProject: (projectData: any, githubStats: any) => Promise<string>;
+
+  // Tasks
+  fetchTasks: () => Promise<void>;
+  createTask: (taskData: Partial<TaskInfo>) => Promise<boolean>;
+  updateTask: (taskId: string, updates: Partial<TaskInfo>) => Promise<boolean>;
+
+  // Notifications
+  fetchNotifications: () => Promise<void>;
+  markNotificationRead: (notificationId: string) => Promise<void>;
+
+  // Chat
+  fetchMessages: (projectId?: string) => Promise<void>;
+  sendMessage: (text: string, projectId?: string) => Promise<void>;
+
+  // Socket
+  connectSocket: () => void;
+  disconnectSocket: () => void;
+
+  // Opportunities
+  fetchOpportunities: (filters?: any) => Promise<void>;
+  fetchOpportunityById: (id: string) => Promise<OpportunityInfo | null>;
+  createOpportunity: (oppData: Partial<OpportunityInfo>) => Promise<boolean>;
+  updateOpportunity: (oppId: string, updates: Partial<OpportunityInfo>) => Promise<boolean>;
+  deleteOpportunity: (oppId: string) => Promise<boolean>;
+  toggleBookmark: (opportunityId: string) => Promise<boolean>;
+  toggleApply: (opportunityId: string) => Promise<boolean>;
+  fetchBookmarks: () => Promise<void>;
+  fetchRecommendations: (userId: string) => Promise<OpportunityInfo[]>;
+  fetchCategoryCounts: () => Promise<any[]>;
+  syncOpportunities: () => Promise<boolean>;
+}
+
+const API_BASE = "";
+
+export const useStore = create<AppState>((set, get) => ({
+  currentUser: null,
+  activeProject: null,
+  projects: [],
+  tasks: [],
+  notifications: [],
+  messages: [],
+  socket: null,
+  toasts: [],
+  loading: false,
+  opportunities: [],
+  featuredOpportunities: null,
+  bookmarkedOpportunities: [],
+
+  addToast: (message, type) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
+    setTimeout(() => {
+      get().removeToast(id);
+    }, 4000);
+  },
+
+  removeToast: (id) => {
+    set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+  },
+
+  setLoading: (loading) => set({ loading }),
+
+  login: async (userData) => {
+    get().setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+      
+      const user = data.user;
+      set({ currentUser: user });
+      localStorage.setItem("trackflow_user", JSON.stringify(user));
+      
+      get().addToast(`Logged in successfully as ${user.name}`, "success");
+      
+      // Connect to socket and fetch initial data
+      get().connectSocket();
+      get().fetchNotifications();
+      
+      if (user.role === "student" && user.status === "approved") {
+        // Fetch active project for student
+        const projRes = await fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`);
+        const projData = await projRes.json();
+        if (projData.projects && projData.projects.length > 0) {
+          set({ activeProject: projData.projects[0] });
+        }
+      }
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    } finally {
+      get().setLoading(false);
+    }
+  },
+
+  logout: () => {
+    get().disconnectSocket();
+    localStorage.removeItem("trackflow_user");
+    set({ currentUser: null, activeProject: null, projects: [], tasks: [], notifications: [], messages: [] });
+    get().addToast("Logged out successfully", "info");
+  },
+
+  updateProfile: async (userId, data) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.error || "Update failed");
+      }
+      set({ currentUser: resData.user });
+      localStorage.setItem("trackflow_user", JSON.stringify(resData.user));
+      get().addToast("Profile updated successfully", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  checkSession: () => {
+    const saved = localStorage.getItem("trackflow_user");
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        set({ currentUser: user });
+        get().connectSocket();
+        get().fetchNotifications();
+        
+        if (user.role === "student" && user.status === "approved") {
+          // Fetch student project
+          fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`)
+            .then(r => r.json())
+            .then(data => {
+              if (data.projects && data.projects.length > 0) {
+                set({ activeProject: data.projects[0] });
+              }
+            }).catch(() => {});
+        }
+      } catch (e) {
+        localStorage.removeItem("trackflow_user");
+      }
+    }
+  },
+
+  fetchApprovals: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/approvals`);
+      const data = await response.json();
+      return data.requests || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  approveStudent: async (studentId, approve) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/approvals/${studentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: approve ? "approved" : "rejected" }),
+      });
+      if (!response.ok) throw new Error("Approval update failed");
+      get().addToast(approve ? "Approved student request" : "Rejected student request", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchStudentRecords: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/student-records`);
+      const data = await response.json();
+      return data.records || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  fetchApprovedStudents: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/users/students`);
+      const data = await response.json();
+      return data.students || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  quickAddStudent: async (studentData) => {
+    get().setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/users/quick-student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(studentData)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to add student");
+      get().addToast("Student profile created and approved successfully", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    } finally {
+      get().setLoading(false);
+    }
+  },
+
+  fetchAttendance: async (date) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/attendance?date=${date}`);
+      const data = await response.json();
+      return data.attendance || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveAttendance: async (date, records) => {
+    const user = get().currentUser;
+    if (!user) {
+      get().addToast("Authentication error: You are not logged in.", "error");
+      return false;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/api/attendance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, records, markedBy: user.userId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to save attendance");
+      get().addToast("Attendance saved successfully", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchActiveLabAccess: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/lab-access/active`);
+      const data = await response.json();
+      return data.activeLogs || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  checkInStudent: async (studentId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/lab-access/check-in`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to check in");
+      get().addToast("Student checked in to lab", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  checkOutStudent: async (studentId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/lab-access/check-out`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to check out");
+      get().addToast("Student checked out of lab", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchProjects: async () => {
+    const user = get().currentUser;
+    if (!user) return;
+    try {
+      const query = user.role === "student" ? `?role=student&userId=${user.userId}` : "";
+      const response = await fetch(`${API_BASE}/api/projects${query}`);
+      const data = await response.json();
+      set({ projects: data.projects || [] });
+      if (user.role === "student" && data.projects && data.projects.length > 0) {
+        set({ activeProject: data.projects[0] });
+      }
+    } catch (e) {}
+  },
+
+  createProject: async (name, department) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, department }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create project");
+      get().addToast("Project created successfully", "success");
+      get().fetchProjects();
+      return data.project;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return null;
+    }
+  },
+
+  updateProject: async (projectId, updates) => {
+    const user = get().currentUser;
+    if (!user) return false;
+    try {
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updates, role: user.role }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Update failed");
+      
+      get().addToast("Project updated successfully", "success");
+      if (get().activeProject?.id === projectId || get().activeProject?._id === projectId) {
+        set({ activeProject: data.project });
+      }
+      get().fetchProjects();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  uploadFile: async (projectId, file) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Upload failed");
+      get().addToast("File uploaded successfully", "success");
+      if (get().activeProject?.id === projectId || get().activeProject?._id === projectId) {
+        set((state) => ({
+          activeProject: state.activeProject
+            ? { ...state.activeProject, files: data.files }
+            : null,
+        }));
+      }
+      get().fetchProjects();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchAbstractHistory: async (projectId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}/abstracts`);
+      const data = await response.json();
+      return data.history || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  fetchDailyReports: async (projectId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}/daily-reports`);
+      const data = await response.json();
+      return data.reports || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  submitDailyReport: async (reportData) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/daily-reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reportData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to submit daily report");
+      get().addToast("Daily report submitted successfully", "success");
+      
+      // Update local active project state with new progress and abstract
+      if (get().activeProject) {
+        set((state) => ({
+          activeProject: state.activeProject
+            ? {
+                ...state.activeProject,
+                progress: reportData.progress,
+                abstract: reportData.abstract,
+              }
+            : null,
+        }));
+      }
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  checkDailyReportSubmittedToday: async (studentId) => {
+    try {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const response = await fetch(`${API_BASE}/api/daily-reports/check-today?studentId=${studentId}&date=${todayStr}`);
+      const data = await response.json();
+      return !!data.submitted;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  analyzeProject: async (projectData, githubStats) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/ai/analyze-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectData, githubStats }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "AI analysis failed");
+      return data.analysis;
+    } catch (e: any) {
+      return "Unable to perform AI analysis at this time. Project progress is healthy, ensure you are tracking all tasks on time.";
+    }
+  },
+
+  fetchTasks: async () => {
+    const user = get().currentUser;
+    if (!user) return;
+    try {
+      const query = user.role === "student" ? `?role=student&userId=${user.userId}` : "";
+      const response = await fetch(`${API_BASE}/api/tasks${query}`);
+      const data = await response.json();
+      set({ tasks: data.tasks || [] });
+    } catch (e) {}
+  },
+
+  createTask: async (taskData) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create task");
+      get().addToast("Task created successfully", "success");
+      get().fetchTasks();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  updateTask: async (taskId, updates) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to update task");
+      get().addToast("Task updated successfully", "success");
+      get().fetchTasks();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchNotifications: async () => {
+    const user = get().currentUser;
+    if (!user) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/notifications?userId=${user.userId}`);
+      const data = await response.json();
+      set({ notifications: data.notifications || [] });
+    } catch (e) {}
+  },
+
+  markNotificationRead: async (notificationId) => {
+    try {
+      await fetch(`${API_BASE}/api/notifications/${notificationId}`, { method: "PUT" });
+      set((state) => ({
+        notifications: state.notifications.map((n) =>
+          n.id === notificationId || n._id === notificationId ? { ...n, read: true } : n
+        ),
+      }));
+    } catch (e) {}
+  },
+
+  fetchMessages: async (projectId) => {
+    try {
+      const query = projectId ? `?projectId=${projectId}` : "";
+      const response = await fetch(`${API_BASE}/api/messages${query}`);
+      const data = await response.json();
+      set({ messages: data.messages || [] });
+    } catch (e) {}
+  },
+
+  sendMessage: async (text, projectId) => {
+    const user = get().currentUser;
+    if (!user) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: user.name,
+          userId: user.userId,
+          text,
+          projectId: projectId || "",
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to send message");
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+    }
+  },
+
+  connectSocket: () => {
+    const socket = io(API_BASE);
+    set({ socket });
+
+    socket.on("connect", () => {
+      console.log("Socket connected client side");
+      const user = get().currentUser;
+      if (user && user.role === "student") {
+        // Fetch project and join project room
+        fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.projects && data.projects.length > 0) {
+              const projectId = data.projects[0]._id || data.projects[0].id;
+              socket.emit("join_project", projectId);
+            }
+          })
+          .catch(() => {});
+      }
+    });
+
+    socket.on("receive_message", (msg) => {
+      set((state) => ({ messages: [...state.messages, msg] }));
+    });
+
+    socket.on("receive_message_global", (msg) => {
+      // Add global messages only if not in team chat
+      set((state) => ({ messages: [...state.messages, msg] }));
+    });
+
+    socket.on("project_updated", ({ projectId, project }) => {
+      const currentProj = get().activeProject;
+      if (currentProj && (currentProj.id === projectId || currentProj._id === projectId)) {
+        set({ activeProject: project });
+      }
+      get().fetchProjects();
+    });
+
+    // Background notification fetch on changes
+    socket.on("notification_received", () => {
+      get().fetchNotifications();
+    });
+
+    socket.on("opportunities_updated", () => {
+      get().fetchOpportunities();
+    });
+  },
+
+  disconnectSocket: () => {
+    const s = get().socket;
+    if (s) {
+      s.disconnect();
+      set({ socket: null });
+    }
+  },
+
+  fetchOpportunities: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val) params.append(key, String(val));
+      });
+      const res = await fetch(`/api/opportunities?${params.toString()}`);
+      const data = await res.json();
+      if (data.opportunities) {
+        set({ opportunities: data.opportunities });
+      }
+    } catch (err) {}
+  },
+
+  fetchOpportunityById: async (id) => {
+    try {
+      const res = await fetch(`/api/opportunities/${id}`);
+      const data = await res.json();
+      return data.opportunity || null;
+    } catch (err) {
+      return null;
+    }
+  },
+
+  createOpportunity: async (oppData) => {
+    get().setLoading(true);
+    try {
+      const res = await fetch(`/api/opportunities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(oppData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create opportunity");
+      get().addToast("Opportunity created successfully", "success");
+      get().fetchOpportunities();
+      return true;
+    } catch (err: any) {
+      get().addToast(err.message, "error");
+      return false;
+    } finally {
+      get().setLoading(false);
+    }
+  },
+
+  updateOpportunity: async (oppId, updates) => {
+    get().setLoading(true);
+    try {
+      const res = await fetch(`/api/opportunities/${oppId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update opportunity");
+      get().addToast("Opportunity updated successfully", "success");
+      get().fetchOpportunities();
+      return true;
+    } catch (err: any) {
+      get().addToast(err.message, "error");
+      return false;
+    } finally {
+      get().setLoading(false);
+    }
+  },
+
+  deleteOpportunity: async (oppId) => {
+    get().setLoading(true);
+    try {
+      const res = await fetch(`/api/opportunities/${oppId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete opportunity");
+      get().addToast("Opportunity deleted successfully", "success");
+      get().fetchOpportunities();
+      return true;
+    } catch (err: any) {
+      get().addToast(err.message, "error");
+      return false;
+    } finally {
+      get().setLoading(false);
+    }
+  },
+
+  toggleBookmark: async (opportunityId) => {
+    const user = get().currentUser;
+    if (!user) {
+      get().addToast("You must be logged in to bookmark opportunities", "error");
+      return false;
+    }
+    try {
+      const res = await fetch(`/api/bookmark`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opportunityId, userId: user.userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to bookmark");
+      
+      get().addToast(data.bookmarked ? "Opportunity saved to bookmarks" : "Opportunity removed from bookmarks", "success");
+      get().fetchBookmarks();
+      
+      set((state) => ({
+        opportunities: state.opportunities.map((o) => {
+          if (o.id === opportunityId || o._id === opportunityId) {
+            const bookmarks = data.bookmarked
+              ? [...(o.bookmarks || []), user.userId]
+              : (o.bookmarks || []).filter((id) => id !== user.userId);
+            return { ...o, bookmarks };
+          }
+          return o;
+        }),
+      }));
+      return true;
+    } catch (err: any) {
+      get().addToast(err.message, "error");
+      return false;
+    }
+  },
+
+  toggleApply: async (opportunityId) => {
+    const user = get().currentUser;
+    if (!user) {
+      get().addToast("You must be logged in to apply", "error");
+      return false;
+    }
+    try {
+      const res = await fetch(`/api/opportunities/${opportunityId}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to apply");
+
+      get().addToast(data.applied ? "Successfully applied to opportunity!" : "Application withdrawn", "success");
+      
+      if (data.user) {
+        set({ currentUser: data.user });
+        localStorage.setItem("trackflow_user", JSON.stringify(data.user));
+      }
+      return true;
+    } catch (err: any) {
+      get().addToast(err.message, "error");
+      return false;
+    }
+  },
+
+  fetchBookmarks: async () => {
+    const user = get().currentUser;
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/bookmarks?userId=${user.userId}`);
+      const data = await res.json();
+      if (data.bookmarks) {
+        set({ bookmarkedOpportunities: data.bookmarks });
+      }
+    } catch (err) {}
+  },
+
+  fetchRecommendations: async (userId) => {
+    try {
+      const res = await fetch(`/api/opportunities/recommendations/${userId}`);
+      const data = await res.json();
+      return data.recommendations || [];
+    } catch (err) {
+      return [];
+    }
+  },
+
+  fetchCategoryCounts: async () => {
+    try {
+      const res = await fetch(`/api/categories`);
+      const data = await res.json();
+      return data.categories || [];
+    } catch (err) {
+      return [];
+    }
+  },
+
+  syncOpportunities: async () => {
+    get().setLoading(true);
+    try {
+      const res = await fetch(`/api/opportunities/sync`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sync failed");
+      get().addToast("Successfully fetched latest hackathons!", "success");
+      get().fetchOpportunities();
+      get().fetchCategoryCounts().then(cats => {
+        // Also refresh counts
+      });
+      const user = get().currentUser;
+      if (user) {
+        get().fetchRecommendations(user.userId);
+      }
+      return true;
+    } catch (err: any) {
+      get().addToast("Failed to sync live data: " + err.message, "error");
+      return false;
+    } finally {
+      get().setLoading(false);
+    }
+  },
+}));

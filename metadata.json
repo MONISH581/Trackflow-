@@ -1,0 +1,6 @@
+{
+  "name": "TrackFlow AI",
+  "description": "Intelligent Student Project Management, Progress Monitoring, and GitHub Analytics Platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,607 @@
+import React from "react";
+import { useStore, UserInfo } from "../store.ts";
+import {
+  ClipboardCheck,
+  Search,
+  Plus,
+  Calendar,
+  UserPlus,
+  LogOut,
+  Clock,
+  Sparkles,
+  CheckCircle,
+  XCircle,
+  Activity,
+  LogIn,
+  Filter,
+} from "lucide-react";
+
+export default function Attendance() {
+  const {
+    fetchApprovedStudents,
+    quickAddStudent,
+    fetchAttendance,
+    saveAttendance,
+    fetchActiveLabAccess,
+    checkInStudent,
+    checkOutStudent,
+    addToast,
+  } = useStore();
+
+  const [activeTab, setActiveTab] = React.useState<"sheet" | "lab" | "register">("sheet");
+  const [students, setStudents] = React.useState<UserInfo[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  // Daily Attendance States
+  const [selectedDate, setSelectedDate] = React.useState(new Date().toISOString().split("T")[0]);
+  const [attendanceSheet, setAttendanceSheet] = React.useState<Record<string, "Present" | "Absent">>({});
+  const [attendanceSearch, setAttendanceSearch] = React.useState("");
+  const [savingAttendance, setSavingAttendance] = React.useState(false);
+
+  // Lab Access States
+  const [activeLabLogs, setActiveLabLogs] = React.useState<any[]>([]);
+  const [labSearch, setLabSearch] = React.useState("");
+  const [checkInStudentId, setCheckInStudentId] = React.useState("");
+  const [checkingIn, setCheckingIn] = React.useState(false);
+
+  // Quick Register States
+  const [regName, setRegName] = React.useState("");
+  const [regEmail, setRegEmail] = React.useState("");
+  const [regDept, setRegDept] = React.useState("Computer Science");
+  const [regYear, setRegYear] = React.useState("1");
+  const [registering, setRegistering] = React.useState(false);
+
+  const departments = [
+    "Computer Science",
+    "Information Technology",
+    "Artificial Intelligence",
+    "Electronics & Communication",
+    "Mechanical Engineering",
+    "Civil Engineering",
+  ];
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const studentList = await fetchApprovedStudents();
+      setStudents(studentList);
+
+      // Load attendance for selected date
+      const attData = await fetchAttendance(selectedDate);
+      const sheet: Record<string, "Present" | "Absent"> = {};
+      
+      // Default all loaded students to Present first
+      studentList.forEach((s: any) => {
+        const identifier = s.userId || s.id || s._id;
+        sheet[identifier] = "Present";
+      });
+      
+      // Override with saved records
+      attData.forEach((rec: any) => {
+        sheet[rec.studentId] = rec.status;
+      });
+      setAttendanceSheet(sheet);
+
+      // Load lab logs
+      const labLogs = await fetchActiveLabAccess();
+      setActiveLabLogs(labLogs);
+    } catch (e) {
+      addToast("Failed to load attendance data", "error");
+    }
+    setLoading(false);
+  };
+
+  React.useEffect(() => {
+    loadData();
+  }, [selectedDate]);
+
+  // Reload when tab changes to refresh live views
+  React.useEffect(() => {
+    if (activeTab === "lab") {
+      fetchActiveLabAccess().then(setActiveLabLogs);
+    } else if (activeTab === "sheet") {
+      loadData();
+    }
+  }, [activeTab]);
+
+  const handleToggleAttendance = async (studentId: string, status: "Present" | "Absent") => {
+    // 1. Update local UI state immediately for responsiveness
+    setAttendanceSheet(prev => {
+      const newSheet = { ...prev, [studentId]: status };
+      
+      // 2. Automatically save the new sheet in the background so it persists
+      const records = Object.entries(newSheet).map(([id, stat]) => ({
+        studentId: id,
+        status: stat as string
+      }));
+      saveAttendance(selectedDate, records).then(() => {
+        // Optional: silently handle success or trigger a small toast if needed
+      });
+      
+      return newSheet;
+    });
+  };
+
+  const handleSaveAttendance = async () => {
+    setSavingAttendance(true);
+    const records = Object.entries(attendanceSheet).map(([studentId, status]) => ({
+      studentId,
+      status: status as string
+    }));
+
+    const success = await saveAttendance(selectedDate, records);
+    if (success) {
+      loadData();
+    }
+    setSavingAttendance(false);
+  };
+
+  const handleLabCheckIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkInStudentId) {
+      addToast("Please select a student to check in.", "info");
+      return;
+    }
+    setCheckingIn(true);
+    const success = await checkInStudent(checkInStudentId);
+    if (success) {
+      setCheckInStudentId("");
+      const logs = await fetchActiveLabAccess();
+      setActiveLabLogs(logs);
+    }
+    setCheckingIn(false);
+  };
+
+  const handleLabCheckOut = async (studentId: string) => {
+    const success = await checkOutStudent(studentId);
+    if (success) {
+      const logs = await fetchActiveLabAccess();
+      setActiveLabLogs(logs);
+    }
+  };
+
+  const handleQuickRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regEmail.toLowerCase().endsWith("@srishakthi.ac.in")) {
+      addToast("Student email must end with @srishakthi.ac.in", "error");
+      return;
+    }
+    setRegistering(true);
+    const success = await quickAddStudent({
+      name: regName,
+      email: regEmail,
+      department: regDept,
+      year: regYear,
+    });
+    if (success) {
+      // Reset form
+      setRegName("");
+      setRegEmail("");
+      setRegDept("Computer Science");
+      setRegYear("1");
+      // Reload students
+      loadData();
+      // Switch back to attendance or lab check-in
+      setActiveTab("sheet");
+    }
+    setRegistering(false);
+  };
+
+  const filteredAttendanceStudents = students.filter(s =>
+    s.name.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
+    s.email.toLowerCase().includes(attendanceSearch.toLowerCase())
+  );
+
+  const filteredLabLogs = activeLabLogs.filter(log =>
+    log.studentName.toLowerCase().includes(labSearch.toLowerCase()) ||
+    log.studentEmail.toLowerCase().includes(labSearch.toLowerCase())
+  );
+
+  // Filter students who are NOT currently checked into the lab
+  const checkedInStudentIds = new Set(activeLabLogs.map(log => log.studentId));
+  const checkInCandidates = students.filter(s => !checkedInStudentIds.has(s.userId));
+
+  if (loading && students.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 text-left">
+      {/* Header section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight font-sans flex items-center gap-2">
+            <ClipboardCheck className="w-6 h-6 text-blue-600" />
+            Attendance & Lab Access Management
+          </h2>
+          <p className="text-sm text-slate-500 font-semibold mt-0.5">
+            Take student attendance, manage check-in logs, and view active lab occupancy.
+          </p>
+        </div>
+
+        {/* Tab Buttons */}
+        <div className="flex gap-2 p-1 bg-slate-100 border border-slate-200 rounded-xl">
+          <button
+            onClick={() => setActiveTab("sheet")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === "sheet"
+                ? "bg-white text-blue-600 shadow-sm border border-slate-200"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Attendance Sheet
+          </button>
+          <button
+            onClick={() => setActiveTab("lab")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === "lab"
+                ? "bg-white text-blue-600 shadow-sm border border-slate-200"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 animate-pulse text-rose-500" />
+            Active Lab Monitor ({activeLabLogs.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("register")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === "register"
+                ? "bg-white text-blue-600 shadow-sm border border-slate-200"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Quick Register
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tab Views */}
+      {activeTab === "sheet" && (
+        <div className="space-y-6">
+          {/* Controls Bar */}
+          <div className="glass-card p-5 border border-blue-200/40 grid grid-cols-1 md:grid-cols-3 gap-4 items-center shadow-sm">
+            {/* Date selector */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Select Date
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+                />
+                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Search filter */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Search Students
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Filter by name or email..."
+                  value={attendanceSearch}
+                  onChange={(e) => setAttendanceSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Action */}
+            <div className="flex justify-end pt-4 md:pt-0">
+              <button
+                onClick={handleSaveAttendance}
+                disabled={savingAttendance || students.length === 0}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-500/10 flex items-center gap-1.5"
+              >
+                {savingAttendance ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Save Attendance Log
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Student Sheet Grid */}
+          {filteredAttendanceStudents.length === 0 ? (
+            <div className="glass-card p-12 text-center border border-blue-200/40">
+              <Filter className="w-8 h-8 text-slate-400 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-500">No students match your filter criteria.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAttendanceStudents.map((s: any) => {
+                const identifier = s.userId || s.id || s._id;
+                const status = attendanceSheet[identifier] || "Present";
+                return (
+                  <div
+                    key={identifier}
+                    className={`glass-card p-4 border flex flex-col justify-between shadow-sm transition-all ${
+                      status === "Present"
+                        ? "border-emerald-200 bg-emerald-50/10"
+                        : "border-rose-200 bg-rose-50/10"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={s.avatar}
+                        alt={s.name}
+                        className="w-10 h-10 rounded-xl object-cover ring-2 ring-slate-100"
+                      />
+                      <div className="min-w-0 text-left">
+                        <h4 className="font-bold text-slate-800 text-sm truncate">{s.name}</h4>
+                        <p className="text-[10px] text-slate-500 font-semibold truncate">{s.email}</p>
+                        <p className="text-[10px] text-blue-600 font-bold mt-0.5">
+                          {s.department} &bull; Yr {s.year}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); handleToggleAttendance(identifier, "Present"); }}
+                        className={`flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 ${
+                          status === "Present"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Present
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); handleToggleAttendance(identifier, "Absent"); }}
+                        className={`flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 ${
+                          status === "Absent"
+                            ? "bg-rose-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Absent
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "lab" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Lab entry log (Check-in Control) */}
+          <div className="glass-card p-5 border border-blue-200/40 text-left space-y-4 shadow-sm h-fit">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 pb-2 border-b border-slate-200">
+              <LogIn className="w-4 h-4 text-blue-600" />
+              Lab Entry / Check-In
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+              Scan student profile or select from the list below to check them into the workspace.
+            </p>
+
+            <form onSubmit={handleLabCheckIn} className="space-y-4 pt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Select Student Profile
+                </label>
+                <select
+                  value={checkInStudentId}
+                  onChange={(e) => setCheckInStudentId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">-- Choose student --</option>
+                  {checkInCandidates.map((s) => (
+                    <option key={s.userId} value={s.userId}>
+                      {s.name} ({s.department} - Yr {s.year})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={checkingIn || !checkInStudentId}
+                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5"
+              >
+                {checkingIn ? (
+                  <>Checking In...</>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Verify & Check In
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Active occupancy grid */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="glass-card p-5 border border-blue-200/40 flex items-center justify-between shadow-sm">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-rose-500 animate-pulse" />
+                Who is currently accessing the lab?
+              </h3>
+              <div className="relative max-w-xs w-full">
+                <input
+                  type="text"
+                  placeholder="Filter checked-in..."
+                  value={labSearch}
+                  onChange={(e) => setLabSearch(e.target.value)}
+                  className="w-full pl-8 pr-4 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
+                />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
+              </div>
+            </div>
+
+            {filteredLabLogs.length === 0 ? (
+              <div className="glass-card p-12 text-center border border-dashed border-slate-200">
+                <Clock className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                <h4 className="text-sm font-bold text-slate-700">Lab is Currently Empty</h4>
+                <p className="text-xs text-slate-500 mt-1 font-semibold">No students are currently logged in to this workspace.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredLabLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="glass-card p-4 border border-blue-200 bg-white shadow-sm flex flex-col justify-between relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full filter blur-xl" />
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/50 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                        {log.studentName.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <h4 className="font-bold text-slate-800 text-sm truncate">{log.studentName}</h4>
+                        <p className="text-[10px] text-slate-500 font-semibold truncate">{log.studentEmail}</p>
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200/50 mt-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                          Checked-In at {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end mt-4 pt-3 border-t border-slate-100">
+                      <button
+                        onClick={() => handleLabCheckOut(log.studentId)}
+                        className="px-3.5 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-[10px] font-bold uppercase transition flex items-center gap-1"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Check Out
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "register" && (
+        <div className="max-w-lg mx-auto">
+          <div className="glass-card p-6 border border-blue-200/40 text-left space-y-6 shadow-md relative overflow-hidden">
+            {/* Design accents */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full filter blur-2xl" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-indigo-500/5 rounded-full filter blur-2xl" />
+
+            <div className="space-y-1 pb-2 border-b border-slate-200 border-slate-200">
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-1.5">
+                <Sparkles className="w-5 h-5 text-blue-600" />
+                Quick Student Profile Registration
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold">
+                Register a new student immediately. Registered student profiles are pre-approved and placed directly into the workplace database.
+              </p>
+            </div>
+
+            <form onSubmit={handleQuickRegister} className="space-y-4 relative z-10">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter student full name"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. name@srishakthi.ac.in"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-[9px] text-blue-600 font-medium">
+                  * Must be an official college email ending with @srishakthi.ac.in
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Department
+                  </label>
+                  <select
+                    value={regDept}
+                    onChange={(e) => setRegDept(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+                  >
+                    {departments.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Academic Year
+                  </label>
+                  <select
+                    value={regYear}
+                    onChange={(e) => setRegYear(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="1">Year 1</option>
+                    <option value="2">Year 2</option>
+                    <option value="3">Year 3</option>
+                    <option value="4">Year 4</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={registering || !regName || !regEmail}
+                className="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all duration-200 shadow-md shadow-blue-500/10 glow-btn flex items-center justify-center gap-1.5"
+              >
+                {registering ? (
+                  <>Registering Student...</>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    Register and Pre-Approve Student
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
