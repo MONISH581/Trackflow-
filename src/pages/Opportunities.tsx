@@ -72,34 +72,17 @@ export default function Opportunities() {
   const [sort, setSort] = React.useState("newest");
   const [showFilters, setShowFilters] = React.useState(false);
 
-  // Dark Mode State
-  const [darkMode, setDarkMode] = React.useState(() => {
-    return document.documentElement.classList.contains("dark");
-  });
+  // Dark Mode State - Disabled as per request
+  const [darkMode, setDarkMode] = React.useState(false);
 
   const toggleDarkMode = () => {
-    if (document.documentElement.classList.contains("dark")) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setDarkMode(false);
-      addToast("Light Mode enabled", "info");
-    } else {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setDarkMode(true);
-      addToast("Dark Mode enabled", "info");
-    }
+    addToast("Dark mode is disabled", "info");
   };
 
   React.useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "dark") {
-      document.documentElement.classList.add("dark");
-      setDarkMode(true);
-    } else if (savedTheme === "light") {
-      document.documentElement.classList.remove("dark");
-      setDarkMode(false);
-    }
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("theme", "light");
+    setDarkMode(false);
   }, []);
 
   // Fetch initial opportunities with filters

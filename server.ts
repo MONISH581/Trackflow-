@@ -929,6 +929,19 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           registrationDate: new Date()
         });
         await user.save();
+        
+        if (role === 'student') {
+          const coordinators = await User.find({ role: 'coordinator' });
+          for (const coord of coordinators) {
+            await new Notification({
+              userId: coord.userId,
+              title: "New Student Registration",
+              message: `A new student, ${user.name}, has requested an account and is pending approval.`,
+              relatedId: user.userId,
+              type: "general"
+            }).save();
+          }
+        }
       } else {
         if (name) user.name = name;
         if (avatar) user.avatar = avatar;

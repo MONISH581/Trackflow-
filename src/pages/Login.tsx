@@ -29,37 +29,7 @@ export default function Login() {
     }
   };
 
-  const demoCredentials = {
-    coordinator: {
-      email: "coordinator@trackflow.local",
-      name: "Dr. Sarah Chen",
-      department: "Artificial Intelligence",
-      verificationCode: "trackflow_admin_2026",
-    },
-    student: {
-      email: "demo.student@srishakthi.ac.in",
-      name: "Demo Student",
-      department: "Computer Science",
-      year: "3",
-    },
-  };
 
-  const fillDemoCredentials = (demoRole: "student" | "coordinator") => {
-    setRole(demoRole);
-    if (demoRole === "coordinator") {
-      setEmail(demoCredentials.coordinator.email);
-      setName(demoCredentials.coordinator.name);
-      setDepartment(demoCredentials.coordinator.department);
-      setVerificationCode(demoCredentials.coordinator.verificationCode);
-      return;
-    }
-
-    setEmail(demoCredentials.student.email);
-    setName(demoCredentials.student.name);
-    setDepartment(demoCredentials.student.department);
-    setYear(demoCredentials.student.year);
-    setVerificationCode("");
-  };
 
   const departments = [
     "Computer Science",
@@ -117,32 +87,7 @@ export default function Login() {
           </button>
         </div>
 
-        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-left space-y-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Demo Login Credentials</p>
-            <p className="mt-1 text-xs font-semibold text-slate-600">
-              Coordinator code: <span className="font-bold text-slate-800">trackflow_admin_2026</span>
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => fillDemoCredentials("coordinator")}
-              className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-500"
-            >
-              <Shield className="w-4 h-4" />
-              Use Coordinator
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoCredentials("student")}
-              className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-500"
-            >
-              <User className="w-4 h-4" />
-              Use Student
-            </button>
-          </div>
-        </div>
+
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email input */}
