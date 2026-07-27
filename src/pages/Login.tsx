@@ -41,15 +41,15 @@ export default function Login() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9] relative overflow-hidden px-4">
-      {/* Decorative Blur Spheres */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-300/20 rounded-full filter blur-[100px] animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-300/20 rounded-full filter blur-[100px] animate-pulse delay-75" />
+    <div className="min-h-screen flex items-center justify-center bg-transparent relative overflow-hidden px-4 perspective-1000">
+      {/* 3D Hyper Ambient Background Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-[450px] h-[450px] bg-gradient-to-tr from-blue-500/25 via-indigo-500/20 to-cyan-400/20 rounded-full filter blur-[100px] floating-3d-orb pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-gradient-to-br from-indigo-600/25 via-blue-400/20 to-teal-400/20 rounded-full filter blur-[100px] floating-3d-orb-delay pointer-events-none" />
 
-      <div className="max-w-md w-full glass-card p-8 border border-blue-200/50 shadow-xl relative z-10">
-        <div className="text-center space-y-2 mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20 mb-3">
-            <Sparkles className="w-6 h-6 text-white" />
+      <div className="max-w-md w-full glass-card card-hyper-3d shine-effect p-8 border border-blue-300/40 shadow-2xl relative z-10">
+        <div className="text-center space-y-2 mb-8 pop-out-3d">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-600 to-cyan-500 shadow-2xl shadow-blue-500/40 mb-3 hyper-glow transform hover:rotate-12 hover:scale-110 transition-all duration-300 pop-out-3d-deep">
+            <Sparkles className="w-8 h-8 text-white drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-800">
             Welcome to TrackFlow <span className="text-blue-600">AI</span>
@@ -191,7 +191,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-4 py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-all duration-200 transform active:scale-[0.98] glow-btn disabled:opacity-50"
+            className="w-full mt-4 py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-sm transition-all duration-200 glow-btn card-3d-button pop-out-3d disabled:opacity-50 cursor-pointer shadow-lg"
           >
             {loading ? "Authenticating..." : "Sign In / Register"}
           </button>

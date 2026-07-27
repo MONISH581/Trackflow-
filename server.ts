@@ -1,16 +1,26 @@
 import express from "express";
+import http from "http";
+import { Server } from "socket.io";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
+import jwt from "jsonwebtoken"; // JWT handling
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { execFile } from "child_process";
-import { Server } from "socket.io";
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import multer from "multer";
 import axios from "axios";
+import { MongoMemoryServer } from "mongodb-memory-server";
+
+// Adjust Socket.io keep‑alive to avoid premature disconnects
+const socketOptions = {
+  pingInterval: 25000, // send ping every 25s
+  pingTimeout: 5000,   // consider dead after 5s no pong
+  cors: { origin: process.env.APP_URL || "http://localhost:5001", methods: ["GET", "POST", "PUT", "DELETE"], credentials: true }
+};
 
 dotenv.config();
 
@@ -29,13 +39,7 @@ async function startServer() {
   
   const httpServer = createServer(app);
   
-  const io = new Server(httpServer, {
-    cors: { 
-      origin: process.env.APP_URL || "http://localhost:5001",
-      methods: ["GET", "POST", "PUT", "DELETE"],
-      credentials: true
-    }
-  });
+  const io = new Server(httpServer, socketOptions);
 
   io.on("connection", (socket) => {
     socket.on("join_project", (projectId) => {
@@ -49,6 +53,12 @@ async function startServer() {
     methods: ["GET", "POST", "PUT", "DELETE"]
   }));
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
+  app.get('/ping', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 
   // Setup uploads directory and middleware
   const uploadsDir = path.join(process.cwd(), "uploads");
@@ -68,17 +78,17 @@ async function startServer() {
   });
   const upload = multer({ storage });
 
-  if (process.env.MONGODB_URI && process.env.MONGODB_URI.startsWith("mongodb")) {
-    try {
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        autoIndex: process.env.NODE_ENV !== "production"
-      });
-      console.log("Connected to MongoDB");
-    } catch (error) {
-      console.error("MongoDB connection error:", error);
-    }
+  try {
+    const mongod = await MongoMemoryServer.create();
+    const mongoUri = mongod.getUri();
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      autoIndex: true
+    });
+    console.log("Connected to local in-memory MongoDB database successfully!");
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
   }
 
   // Schema Definitions
@@ -290,6 +300,8 @@ async function startServer() {
   }
 
   async function seedOpportunities() {
+    if (mongoose.connection.readyState !== 1) return;
+
     const count = await Opportunity.countDocuments();
     if (count > 0) return;
 
@@ -522,6 +534,8 @@ async function startServer() {
   }
 
   async function syncOpportunities() {
+    if (mongoose.connection.readyState !== 1) return;
+
     console.log("Starting automatic opportunities sync background job...");
     try {
       const response = await axios.get("https://kontests.net/api/v1/all", { timeout: 10000 });
@@ -950,7 +964,9 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         await user.save();
       }
 
-      res.json({ user: { id: user.userId, ...user.toObject() } });
+      // Issue a JWT that lives longer (7 days) to keep the session alive
+      const token = jwt.sign({ id: user.userId, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+      res.json({ token, user: { id: user.userId, ...user.toObject() } });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -1976,6 +1992,15 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    
+    // Self-ping to keep Render free tier awake
+    const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || `http://localhost:${PORT}`;
+    console.log(`Setting up keep-alive ping for ${externalUrl}`);
+    setInterval(() => {
+      axios.get(`${externalUrl}/api/health`)
+        .then(() => console.log("Keep-alive ping successful"))
+        .catch((err) => console.log("Keep-alive ping failed:", err.message));
+    }, 14 * 60 * 1000); // ping every 14 minutes
   });
 }
 

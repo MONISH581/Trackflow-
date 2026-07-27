@@ -19,12 +19,42 @@ import AdminOpportunities from "./pages/AdminOpportunities.tsx";
 import { X, AlertCircle, CheckCircle, Info } from "lucide-react";
 
 export default function App() {
-  const { currentUser, toasts, removeToast, checkSession } = useStore();
+  const { currentUser, toasts, removeToast, checkSession, logout } = useStore();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
     checkSession();
   }, [checkSession]);
+
+  // Inactivity timeout: auto logout after 15 minutes of no activity
+  // const navigate = useNavigate(); // removed - not needed
+  React.useEffect(() => {
+    const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+      // Reload the page after inactivity
+      window.location.reload();
+    }, INACTIVITY_LIMIT);
+    };
+
+    // Initialize timer and activity listeners
+    resetTimer();
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+    window.addEventListener('click', resetTimer);
+    window.addEventListener('touchstart', resetTimer);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('click', resetTimer);
+      window.removeEventListener('touchstart', resetTimer);
+    };
+  }, [logout]);
 
   // If not logged in, render the login page
   if (!currentUser) {
@@ -77,8 +107,11 @@ export default function App() {
   // Main Dashboard Shell
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-[#f1f5f9] flex">
-        {/* Sidebar Navigation */}
+      <div className="min-h-screen bg-[#f1f5f9] text-slate-800 relative selection:bg-blue-500 selection:text-white overflow-x-hidden">
+        {/* Hyper-3D Animated Grid & Particle Ambient Background */}
+        <div className="hyper-3d-bg">
+          <div className="hyper-3d-grid" />
+        </div>
         <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
         {/* Content Shell */}

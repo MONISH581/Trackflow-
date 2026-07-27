@@ -181,23 +181,23 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {cards.map((card, idx) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 perspective-1000">
+          {cards.map((card) => {
             const Icon = card.icon;
             return (
               <Link
-                key={idx}
+                key={card.title}
                 to={card.link}
-                className={`glass-card p-5 border flex items-center justify-between transition-all ${card.bg}`}
+                className={`glass-card card-hyper-3d shine-effect p-5 border flex items-center justify-between transition-all ${card.bg}`}
               >
-                <div className="space-y-1 text-left">
+                <div className="space-y-1 text-left pop-out-3d">
                   <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block">
                     {card.title}
                   </span>
                   <span className="text-2xl font-extrabold text-slate-800 block">{card.value}</span>
                 </div>
-                <div className={`p-3 rounded-xl bg-white border border-slate-200 border-slate-200 ${card.color}`}>
-                  <Icon className="w-5 h-5" />
+                <div className={`p-3 rounded-2xl bg-white/90 border border-slate-200/80 ${card.color} shadow-lg pop-out-3d-deep transform hover:scale-110 transition-transform`}>
+                  <Icon className="w-6 h-6" />
                 </div>
               </Link>
             );
