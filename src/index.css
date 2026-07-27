@@ -84,6 +84,7 @@ body {
   background: linear-gradient(135deg, #2563eb, #4f46e5, #06b6d4, #2563eb);
   background-size: 200% auto;
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: text-shimmer 6s linear infinite;
 }
@@ -233,6 +234,5 @@ body {
   animation: pulse-glow 4s ease-in-out infinite;
 }
 
-/* Class-based Dark Mode variant for Tailwind v4 */
-@variant dark (.dark &);
+
 
