@@ -95,10 +95,15 @@ async function startServer() {
   const userSchema = new mongoose.Schema({
     userId: String,
     name: String,
+    registerNumber: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    section: { type: String, default: "A" },
+    lab: { type: String, default: "AI Lab" },
     email: String,
     role: String,
     avatar: String,
     department: String,
+    preferredDomain: { type: String, default: "Artificial Intelligence" },
     githubToken: String,
     githubUsername: String,
     year: { type: String, default: "1" },
@@ -114,9 +119,23 @@ async function startServer() {
     }
   }, { timestamps: true });
 
+  const mentorSchema = new mongoose.Schema({
+    mentorId: String,
+    name: String,
+    email: String,
+    phone: String,
+    expertise: String,
+    status: { type: String, default: "Active" }
+  }, { timestamps: true });
+
   const projectSchema = new mongoose.Schema({
     name: String,
     department: String,
+    domain: { type: String, default: "Artificial Intelligence" },
+    mentorId: { type: String, default: "" },
+    mentorName: { type: String, default: "" },
+    startDate: { type: Date, default: Date.now },
+    deadline: { type: Date },
     abstract: { type: String, default: "" },
     description: { type: String, default: "" },
     objectives: { type: String, default: "" },
@@ -128,9 +147,21 @@ async function startServer() {
     teamMembers: { type: [String], default: [] }, // student userIds
     teamLeader: { type: String, default: "" }, // student userId
     progress: { type: Number, default: 0 },
-    status: { type: String, default: "Active" }, // 'Active' | 'At Risk' | 'Completed'
+    status: { type: String, default: "Active" }, // 'Not Started' | 'Planning' | 'Development' | 'Testing' | 'Completed' | 'On Hold' | 'Active'
     githubRepo: { type: String, default: "" },
     files: { type: [{ name: String, url: String, fileType: String, size: Number, uploadedAt: Date }], default: [] }
+  }, { timestamps: true });
+
+  const githubRepoSchema = new mongoose.Schema({
+    repositoryId: String,
+    projectId: String,
+    studentId: String,
+    repositoryUrl: String,
+    repositoryName: String,
+    owner: String,
+    branch: { type: String, default: "main" },
+    lastUpdated: { type: Date, default: Date.now },
+    status: { type: String, default: "Connected" }
   }, { timestamps: true });
 
   const taskSchema = new mongoose.Schema({
@@ -167,11 +198,47 @@ async function startServer() {
     studentId: String,
     studentName: String,
     date: String, // YYYY-MM-DD
+    objective: { type: String, default: "" },
     workDone: String,
     challenges: String,
+    solution: { type: String, default: "" },
+    technologies: { type: [String], default: [] },
+    codeCompleted: { type: String, default: "" },
     nextDayPlan: String,
     progress: Number,
+    remarks: { type: String, default: "" },
+    githubCommitUrl: { type: String, default: "" },
+    githubCommitMessage: { type: String, default: "" },
+    attachmentUrl: { type: String, default: "" },
     abstract: String
+  }, { timestamps: true });
+
+  const hackathonSchema = new mongoose.Schema({
+    hackathonId: String,
+    name: String,
+    organizer: String,
+    description: String,
+    domain: { type: String, default: "General Tech" },
+    startDate: Date,
+    endDate: Date,
+    registrationDeadline: Date,
+    registrationLink: String,
+    status: { type: String, default: "Active" }
+  }, { timestamps: true });
+
+  const hackathonRegistrationSchema = new mongoose.Schema({
+    registrationId: String,
+    hackathonId: String,
+    hackathonName: String,
+    studentId: String,
+    studentName: String,
+    registerNumber: String,
+    registrationDate: { type: Date, default: Date.now },
+    screenshotUrl: { type: String, required: true },
+    verificationStatus: { type: String, enum: ["Pending", "Verified", "Rejected"], default: "Pending" },
+    verifiedBy: String,
+    verifiedAt: Date,
+    rejectionReason: String
   }, { timestamps: true });
 
   const abstractHistorySchema = new mongoose.Schema({
@@ -224,19 +291,35 @@ async function startServer() {
     trending: { type: Boolean, default: false },
     views: { type: Number, default: 0 },
     bookmarks: { type: [String], default: [] }, // Array of userIds
+    submittedBy: { type: String, default: "Coordinator" },
+    submittedByName: { type: String, default: "Coordinator" },
     approved: { type: Boolean, default: true }
   }, { timestamps: true });
 
+  const activityLogSchema = new mongoose.Schema({
+    userId: String,
+    userName: String,
+    action: String,
+    entity: String,
+    entityId: String,
+    timestamp: { type: Date, default: Date.now }
+  }, { timestamps: true });
+
   const User = mongoose.model("User", userSchema);
+  const Mentor = mongoose.model("Mentor", mentorSchema);
   const Project = mongoose.model("Project", projectSchema);
+  const GitHubRepo = mongoose.model("GitHubRepo", githubRepoSchema);
   const Task = mongoose.model("Task", taskSchema);
   const Notification = mongoose.model("Notification", notificationSchema);
   const Message = mongoose.model("Message", messageSchema);
   const DailyReport = mongoose.model("DailyReport", dailyReportSchema);
+  const Hackathon = mongoose.model("Hackathon", hackathonSchema);
+  const HackathonRegistration = mongoose.model("HackathonRegistration", hackathonRegistrationSchema);
   const AbstractHistory = mongoose.model("AbstractHistory", abstractHistorySchema);
   const Attendance = mongoose.model("Attendance", attendanceSchema);
   const LabAccess = mongoose.model("LabAccess", labAccessSchema);
   const Opportunity = mongoose.model("Opportunity", opportunitySchema);
+  const ActivityLog = mongoose.model("ActivityLog", activityLogSchema);
 
   async function seedDemoData() {
     if (mongoose.connection.readyState !== 1) return;
@@ -250,16 +333,22 @@ async function startServer() {
       department: "Artificial Intelligence",
       status: "approved",
       year: "1",
+      lab: "AI Lab",
       registrationDate: new Date(),
     };
 
     const student = {
       userId: "student-demo",
       name: "Demo Student",
+      registerNumber: "732721CS001",
+      phone: "+91 9876543210",
+      section: "A",
+      lab: "AI Lab",
       email: "demo.student@srishakthi.ac.in",
       role: "student",
       avatar: "https://avatar.vercel.sh/demo-student",
       department: "Computer Science",
+      preferredDomain: "Artificial Intelligence",
       status: "approved",
       year: "3",
       registrationDate: new Date(),
@@ -277,24 +366,65 @@ async function startServer() {
       { upsert: true, returnDocument: "after" }
     );
 
-    const existingDemoProject = await Project.findOne({ name: "TrackFlow Demo Workspace" });
+    // Seed Demo Mentor
+    const demoMentor = await Mentor.findOneAndUpdate(
+      { email: "prof.alan@srishakthi.ac.in" },
+      {
+        $set: {
+          mentorId: "mentor-demo-1",
+          name: "Prof. Alan Turing",
+          email: "prof.alan@srishakthi.ac.in",
+          phone: "+91 9123456789",
+          expertise: "Artificial Intelligence & Deep Learning",
+          status: "Active"
+        }
+      },
+      { upsert: true, returnDocument: "after" }
+    );
+
+    // Seed Demo Hackathon
+    await Hackathon.findOneAndUpdate(
+      { hackathonId: "hack-demo-1" },
+      {
+        $set: {
+          hackathonId: "hack-demo-1",
+          name: "Smart India Hackathon 2026",
+          organizer: "Ministry of Education & AICTE",
+          description: "Nationwide initiative to provide students a platform to solve pressing problems of daily lives.",
+          domain: "Artificial Intelligence",
+          startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+          endDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://sih.gov.in",
+          status: "Active"
+        }
+      },
+      { upsert: true }
+    );
+
+    const existingDemoProject = await Project.findOne({ name: "TrackFlow AI Workspace" });
     if (!existingDemoProject) {
       await new Project({
-        name: "TrackFlow Demo Workspace",
+        name: "TrackFlow AI Workspace",
         department: "Computer Science",
-        abstract: "A ready-to-use workspace for validating student project tracking, attendance, tasks, chat, and daily reporting flows.",
-        description: "Demo project seeded with an approved student so every major TrackFlow feature can be tested immediately.",
-        objectives: "Verify project monitoring, daily logs, task movement, file uploads, and communication workflows.",
-        methodology: "React dashboard with Express APIs, MongoDB persistence, Socket.IO chat, and optional GitHub/Gemini integrations.",
-        techStack: ["React", "Express", "MongoDB", "Socket.IO"],
-        modules: "Dashboard, Projects, Tasks, Attendance, Chat, Profile",
-        references: "TrackFlow local demo data",
-        futureEnhancements: "Connect a real GitHub repository and Gemini key for live AI audit results.",
+        domain: "Artificial Intelligence",
+        mentorId: demoMentor.mentorId,
+        mentorName: demoMentor.name,
+        startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+        deadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+        abstract: "A comprehensive AI-driven project management and progress tracking portal.",
+        description: "Demo project seeded with mentor alignment and daily reports for testing.",
+        objectives: "Enable continuous student activity tracking, GitHub commit association, and hackathon verifications.",
+        methodology: "Express REST endpoints, MongoDB, React dashboard, Vite, and Gemini API integration.",
+        techStack: ["React", "Express", "MongoDB", "TypeScript", "Tailwind CSS"],
+        modules: "Dashboard, Projects, Daily Reports, GitHub Sync, Hackathons, Opportunities",
+        references: "TrackFlow Lab Architecture",
+        futureEnhancements: "Multi-lab support and automated AI commit auditing.",
         teamMembers: [student.userId],
         teamLeader: student.userId,
-        progress: 35,
+        progress: 45,
         status: "Active",
-        githubRepo: "",
+        githubRepo: "https://github.com/demo-student/trackflow-ai",
       }).save();
     }
   }
@@ -917,7 +1047,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   // Authentication endpoints
   app.post("/api/login", async (req, res) => {
     try {
-      const { email, name, role, avatar, department, year } = req.body;
+      const { email, name, role, avatar, department, year, registerNumber, phone, section, lab, preferredDomain } = req.body;
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
@@ -932,12 +1062,17 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       let user = await User.findOne({ email: email.toLowerCase() });
       if (!user) {
         user = new User({
-          userId: role === 'coordinator' ? 'sarah-chen-1' : `student-${Date.now()}`,
+          userId: role === 'coordinator' ? 'coordinator-demo' : `student-${Date.now()}`,
           name: name || (role === 'coordinator' ? 'Dr. Sarah Chen' : 'New Student'),
+          registerNumber: registerNumber || "",
+          phone: phone || "",
+          section: section || "A",
+          lab: lab || "AI Lab",
           email: email.toLowerCase(),
           role: role,
           avatar: avatar || `https://avatar.vercel.sh/${role === 'coordinator' ? 'sarah' : 'student'}`,
           department: department || (role === 'coordinator' ? 'AI Department' : 'Computer Science'),
+          preferredDomain: preferredDomain || "Artificial Intelligence",
           year: year || "1",
           status: role === 'coordinator' ? 'approved' : 'pending',
           registrationDate: new Date()
@@ -950,7 +1085,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             await new Notification({
               userId: coord.userId,
               title: "New Student Registration",
-              message: `A new student, ${user.name}, has requested an account and is pending approval.`,
+              message: `A new student, ${user.name} (${user.registerNumber || 'Reg Pending'}), has requested account approval.`,
               relatedId: user.userId,
               type: "general"
             }).save();
@@ -960,12 +1095,17 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         if (name) user.name = name;
         if (avatar) user.avatar = avatar;
         if (department) user.department = department;
+        if (registerNumber) user.registerNumber = registerNumber;
+        if (phone) user.phone = phone;
+        if (section) user.section = section;
+        if (lab) user.lab = lab;
+        if (preferredDomain) user.preferredDomain = preferredDomain;
         if (year && role === 'student') user.year = year;
         await user.save();
       }
 
       // Issue a JWT that lives longer (7 days) to keep the session alive
-      const token = jwt.sign({ id: user.userId, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ id: user.userId, role: user.role }, process.env.JWT_SECRET || 'secretKeyTrackflow', { expiresIn: "7d" });
       res.json({ token, user: { id: user.userId, ...user.toObject() } });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -979,9 +1119,14 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         return res.status(404).json({ error: "User not found" });
       }
 
-      const { name, department, year, avatar, githubUsername, githubToken, skills, interestedCategories, college, notificationPreferences } = req.body;
+      const { name, department, year, avatar, githubUsername, githubToken, skills, interestedCategories, college, notificationPreferences, registerNumber, phone, section, lab, preferredDomain } = req.body;
       if (name) existingUser.name = name;
       if (department) existingUser.department = department;
+      if (registerNumber !== undefined) existingUser.registerNumber = registerNumber;
+      if (phone !== undefined) existingUser.phone = phone;
+      if (section !== undefined) existingUser.section = section;
+      if (lab !== undefined) existingUser.lab = lab;
+      if (preferredDomain !== undefined) existingUser.preferredDomain = preferredDomain;
       if (githubUsername !== undefined) existingUser.githubUsername = githubUsername;
       if (githubToken !== undefined) existingUser.githubToken = githubToken;
       if (skills !== undefined) existingUser.skills = skills;
@@ -1032,7 +1177,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         userId: user.userId,
         title: status === 'approved' ? 'Account Approved' : 'Account Rejected',
         message: status === 'approved' 
-          ? 'Your account request has been approved by the coordinator. You can now access the platform.'
+          ? 'Your account request has been approved by the coordinator. You can now access the TrackFlow platform.'
           : 'Your account request has been rejected by the coordinator.',
         read: false,
         type: 'general'
@@ -1051,16 +1196,28 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const totalStudents = await User.countDocuments({ role: 'student', status: 'approved' });
       const pendingRequests = await User.countDocuments({ role: 'student', status: 'pending' });
       const activeProjects = await Project.countDocuments({ status: { $ne: 'Completed' } });
+      const completedProjects = await Project.countDocuments({ status: 'Completed' });
+      const projectsWithoutMentors = await Project.countDocuments({ $or: [{ mentorId: "" }, { mentorId: { $exists: false } }] });
+      const githubConnectedProjects = await Project.countDocuments({ githubRepo: { $ne: "" } });
       const todayStr = new Date().toISOString().split('T')[0];
       const reportsToday = await DailyReport.countDocuments({ date: todayStr });
       const pendingTasks = await Task.countDocuments({ status: { $ne: 'Completed' } });
+      const pendingScreenshotVerifications = await HackathonRegistration.countDocuments({ verificationStatus: 'Pending' });
+      const activeHackathons = await Hackathon.countDocuments({ status: 'Active' });
+      const totalHackathonRegistrations = await HackathonRegistration.countDocuments();
 
       res.json({
         totalStudents,
         pendingRequests,
         activeProjects,
+        completedProjects,
+        projectsWithoutMentors,
+        githubConnectedProjects,
         reportsSubmittedToday: reportsToday,
-        pendingTasks
+        pendingTasks,
+        pendingScreenshotVerifications,
+        activeHackathons,
+        totalHackathonRegistrations
       });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -1241,6 +1398,374 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  // Mentors Endpoints
+  app.get("/api/mentors", async (req, res) => {
+    try {
+      const mentors = await Mentor.find({ status: "Active" }).sort({ name: 1 });
+      res.json({ mentors: mentors.map(m => ({ id: m._id, ...m.toObject() })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/mentors", async (req, res) => {
+    try {
+      const { name, email, phone, expertise } = req.body;
+      if (!name || !email) {
+        return res.status(400).json({ error: "Mentor Name and Email are required" });
+      }
+
+      const mentor = new Mentor({
+        mentorId: `mentor-${Date.now()}`,
+        name,
+        email,
+        phone: phone || "",
+        expertise: expertise || "General Domain",
+        status: "Active"
+      });
+      await mentor.save();
+
+      res.json({ success: true, mentor: { id: mentor._id, ...mentor.toObject() } });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/projects/:id/assign-mentor", async (req, res) => {
+    try {
+      const { mentorId } = req.body;
+      const project = await Project.findById(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      const mentor = await Mentor.findOne({ $or: [{ _id: mentorId }, { mentorId: mentorId }] });
+      if (!mentor) return res.status(404).json({ error: "Mentor not found" });
+
+      project.mentorId = mentor.mentorId || String(mentor._id);
+      project.mentorName = mentor.name;
+      await project.save();
+
+      // Notify student team members
+      for (const studentId of project.teamMembers) {
+        await new Notification({
+          userId: studentId,
+          title: "Mentor Assigned",
+          message: `${mentor.name} (${mentor.expertise}) has been assigned as your project mentor.`,
+          relatedId: project._id,
+          type: "general"
+        }).save();
+      }
+
+      res.json({ success: true, project: { id: project._id, ...project.toObject() } });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // GitHub Repository Connection & Validation Endpoint
+  app.post("/api/github-repo/connect", async (req, res) => {
+    try {
+      const { projectId, studentId, repositoryUrl } = req.body;
+      if (!projectId || !repositoryUrl) {
+        return res.status(400).json({ error: "Project ID and GitHub Repository URL are required." });
+      }
+
+      // Format & Validate URL
+      const cleanUrl = repositoryUrl.trim();
+      const githubRegex = /^https?:\/\/(www\.)?github\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+)\/?$/;
+      const match = cleanUrl.match(githubRegex);
+      if (!match) {
+        return res.status(400).json({ error: "Invalid GitHub repository URL. Must be in format: https://github.com/owner/repository" });
+      }
+
+      const owner = match[2];
+      const repositoryName = match[3].replace(/\.git$/, '');
+
+      const project = await Project.findById(projectId);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      project.githubRepo = cleanUrl;
+      await project.save();
+
+      await GitHubRepo.findOneAndUpdate(
+        { projectId },
+        {
+          repositoryId: `repo-${Date.now()}`,
+          projectId,
+          studentId: studentId || (project.teamMembers[0] || ""),
+          repositoryUrl: cleanUrl,
+          repositoryName,
+          owner,
+          branch: "main",
+          lastUpdated: new Date(),
+          status: "Connected"
+        },
+        { upsert: true }
+      );
+
+      res.json({
+        success: true,
+        message: "✓ GitHub repository connected successfully.",
+        github: {
+          repositoryUrl: cleanUrl,
+          repositoryName,
+          owner
+        }
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Hackathons & Proof Verification Endpoints
+  app.get("/api/hackathons", async (req, res) => {
+    try {
+      const hackathons = await Hackathon.find().sort({ startDate: 1 });
+      res.json({ hackathons: hackathons.map(h => ({ id: h._id, ...h.toObject() })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/hackathons", async (req, res) => {
+    try {
+      const { name, organizer, description, domain, startDate, endDate, registrationDeadline, registrationLink } = req.body;
+      if (!name || !registrationLink) {
+        return res.status(400).json({ error: "Hackathon Name and Registration Link are required" });
+      }
+
+      const hackathon = new Hackathon({
+        hackathonId: `hack-${Date.now()}`,
+        name,
+        organizer: organizer || "Tech Committee",
+        description: description || "",
+        domain: domain || "General Tech",
+        startDate: startDate ? new Date(startDate) : new Date(),
+        endDate: endDate ? new Date(endDate) : new Date(),
+        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : new Date(),
+        registrationLink,
+        status: "Active"
+      });
+      await hackathon.save();
+
+      res.json({ success: true, hackathon: { id: hackathon._id, ...hackathon.toObject() } });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // MANDATORY Hackathon Registration with Screenshot Proof Upload
+  app.post("/api/hackathons/:id/register", upload.single("screenshot"), async (req, res) => {
+    try {
+      const { studentId } = req.body;
+      const hackathon = await Hackathon.findById(req.params.id);
+      if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
+
+      const user = await User.findOne({ userId: studentId });
+      if (!user) return res.status(404).json({ error: "Student user not found" });
+
+      if (!req.file) {
+        return res.status(400).json({ error: "Registration Screenshot Required! Upload proof of registration before submitting." });
+      }
+
+      const screenshotUrl = `/uploads/${req.file.filename}`;
+
+      const reg = new HackathonRegistration({
+        registrationId: `reg-${Date.now()}`,
+        hackathonId: hackathon._id,
+        hackathonName: hackathon.name,
+        studentId: user.userId,
+        studentName: user.name,
+        registerNumber: user.registerNumber || "Reg Pending",
+        registrationDate: new Date(),
+        screenshotUrl,
+        verificationStatus: "Pending"
+      });
+      await reg.save();
+
+      // Notify Coordinator
+      const coordinators = await User.find({ role: 'coordinator' });
+      for (const coord of coordinators) {
+        await new Notification({
+          userId: coord.userId,
+          title: "Hackathon Proof Uploaded",
+          message: `${user.name} uploaded registration screenshot proof for ${hackathon.name}. Verification required.`,
+          relatedId: reg._id,
+          type: "general"
+        }).save();
+      }
+
+      res.json({ success: true, message: "Registration Proof Uploaded successfully. Pending coordinator verification.", registration: reg });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/hackathons/registrations", async (req, res) => {
+    try {
+      const { studentId } = req.query;
+      let query: any = {};
+      if (studentId) query.studentId = String(studentId);
+
+      const registrations = await HackathonRegistration.find(query).sort({ registrationDate: -1 });
+      res.json({ registrations: registrations.map(r => ({ id: r._id, ...r.toObject() })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/hackathons/registrations/:id/verify", async (req, res) => {
+    try {
+      const { verificationStatus, rejectionReason, coordinatorId } = req.body; // 'Verified' | 'Rejected'
+      const reg = await HackathonRegistration.findById(req.params.id);
+      if (!reg) return res.status(404).json({ error: "Registration record not found" });
+
+      reg.verificationStatus = verificationStatus;
+      reg.verifiedBy = coordinatorId || "Coordinator";
+      reg.verifiedAt = new Date();
+      if (rejectionReason) reg.rejectionReason = rejectionReason;
+      await reg.save();
+
+      // Notify student
+      await new Notification({
+        userId: reg.studentId,
+        title: verificationStatus === 'Verified' ? 'Hackathon Proof Verified ✓' : 'Hackathon Proof Rejected ✗',
+        message: verificationStatus === 'Verified'
+          ? `Your registration proof for "${reg.hackathonName}" has been verified!`
+          : `Your registration screenshot for "${reg.hackathonName}" was rejected: ${rejectionReason || 'Please upload valid proof screenshot.'}`,
+        relatedId: reg._id,
+        type: "general"
+      }).save();
+
+      res.json({ success: true, registration: reg });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Student Submitted Opportunities APIs
+  app.post("/api/opportunities/student-submit", async (req, res) => {
+    try {
+      const { title, type, category, organization, description, link, deadline, domain, submittedBy, submittedByName } = req.body;
+      if (!title || !link) {
+        return res.status(400).json({ error: "Title and Link are required" });
+      }
+
+      const opp = new Opportunity({
+        title,
+        description: description || "",
+        category: category || type || "Hackathons",
+        organizer: organization || "External Partner",
+        organizerLogo: `https://avatar.vercel.sh/${(title || 'opp').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+        bannerImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
+        website: link,
+        registrationLink: link,
+        location: "Online",
+        mode: "Online",
+        freeOrPaid: "Free",
+        targetAudience: "Student Only",
+        prizePool: "Check link",
+        registrationDeadline: deadline ? new Date(deadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        eventStartDate: new Date(),
+        eventEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        difficulty: "Intermediate",
+        eligibility: "Open to students",
+        tags: [domain || "Tech"],
+        submittedBy: submittedBy || "Student",
+        submittedByName: submittedByName || "Student",
+        approved: false // Requires coordinator approval!
+      });
+      await opp.save();
+
+      // Notify Coordinator
+      const coordinators = await User.find({ role: 'coordinator' });
+      for (const coord of coordinators) {
+        await new Notification({
+          userId: coord.userId,
+          title: "New Opportunity Submitted by Student",
+          message: `Student ${submittedByName || ''} submitted opportunity "${title}". Pending coordinator review.`,
+          relatedId: opp._id,
+          type: "general"
+        }).save();
+      }
+
+      res.json({ success: true, message: "Opportunity submitted successfully. Waiting for coordinator review.", opportunity: opp });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/opportunities/pending", async (req, res) => {
+    try {
+      const pendingOpps = await Opportunity.find({ approved: false }).sort({ createdAt: -1 });
+      res.json({ opportunities: pendingOpps.map(o => ({ id: o._id, ...o.toObject() })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/opportunities/:id/approve", async (req, res) => {
+    try {
+      const { approve } = req.body;
+      if (approve) {
+        const opp = await Opportunity.findByIdAndUpdate(req.params.id, { approved: true }, { new: true });
+        res.json({ success: true, opportunity: opp });
+      } else {
+        await Opportunity.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: "Opportunity request declined." });
+      }
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Project Activity & Workload Analytics (Burnout Indicator)
+  app.get("/api/analytics/activity", async (req, res) => {
+    try {
+      const students = await User.find({ role: 'student', status: 'approved' });
+      const now = new Date();
+      const analytics = [];
+
+      for (const student of students) {
+        const project = await Project.findOne({ teamMembers: student.userId });
+        const reports = await DailyReport.find({ studentId: student.userId }).sort({ date: -1 });
+        const lastReport = reports[0];
+
+        let daysSinceLastReport = 999;
+        if (lastReport && lastReport.date) {
+          const reportDate = new Date(lastReport.date);
+          const diffTime = Math.abs(now.getTime() - reportDate.getTime());
+          daysSinceLastReport = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        let activityStatus = "Active";
+        if (daysSinceLastReport > 5) {
+          activityStatus = "Needs Follow-up";
+        } else if (daysSinceLastReport >= 2) {
+          activityStatus = "Warning";
+        }
+
+        analytics.push({
+          studentId: student.userId,
+          studentName: student.name,
+          registerNumber: student.registerNumber || "N/A",
+          department: student.department,
+          preferredDomain: student.preferredDomain || "Artificial Intelligence",
+          projectName: project ? project.name : "No Active Project",
+          mentorName: project ? project.mentorName || "Unassigned" : "Unassigned",
+          progress: project ? project.progress : 0,
+          totalReports: reports.length,
+          lastReportDate: lastReport ? lastReport.date : "None",
+          daysSinceLastReport: daysSinceLastReport === 999 ? "No Reports" : daysSinceLastReport,
+          activityStatus
+        });
+      }
+
+      res.json({ analytics });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Projects endpoints
   app.get("/api/projects", async (req, res) => {
     try {
@@ -1258,13 +1783,25 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   app.post("/api/projects", async (req, res) => {
     try {
-      const { name, department } = req.body;
+      const { name, department, domain, mentorId, startDate, deadline } = req.body;
       if (!name || !department) {
         return res.status(400).json({ error: "Project Title and Department are required" });
       }
+
+      let mentorName = "";
+      if (mentorId) {
+        const m = await Mentor.findOne({ $or: [{ _id: mentorId }, { mentorId }] });
+        if (m) mentorName = m.name;
+      }
+
       const newProj = new Project({
         name,
         department,
+        domain: domain || "Artificial Intelligence",
+        mentorId: mentorId || "",
+        mentorName,
+        startDate: startDate ? new Date(startDate) : new Date(),
+        deadline: deadline ? new Date(deadline) : undefined,
         abstract: "",
         description: "",
         objectives: "",
@@ -1358,8 +1895,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         io.emit("notification_received");
       }
 
-      io.emit("project_updated", { projectId: project._id, project });
-      res.json({ success: true, files: project.files });
+      res.json({ success: true, file: fileData });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -1375,6 +1911,15 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  app.get("/api/daily-reports/history/:studentId", async (req, res) => {
+    try {
+      const reports = await DailyReport.find({ studentId: req.params.studentId }).sort({ date: -1 });
+      res.json({ reports: reports.map(r => ({ id: r._id, ...r.toObject() })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/daily-reports/check-today", async (req, res) => {
     try {
       const { studentId, date } = req.query;
@@ -1385,24 +1930,77 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  app.post("/api/daily-reports/upload-attachment", upload.single("attachment"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: "No file provided" });
+      const url = `/uploads/${req.file.filename}`;
+      res.json({ success: true, url });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/daily-reports", async (req, res) => {
     try {
-      const { projectId, studentId, studentName, date, workDone, challenges, nextDayPlan, progress, abstract } = req.body;
-      if (!projectId || !studentId || !date || !workDone || !challenges || !nextDayPlan || progress === undefined || !abstract) {
-        return res.status(400).json({ error: "All fields including Abstract are mandatory for Daily Reports" });
+      const {
+        projectId,
+        studentId,
+        studentName,
+        date,
+        objective,
+        workDone,
+        challenges,
+        solution,
+        technologies,
+        codeCompleted,
+        nextDayPlan,
+        progress,
+        remarks,
+        githubCommitUrl,
+        githubCommitMessage,
+        attachmentUrl,
+        abstract
+      } = req.body;
+
+      if (!projectId || !studentId || !date || !workDone || !challenges || !nextDayPlan || progress === undefined) {
+        return res.status(400).json({ error: "Mandatory fields: Project, Date, Work Done, Issues, Next Day Plan, Progress." });
       }
 
       let report = await DailyReport.findOne({ projectId, studentId, date });
       if (report) {
+        report.objective = objective || report.objective || "";
         report.workDone = workDone;
         report.challenges = challenges;
+        report.solution = solution || "";
+        report.technologies = Array.isArray(technologies) ? technologies : [];
+        report.codeCompleted = codeCompleted || "";
         report.nextDayPlan = nextDayPlan;
         report.progress = progress;
-        report.abstract = abstract;
+        report.remarks = remarks || "";
+        report.githubCommitUrl = githubCommitUrl || "";
+        report.githubCommitMessage = githubCommitMessage || "";
+        report.attachmentUrl = attachmentUrl || report.attachmentUrl || "";
+        report.abstract = abstract || report.abstract || "";
         await report.save();
       } else {
         report = new DailyReport({
-          projectId, studentId, studentName, date, workDone, challenges, nextDayPlan, progress, abstract
+          projectId,
+          studentId,
+          studentName,
+          date,
+          objective: objective || "",
+          workDone,
+          challenges,
+          solution: solution || "",
+          technologies: Array.isArray(technologies) ? technologies : [],
+          codeCompleted: codeCompleted || "",
+          nextDayPlan,
+          progress,
+          remarks: remarks || "",
+          githubCommitUrl: githubCommitUrl || "",
+          githubCommitMessage: githubCommitMessage || "",
+          attachmentUrl: attachmentUrl || "",
+          abstract: abstract || "Daily Report Progress Update"
         });
         await report.save();
       }
@@ -1411,10 +2009,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       if (project) {
         const oldAbstract = project.abstract;
         project.progress = progress;
-        project.abstract = abstract;
+        if (abstract) project.abstract = abstract;
         await project.save();
 
-        if (oldAbstract !== abstract) {
+        if (abstract && oldAbstract !== abstract) {
           const latestHistory = await AbstractHistory.findOne({ projectId }).sort({ version: -1 });
           const newVersion = latestHistory ? latestHistory.version + 1 : 1;
           const history = new AbstractHistory({

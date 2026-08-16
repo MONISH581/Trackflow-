@@ -278,6 +278,64 @@ export default function AdminOpportunities() {
         </div>
       </div>
 
+      {/* Pending Student Opportunity Approvals Section */}
+      <div className="glass-card p-6 border border-amber-200/80 bg-amber-50/20 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600" />
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Student Submitted Opportunities for Review</h2>
+              <p className="text-xs text-slate-500">Approve student submitted hackathons and opportunities to publish them to the hub</p>
+            </div>
+          </div>
+        </div>
+
+        {opportunities.filter(o => o.approved === false).length === 0 ? (
+          <p className="text-xs text-slate-400 italic">No pending student opportunities to review.</p>
+        ) : (
+          <div className="space-y-3">
+            {opportunities.filter(o => o.approved === false).map(opp => (
+              <div key={opp.id || opp._id} className="p-4 bg-white rounded-xl border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded">
+                      {opp.category}
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">Submitted by: {opp.submittedByName || "Student"}</span>
+                  </div>
+                  <h4 className="font-bold text-slate-800 text-sm mt-1">{opp.title}</h4>
+                  <p className="text-xs text-slate-600 line-clamp-1">{opp.description}</p>
+                  <a href={opp.registrationLink} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline font-bold mt-1 inline-block">
+                    Link: {opp.registrationLink}
+                  </a>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      const res = await fetch(`/api/opportunities/${opp._id || opp.id}/approve`, { method: "PUT" });
+                      if (res.ok) {
+                        addToast("Opportunity approved & published!", "success");
+                        fetchOpportunities({ search });
+                      }
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md"
+                  >
+                    Approve & Publish ✓
+                  </button>
+                  <button
+                    onClick={() => handleDelete(opp.id || opp._id || "")}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md"
+                  >
+                    Decline ✗
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Database Controls Header */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="relative w-full sm:w-80">

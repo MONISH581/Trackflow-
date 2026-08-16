@@ -4,10 +4,15 @@ import { io, Socket } from "socket.io-client";
 export interface UserInfo {
   userId: string;
   name: string;
+  registerNumber?: string;
+  phone?: string;
+  section?: string;
+  lab?: string;
   email: string;
   role: "coordinator" | "student";
   avatar: string;
   department: string;
+  preferredDomain?: string;
   year?: string;
   status: "pending" | "approved" | "rejected";
   githubUsername?: string;
@@ -24,6 +29,17 @@ export interface UserInfo {
   createdAt?: string;
 }
 
+export interface MentorInfo {
+  id?: string;
+  _id?: string;
+  mentorId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  expertise: string;
+  status: string;
+}
+
 export interface FileData {
   name: string;
   url: string;
@@ -37,6 +53,11 @@ export interface ProjectInfo {
   _id?: string;
   name: string;
   department: string;
+  domain?: string;
+  mentorId?: string;
+  mentorName?: string;
+  startDate?: string;
+  deadline?: string;
   abstract: string;
   description: string;
   objectives: string;
@@ -48,10 +69,80 @@ export interface ProjectInfo {
   teamMembers: string[];
   teamLeader: string;
   progress: number;
-  status: "Active" | "At Risk" | "Completed";
+  status: "Not Started" | "Planning" | "Development" | "Testing" | "Completed" | "On Hold" | "Active";
   files: FileData[];
   githubRepo?: string;
   createdAt?: string;
+}
+
+export interface DailyReportInfo {
+  id?: string;
+  _id?: string;
+  projectId: string;
+  studentId: string;
+  studentName: string;
+  date: string;
+  objective?: string;
+  workDone: string;
+  challenges: string;
+  solution?: string;
+  technologies?: string[];
+  codeCompleted?: string;
+  nextDayPlan: string;
+  progress: number;
+  remarks?: string;
+  githubCommitUrl?: string;
+  githubCommitMessage?: string;
+  attachmentUrl?: string;
+  abstract?: string;
+  createdAt?: string;
+}
+
+export interface HackathonInfo {
+  id?: string;
+  _id?: string;
+  hackathonId: string;
+  name: string;
+  organizer: string;
+  description: string;
+  domain: string;
+  startDate: string;
+  endDate: string;
+  registrationDeadline: string;
+  registrationLink: string;
+  status: string;
+}
+
+export interface HackathonRegistrationInfo {
+  id?: string;
+  _id?: string;
+  registrationId: string;
+  hackathonId: string;
+  hackathonName: string;
+  studentId: string;
+  studentName: string;
+  registerNumber: string;
+  registrationDate: string;
+  screenshotUrl: string;
+  verificationStatus: "Pending" | "Verified" | "Rejected";
+  verifiedBy?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface ActivityAnalyticsInfo {
+  studentId: string;
+  studentName: string;
+  registerNumber: string;
+  department: string;
+  preferredDomain: string;
+  projectName: string;
+  mentorName: string;
+  progress: number;
+  totalReports: number;
+  lastReportDate: string;
+  daysSinceLastReport: number | string;
+  activityStatus: "Active" | "Warning" | "Needs Follow-up";
 }
 
 export interface TaskInfo {
@@ -126,6 +217,8 @@ export interface OpportunityInfo {
   trending: boolean;
   views: number;
   bookmarks: string[];
+  submittedBy?: string;
+  submittedByName?: string;
   approved?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -135,6 +228,10 @@ interface AppState {
   currentUser: UserInfo | null;
   activeProject: ProjectInfo | null;
   projects: ProjectInfo[];
+  mentors: MentorInfo[];
+  hackathons: HackathonInfo[];
+  hackathonRegistrations: HackathonRegistrationInfo[];
+  activityAnalytics: ActivityAnalyticsInfo[];
   tasks: TaskInfo[];
   notifications: NotificationInfo[];
   messages: MessageInfo[];
@@ -160,6 +257,14 @@ interface AppState {
   // Coordinator approvals
   fetchApprovals: () => Promise<UserInfo[]>;
   approveStudent: (studentId: string, approve: boolean) => Promise<boolean>;
+
+  // Mentors
+  fetchMentors: () => Promise<void>;
+  createMentor: (mentorData: Partial<MentorInfo>) => Promise<boolean>;
+  assignMentorToProject: (projectId: string, mentorId: string) => Promise<boolean>;
+
+  // GitHub Integration
+  connectGithubRepo: (projectId: string, studentId: string, repositoryUrl: string) => Promise<boolean>;
   
   // Student Records
   fetchStudentRecords: () => Promise<any[]>;
@@ -175,14 +280,30 @@ interface AppState {
 
   // Projects
   fetchProjects: () => Promise<void>;
-  createProject: (name: string, department: string) => Promise<ProjectInfo | null>;
+  createProject: (name: string, department: string, domain?: string, mentorId?: string) => Promise<ProjectInfo | null>;
   updateProject: (projectId: string, updates: Partial<ProjectInfo>) => Promise<boolean>;
   uploadFile: (projectId: string, file: File) => Promise<boolean>;
   fetchAbstractHistory: (projectId: string) => Promise<any[]>;
-  fetchDailyReports: (projectId: string) => Promise<any[]>;
-  submitDailyReport: (reportData: any) => Promise<boolean>;
+  fetchDailyReports: (projectId: string) => Promise<DailyReportInfo[]>;
+  fetchStudentDailyReportHistory: (studentId: string) => Promise<DailyReportInfo[]>;
+  submitDailyReport: (reportData: Partial<DailyReportInfo>) => Promise<boolean>;
   checkDailyReportSubmittedToday: (studentId: string) => Promise<boolean>;
   analyzeProject: (projectData: any, githubStats: any) => Promise<string>;
+
+  // Hackathons & Proof Verification
+  fetchHackathons: () => Promise<void>;
+  createHackathon: (hackathonData: Partial<HackathonInfo>) => Promise<boolean>;
+  registerHackathonWithProof: (hackathonId: string, studentId: string, screenshotFile: File) => Promise<boolean>;
+  fetchHackathonRegistrations: (studentId?: string) => Promise<void>;
+  verifyHackathonRegistration: (registrationId: string, status: "Verified" | "Rejected", reason?: string) => Promise<boolean>;
+
+  // Student Submitted Opportunities
+  submitStudentOpportunity: (oppData: any) => Promise<boolean>;
+  fetchPendingOpportunities: () => Promise<OpportunityInfo[]>;
+  approveOpportunity: (oppId: string, approve: boolean) => Promise<boolean>;
+
+  // Analytics
+  fetchActivityAnalytics: () => Promise<void>;
 
   // Tasks
   fetchTasks: () => Promise<void>;
@@ -221,6 +342,10 @@ export const useStore = create<AppState>((set, get) => ({
   currentUser: null,
   activeProject: null,
   projects: [],
+  mentors: [],
+  hackathons: [],
+  hackathonRegistrations: [],
+  activityAnalytics: [],
   tasks: [],
   notifications: [],
   messages: [],
@@ -364,6 +489,205 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  // Mentors Actions
+  fetchMentors: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/mentors`);
+      const data = await response.json();
+      set({ mentors: data.mentors || [] });
+    } catch (e) {}
+  },
+
+  createMentor: async (mentorData) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/mentors`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mentorData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create mentor");
+      get().addToast("Mentor created successfully", "success");
+      get().fetchMentors();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  assignMentorToProject: async (projectId, mentorId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}/assign-mentor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mentorId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to assign mentor");
+      get().addToast("Mentor assigned successfully to project", "success");
+      get().fetchProjects();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  // GitHub Actions
+  connectGithubRepo: async (projectId, studentId, repositoryUrl) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/github-repo/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, studentId, repositoryUrl }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to connect GitHub repository");
+      get().addToast(data.message || "GitHub repository connected successfully!", "success");
+      get().fetchProjects();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  // Hackathon Actions
+  fetchHackathons: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/hackathons`);
+      const data = await response.json();
+      set({ hackathons: data.hackathons || [] });
+    } catch (e) {}
+  },
+
+  createHackathon: async (hackathonData) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/hackathons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(hackathonData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create hackathon");
+      get().addToast("Hackathon created successfully", "success");
+      get().fetchHackathons();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  registerHackathonWithProof: async (hackathonId, studentId, screenshotFile) => {
+    if (!screenshotFile) {
+      get().addToast("Registration Screenshot Required! Upload proof screenshot.", "error");
+      return false;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("studentId", studentId);
+      formData.append("screenshot", screenshotFile);
+
+      const response = await fetch(`${API_BASE}/api/hackathons/${hackathonId}/register`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to submit hackathon registration proof");
+      get().addToast(data.message || "Registration proof uploaded successfully! Pending coordinator verification.", "success");
+      get().fetchHackathonRegistrations(studentId);
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchHackathonRegistrations: async (studentId) => {
+    try {
+      const query = studentId ? `?studentId=${studentId}` : "";
+      const response = await fetch(`${API_BASE}/api/hackathons/registrations${query}`);
+      const data = await response.json();
+      set({ hackathonRegistrations: data.registrations || [] });
+    } catch (e) {}
+  },
+
+  verifyHackathonRegistration: async (registrationId, status, reason) => {
+    const user = get().currentUser;
+    try {
+      const response = await fetch(`${API_BASE}/api/hackathons/registrations/${registrationId}/verify`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verificationStatus: status, rejectionReason: reason, coordinatorId: user?.userId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Verification failed");
+      get().addToast(status === "Verified" ? "Registration verified successfully" : "Registration rejected", "success");
+      get().fetchHackathonRegistrations();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  // Student Opportunities Actions
+  submitStudentOpportunity: async (oppData) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/opportunities/student-submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(oppData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to submit opportunity");
+      get().addToast(data.message || "Opportunity submitted for coordinator approval", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchPendingOpportunities: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/opportunities/pending`);
+      const data = await response.json();
+      return data.opportunities || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  approveOpportunity: async (oppId, approve) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/opportunities/${oppId}/approve`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approve }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to update opportunity approval");
+      get().addToast(approve ? "Opportunity approved and published" : "Opportunity request declined", "info");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  // Analytics Actions
+  fetchActivityAnalytics: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/analytics/activity`);
+      const data = await response.json();
+      set({ activityAnalytics: data.analytics || [] });
+    } catch (e) {}
+  },
+
   fetchStudentRecords: async () => {
     try {
       const response = await fetch(`${API_BASE}/api/student-records`);
@@ -494,12 +818,12 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (e) {}
   },
 
-  createProject: async (name, department) => {
+  createProject: async (name, department, domain, mentorId) => {
     try {
       const response = await fetch(`${API_BASE}/api/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, department }),
+        body: JSON.stringify({ name, department, domain, mentorId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to create project");
@@ -575,6 +899,16 @@ export const useStore = create<AppState>((set, get) => ({
   fetchDailyReports: async (projectId) => {
     try {
       const response = await fetch(`${API_BASE}/api/projects/${projectId}/daily-reports`);
+      const data = await response.json();
+      return data.reports || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  fetchStudentDailyReportHistory: async (studentId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/daily-reports/history/${studentId}`);
       const data = await response.json();
       return data.reports || [];
     } catch (e) {

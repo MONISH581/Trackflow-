@@ -10,8 +10,13 @@ export default function Login() {
   const [role, setRole] = React.useState<"student" | "coordinator">("student");
   const [email, setEmail] = React.useState("");
   const [name, setName] = React.useState("");
+  const [registerNumber, setRegisterNumber] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [section, setSection] = React.useState("A");
+  const [lab, setLab] = React.useState("AI Lab");
+  const [preferredDomain, setPreferredDomain] = React.useState("Artificial Intelligence");
   const [department, setDepartment] = React.useState("Computer Science");
-  const [year, setYear] = React.useState("1");
+  const [year, setYear] = React.useState("3");
   const [verificationCode, setVerificationCode] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,6 +26,11 @@ export default function Login() {
       name,
       role,
       department,
+      registerNumber: role === "student" ? registerNumber : undefined,
+      phone: role === "student" ? phone : undefined,
+      section: role === "student" ? section : undefined,
+      lab,
+      preferredDomain: role === "student" ? preferredDomain : undefined,
       year: role === "student" ? year : undefined,
       verificationCode: role === "coordinator" ? verificationCode : undefined,
     });
@@ -29,7 +39,18 @@ export default function Login() {
     }
   };
 
-
+  const domains = [
+    "Artificial Intelligence",
+    "Machine Learning",
+    "Data Science",
+    "Web Development",
+    "Mobile Development",
+    "Cybersecurity",
+    "Cloud Computing",
+    "IoT",
+    "Blockchain",
+    "Other",
+  ];
 
   const departments = [
     "Computer Science",
@@ -41,21 +62,17 @@ export default function Login() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-transparent relative overflow-hidden px-4 perspective-1000">
-      {/* 3D Hyper Ambient Background Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-[450px] h-[450px] bg-gradient-to-tr from-blue-500/25 via-indigo-500/20 to-cyan-400/20 rounded-full filter blur-[100px] floating-3d-orb pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-gradient-to-br from-indigo-600/25 via-blue-400/20 to-teal-400/20 rounded-full filter blur-[100px] floating-3d-orb-delay pointer-events-none" />
-
-      <div className="max-w-md w-full glass-card card-hyper-3d shine-effect p-8 border border-blue-300/40 shadow-2xl relative z-10">
-        <div className="text-center space-y-2 mb-8 pop-out-3d">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-600 to-cyan-500 shadow-2xl shadow-blue-500/40 mb-3 hyper-glow transform hover:rotate-12 hover:scale-110 transition-all duration-300 pop-out-3d-deep">
-            <Sparkles className="w-8 h-8 text-white drop-shadow-md" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden px-4 py-8">
+      <div className="max-w-lg w-full bg-white p-8 rounded-2xl border border-slate-200 shadow-xl relative z-10">
+        <div className="text-center space-y-2 mb-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/20 mb-2">
+            <Sparkles className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-800">
-            Welcome to TrackFlow <span className="text-blue-600">AI</span>
+            TrackFlow <span className="text-blue-600">AI</span>
           </h1>
-          <p className="text-sm text-slate-500">
-            Intelligent student project monitoring platform
+          <p className="text-xs text-slate-500">
+            Lab Project Management & Progress Platform
           </p>
         </div>
 
@@ -71,7 +88,7 @@ export default function Login() {
             }`}
           >
             <GraduationCap className="w-4 h-4" />
-            Student Login
+            Student Sign In
           </button>
           <button
             type="button"
@@ -87,58 +104,125 @@ export default function Login() {
           </button>
         </div>
 
-
-
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email input */}
           <div className="space-y-1 text-left">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Email Address
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              College Email Address *
             </label>
             <input
               type="email"
               required
               placeholder={
-                role === "student" ? "rollno@srishakthi.ac.in" : "email@example.com"
+                role === "student" ? "student@srishakthi.ac.in" : "coordinator@trackflow.local"
               }
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl glass-input text-sm"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm transition"
             />
             {role === "student" && (
-              <p className="text-[10px] text-blue-600 font-medium mt-1">
-                * Must be your official college email (@srishakthi.ac.in)
+              <p className="text-[10px] text-blue-600 font-semibold mt-0.5">
+                * Must end with @srishakthi.ac.in
               </p>
             )}
           </div>
 
-          {/* Name input */}
-          <div className="space-y-1 text-left">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Full Name
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Enter your full name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl glass-input text-sm"
-            />
+          {/* Name & Register Number */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1 text-left">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Student Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm transition"
+              />
+            </div>
+
+            {role === "student" && (
+              <div className="space-y-1 text-left">
+                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Register Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 732721CS001"
+                  value={registerNumber}
+                  onChange={(e) => setRegisterNumber(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm transition"
+                />
+              </div>
+            )}
           </div>
+
+          {role === "student" && (
+            <>
+              {/* Phone & Section */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1 text-left">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="+91 9876543210"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Section
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="A / B / C"
+                    value={section}
+                    onChange={(e) => setSection(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Preferred Domain */}
+              <div className="space-y-1 text-left">
+                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Preferred Project Domain *
+                </label>
+                <select
+                  value={preferredDomain}
+                  onChange={(e) => setPreferredDomain(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white cursor-pointer"
+                >
+                  {domains.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           {/* Department Selection */}
           <div className="space-y-1 text-left">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
               Department
             </label>
             <select
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl glass-input text-sm cursor-pointer"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm cursor-pointer bg-white"
             >
               {departments.map((dept) => (
-                <option key={dept} value={dept} className="bg-white">
+                <option key={dept} value={dept}>
                   {dept}
                 </option>
               ))}
@@ -148,16 +232,15 @@ export default function Login() {
           {/* Verification Code Selection (Coordinator only) */}
           {role === "coordinator" && (
             <div className="space-y-1 text-left">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
                 Coordinator Verification Code
               </label>
               <input
                 type="password"
-                required
-                placeholder="Enter coordinator verification code"
+                placeholder="Enter coordinator code"
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl glass-input text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm transition"
               />
             </div>
           )}
@@ -165,7 +248,7 @@ export default function Login() {
           {/* Year selector (Student only) */}
           {role === "student" && (
             <div className="space-y-1 text-left">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
                 Academic Year
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -191,9 +274,9 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-4 py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-sm transition-all duration-200 glow-btn card-3d-button pop-out-3d disabled:opacity-50 cursor-pointer shadow-lg"
+            className="w-full mt-4 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-md"
           >
-            {loading ? "Authenticating..." : "Sign In / Register"}
+            {loading ? "Authenticating..." : "Register / Sign In"}
           </button>
         </form>
       </div>

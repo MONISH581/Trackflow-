@@ -16,6 +16,10 @@ import Attendance from "./pages/Attendance.tsx";
 import Opportunities from "./pages/Opportunities.tsx";
 import OpportunityDetails from "./pages/OpportunityDetails.tsx";
 import AdminOpportunities from "./pages/AdminOpportunities.tsx";
+import MentorManagement from "./pages/MentorManagement.tsx";
+import DailyReportSystem from "./pages/DailyReportSystem.tsx";
+import HackathonHub from "./pages/HackathonHub.tsx";
+import ActivityAnalytics from "./pages/ActivityAnalytics.tsx";
 import { X, AlertCircle, CheckCircle, Info } from "lucide-react";
 
 export default function App() {
@@ -27,7 +31,6 @@ export default function App() {
   }, [checkSession]);
 
   // Inactivity timeout: auto logout after 15 minutes of no activity
-  // const navigate = useNavigate(); // removed - not needed
   React.useEffect(() => {
     const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -35,12 +38,10 @@ export default function App() {
     const resetTimer = () => {
       if (timeoutId) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-      // Reload the page after inactivity
-      window.location.reload();
-    }, INACTIVITY_LIMIT);
+        window.location.reload();
+      }, INACTIVITY_LIMIT);
     };
 
-    // Initialize timer and activity listeners
     resetTimer();
     window.addEventListener('mousemove', resetTimer);
     window.addEventListener('keydown', resetTimer);
@@ -80,11 +81,11 @@ export default function App() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800">
-                {currentUser.status === "pending" ? "Registration Pending" : "Registration Rejected"}
+                {currentUser.status === "pending" ? "Registration Pending Approval" : "Registration Rejected"}
               </h2>
               <p className="text-sm text-slate-500 mt-2">
                 {currentUser.status === "pending"
-                  ? "Your account registration has been received and is currently waiting for approval from the coordinator."
+                  ? "Your account is waiting for coordinator approval."
                   : "Your account request was declined. Please contact your coordinator."}
               </p>
             </div>
@@ -121,11 +122,15 @@ export default function App() {
           <main className="flex-1 p-6 overflow-y-auto">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/daily-reports" element={<DailyReportSystem />} />
+              <Route path="/hackathons" element={<HackathonHub />} />
               
               {currentUser.role === "coordinator" ? (
                 <>
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetails />} />
+                  <Route path="/mentors" element={<MentorManagement />} />
+                  <Route path="/activity-analytics" element={<ActivityAnalytics />} />
                   <Route path="/approvals" element={<Approvals />} />
                   <Route path="/records" element={<StudentRecords />} />
                   <Route path="/attendance" element={<Attendance />} />

@@ -50,7 +50,11 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const coordinatorMenu: MenuItem[] = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
     { name: "Projects", path: "/projects", icon: Briefcase },
+    { name: "Mentors", path: "/mentors", icon: Users },
     { name: "Approvals", path: "/approvals", icon: ShieldCheck, badge: pendingCount },
+    { name: "Daily Reports", path: "/daily-reports", icon: ClipboardCheck },
+    { name: "Hackathons Proofs", path: "/hackathons", icon: Sparkles },
+    { name: "Activity Analytics", path: "/activity-analytics", icon: LayoutDashboard },
     { name: "Student Records", path: "/records", icon: Users },
     { name: "Attendance & Lab", path: "/attendance", icon: ClipboardCheck },
     { name: "Tasks Board", path: "/tasks", icon: CheckSquare },
@@ -61,7 +65,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const studentMenu: MenuItem[] = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
-    { name: "Project Hub", path: "/project-hub", icon: Briefcase },
+    { name: "My Project & Domain", path: "/project-hub", icon: Briefcase },
+    { name: "Daily Reports", path: "/daily-reports", icon: ClipboardCheck },
+    { name: "Hackathons", path: "/hackathons", icon: Sparkles },
     { name: "My Tasks", path: "/tasks", icon: CheckSquare },
     { name: "Chat Rooms", path: "/chat", icon: MessageSquare },
     { name: "Opportunities Hub", path: "/opportunities", icon: Compass },
