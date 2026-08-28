@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../store.ts";
-import { Shield, GraduationCap, KeyRound, Cpu, ArrowDown, Sparkles, CheckCircle2, ChevronRight, Layers, Lock, Mail, User, BookOpen } from "lucide-react";
+import { Shield, GraduationCap, KeyRound, Cpu, ArrowDown, Lock, CheckCircle2, ChevronRight, Layers, Sparkles } from "lucide-react";
 
 export default function Login() {
   const { login, loading, addToast } = useStore();
@@ -38,7 +38,7 @@ export default function Login() {
 
   const LAB_VISIONS: Record<string, { desc: string; points: string[]; iconTag: string }> = {
     "Artificial Intelligence and Research Lab": {
-      desc: "Spatial & Machine Learning Intelligence",
+      desc: "Machine Learning & Research Innovation",
       iconTag: "AI & ML",
       points: [
         "Build practical AI and machine-learning solutions.",
@@ -48,7 +48,7 @@ export default function Login() {
       ]
     },
     "Cyber Security / Cloud Computing Lab": {
-      desc: "Zero-Trust & Scalable Cloud Ecosystems",
+      desc: "Zero-Trust Security & Cloud Scalability",
       iconTag: "SEC & CLOUD",
       points: [
         "Build secure digital systems.",
@@ -58,7 +58,7 @@ export default function Login() {
       ]
     },
     "AR/VR Lab": {
-      desc: "Spatial Computing & Immersive Reality",
+      desc: "Spatial Computing & Virtual Prototyping",
       iconTag: "SPATIAL VR",
       points: [
         "Develop immersive digital experiences.",
@@ -68,7 +68,7 @@ export default function Login() {
       ]
     },
     "IoT (Internet of Things) Lab": {
-      desc: "Edge Computing & Autonomous Sensors",
+      desc: "Edge Computing & Automation Systems",
       iconTag: "IOT EDGE",
       points: [
         "Connect physical systems with intelligent computing.",
@@ -78,7 +78,7 @@ export default function Login() {
       ]
     },
     "PCB Lab": {
-      desc: "Embedded Hardware & Micro-Electronics",
+      desc: "Embedded Hardware & Prototyping",
       iconTag: "HARDWARE",
       points: [
         "Develop practical electronic hardware.",
@@ -88,7 +88,7 @@ export default function Login() {
       ]
     },
     "Robotics Lab": {
-      desc: "Autonomous Robotics & Control Automation",
+      desc: "Autonomous Systems & Controls",
       iconTag: "ROBOTICS",
       points: [
         "Build intelligent autonomous systems.",
@@ -98,7 +98,7 @@ export default function Login() {
       ]
     },
     "VLSI Lab": {
-      desc: "Advanced Silicon Architecture & Micro-chips",
+      desc: "Silicon Architecture & Microchips",
       iconTag: "VLSI CHIP",
       points: [
         "Develop advanced digital hardware systems.",
@@ -197,31 +197,31 @@ export default function Login() {
   // Splash Overlay
   if (showSplash) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-[#07090e] flex flex-col items-center justify-center text-white px-4 selection:bg-cyan-500 selection:text-black">
+      <div className="fixed inset-0 z-[9999] bg-[#050811] flex flex-col items-center justify-center text-white px-4 selection:bg-[#00e5ff] selection:text-black">
         <div className="text-center space-y-4 animate-fade-in">
           {splashStage === "siet" && (
             <div className="space-y-3">
-              <span className="text-xs font-bold uppercase tracking-[0.4em] text-cyan-400">Sri Shakthi Institute of Engineering & Technology</span>
-              <h1 className="text-5xl md:text-7xl font-black tracking-widest text-white drop-shadow-[0_0_35px_rgba(56,189,248,0.4)]">SIET</h1>
+              <span className="text-xs font-bold uppercase tracking-[0.4em] text-[#00e5ff]">Sri Shakthi Institute of Engineering & Technology</span>
+              <h1 className="text-5xl md:text-7xl font-black tracking-widest text-white">SIET</h1>
             </div>
           )}
 
           {splashStage === "innovation" && (
             <div className="space-y-3">
               <span className="text-xs font-bold uppercase tracking-[0.4em] text-emerald-400">Pioneering Excellence</span>
-              <h1 className="text-3xl md:text-6xl font-black tracking-wider text-slate-100 drop-shadow-[0_0_35px_rgba(52,211,153,0.3)]">CREATION AND INNOVATION</h1>
+              <h1 className="text-3xl md:text-6xl font-black tracking-wider text-slate-100">CREATION AND INNOVATION</h1>
             </div>
           )}
 
           {splashStage === "trackflow" && (
             <div className="space-y-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-2xl shadow-cyan-500/30 mb-2">
-                <Cpu className="w-9 h-9 text-white" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#00e5ff] text-black font-extrabold shadow-lg shadow-[#00e5ff]/30 mb-2">
+                <Cpu className="w-9 h-9" />
               </div>
               <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white">
-                TRACKFLOW <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">AI</span>
+                TRACKFLOW <span className="text-[#00e5ff]">AI</span>
               </h1>
-              <p className="text-sm font-semibold text-slate-400">Spatial Student Innovation & Project Tracking Platform</p>
+              <p className="text-sm font-semibold text-slate-400">Student Innovation & Project Tracking Platform</p>
             </div>
           )}
         </div>
@@ -230,104 +230,311 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 selection:bg-cyan-500 selection:text-black font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#050811] text-slate-100 font-sans relative overflow-x-hidden selection:bg-[#00e5ff] selection:text-black">
       
-      {/* Vision Pro Ambient Spatial Glow Grids */}
+      {/* Background Ambient Stars/Dots */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-cyan-600/15 via-blue-600/10 to-transparent rounded-full filter blur-[120px]" />
-        <div className="absolute top-[35%] right-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full filter blur-[140px]" />
-        <div className="absolute top-[75%] left-0 w-[500px] h-[500px] bg-cyan-600/10 rounded-full filter blur-[140px]" />
+        <div className="absolute top-20 left-1/4 w-1 h-1 bg-[#00e5ff]/40 rounded-full" />
+        <div className="absolute top-40 right-1/3 w-1.5 h-1.5 bg-blue-500/30 rounded-full" />
+        <div className="absolute top-90 left-10 w-1 h-1 bg-white/20 rounded-full" />
+        <div className="absolute top-1/2 right-10 w-1.5 h-1.5 bg-[#00e5ff]/30 rounded-full" />
+        <div className="absolute bottom-20 left-1/3 w-1 h-1 bg-purple-500/20 rounded-full" />
       </div>
 
-      {/* Spatial Header Navigation */}
-      <header className="sticky top-0 z-40 bg-[#07090e]/80 backdrop-blur-2xl border-b border-white/10 px-6 py-4 flex items-center justify-between">
+      {/* Top Header */}
+      <header className="sticky top-0 z-40 bg-[#050811]/90 backdrop-blur-md border-b border-white/10 px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
-            <Cpu className="w-5.5 h-5.5" />
+          <div className="w-10 h-10 rounded-xl bg-[#00e5ff] text-black font-extrabold flex items-center justify-center shadow-lg shadow-[#00e5ff]/20">
+            <Cpu className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-extrabold text-white tracking-tight leading-none">SIET TrackFlow AI</h1>
-            <span className="text-[10px] text-slate-400 font-semibold tracking-wide">Spatial Innovation & Project Tracking Platform</span>
+            <h1 className="text-lg font-black text-white tracking-tight leading-none">SIET TrackFlow AI</h1>
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Student Innovation Platform</span>
           </div>
         </div>
 
         <button
           onClick={scrollToAuth}
-          className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs rounded-full shadow-lg shadow-cyan-500/20 transition-all duration-300 transform hover:scale-105"
+          className="px-6 py-2.5 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-extrabold text-xs rounded-xl shadow-lg shadow-[#00e5ff]/20 transition-all duration-300 transform hover:scale-105 cursor-pointer uppercase tracking-wider"
         >
-          ENTER PORTAL ↓
+          Initialize Console ↓
         </button>
       </header>
 
-      {/* Hero Intro Section - Vision Pro Style */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-16 pb-12 text-center space-y-6">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-cyan-400 text-xs font-bold uppercase tracking-widest shadow-inner backdrop-blur-md">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>SIET • CREATION AND INNOVATION</span>
+      {/* Hero 2-Column Section Matching Placify Screenshot */}
+      <section className="relative z-10 max-w-7xl mx-auto px-8 pt-16 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        {/* Left Side Hero Content */}
+        <div className="lg:col-span-7 space-y-6 text-left">
+          <div className="inline-block text-xs font-black uppercase tracking-[0.25em] text-[#00e5ff]">
+            SECURE AUTHENTICATION
+          </div>
+
+          <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-none">
+            Initialize Your <br />
+            Command Console.
+          </h1>
+
+          <p className="text-sm md:text-base text-slate-400 max-w-xl leading-relaxed font-normal">
+            Log in utilizing the official student profile or coordinator access to manage projects, verify daily reports, track GitHub development, and supervise seven laboratories inside the admin studio.
+          </p>
+
+          <div className="pt-4 flex items-center gap-4">
+            <button
+              onClick={scrollToAuth}
+              className="px-6 py-3 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs rounded-xl backdrop-blur-md transition flex items-center gap-2"
+            >
+              <span>Scroll to Login Portal</span>
+              <ArrowDown className="w-4 h-4 text-[#00e5ff]" />
+            </button>
+          </div>
         </div>
 
-        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-none drop-shadow-sm">
-          Welcome to the Next Era of <br />
-          <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 bg-clip-text text-transparent">
-            Student Project Innovation
-          </span>
-        </h1>
+        {/* Right Side: Command Console Login Card (Matching Screenshot exactly) */}
+        <div className="lg:col-span-5 text-left">
+          <div className="bg-[#0b101d] border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6">
+            
+            {/* Top Login / Register Pill Tabs */}
+            <div className="grid grid-cols-2 gap-1 bg-[#121829] p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setMode("signin")}
+                className={`py-2.5 rounded-xl transition ${
+                  mode === "signin"
+                    ? "bg-[#00e5ff] text-black font-black shadow-md shadow-[#00e5ff]/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("student");
+                  setMode("signup");
+                }}
+                className={`py-2.5 rounded-xl transition ${
+                  mode === "signup"
+                    ? "bg-[#00e5ff] text-black font-black shadow-md shadow-[#00e5ff]/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Register
+              </button>
+            </div>
 
-        <p className="text-sm md:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
-          TrackFlow AI unifies engineering students, lab coordinators, and mentors across 7 specialized laboratories with automated progress tracking, daily reports, milestone locking, and GitHub sync.
-        </p>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Email / Username Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                  {role === "student" ? "College Email (Format: name24cs@srishakthi.ac.in) *" : "Official Email Address *"}
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder={
+                    role === "student"
+                      ? "e.g. rishis24cs@srishakthi.ac.in"
+                      : (role === "coordinator" ? "coordinator@srishakthi.ac.in" : "sathish@srishakthi.ac.in")
+                  }
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#00e5ff] transition"
+                />
+              </div>
 
-        <div className="pt-4 flex justify-center">
-          <button
-            onClick={scrollToAuth}
-            className="flex items-center gap-2 px-8 py-3.5 bg-white/10 hover:bg-white/15 text-white border border-white/20 font-bold text-xs rounded-full backdrop-blur-xl transition-all duration-300 group shadow-xl"
-          >
-            <span>Scroll Down to Login Portal</span>
-            <ArrowDown className="w-4 h-4 text-cyan-400 group-hover:translate-y-1 transition-transform" />
-          </button>
+              {/* Full Name */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={role === "master_admin" ? "Sathish" : "Full Name"}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#00e5ff] transition"
+                />
+              </div>
+
+              {/* Security Pin / Password fields for signup */}
+              {mode === "signup" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                      Password *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                      Confirm Password *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Confirm Password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Student Fields */}
+              {role === "student" && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                        Register No *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="732724CS001"
+                        value={registerNumber}
+                        onChange={(e) => setRegisterNumber(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                        Assigned Lab *
+                      </label>
+                      <select
+                        value={lab}
+                        onChange={(e) => setLab(e.target.value)}
+                        className="w-full px-3 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-[11px] cursor-pointer focus:outline-none focus:border-[#00e5ff]"
+                      >
+                        {OFFICIAL_LABS.map((l) => (
+                          <option key={l} value={l} className="bg-[#131929] text-white">
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Cyan Access Command Console Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 px-6 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-[#00e5ff]/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Lock className="w-4 h-4" />
+                <span>{loading ? "Authenticating..." : "Access Command Console"}</span>
+              </button>
+
+              {/* Preset Quick Role Selectors */}
+              <div className="pt-2 grid grid-cols-3 gap-2 border-t border-slate-800 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole("student");
+                    setMode("signin");
+                    if (!email.includes("@")) setEmail("rishis24cs@srishakthi.ac.in");
+                  }}
+                  className={`py-2 px-2 rounded-xl border transition ${
+                    role === "student"
+                      ? "bg-slate-800 text-[#00e5ff] border-[#00e5ff]/40 font-bold"
+                      : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
+                  }`}
+                >
+                  Student Demo
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole("coordinator");
+                    setMode("signin");
+                    setEmail("coordinator@srishakthi.ac.in");
+                  }}
+                  className={`py-2 px-2 rounded-xl border transition ${
+                    role === "coordinator"
+                      ? "bg-slate-800 text-[#00e5ff] border-[#00e5ff]/40 font-bold"
+                      : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
+                  }`}
+                >
+                  Admin Coordinator
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole("master_admin");
+                    setMode("signin");
+                    setEmail("sathish@srishakthi.ac.in");
+                    setName("Sathish");
+                  }}
+                  className={`py-2 px-2 rounded-xl border transition ${
+                    role === "master_admin"
+                      ? "bg-slate-800 text-purple-400 border-purple-500/40 font-bold"
+                      : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
+                  }`}
+                >
+                  Master Sathish
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </section>
 
-      {/* Seven Labs Spatial Vision Showcase */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 py-12 space-y-8">
+      {/* Sequential Lab Pop Section (Left one first, Right one next) */}
+      <section className="relative z-10 max-w-7xl mx-auto px-8 py-20 space-y-12">
         <div className="text-center space-y-2">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">OUR SEVEN LABORATORIES</h2>
-          <p className="text-xs text-slate-400 font-semibold max-w-xl mx-auto">
-            Discover the specialized engineering environments driving undergraduate research, hardware development, and industrial innovation.
+          <span className="text-xs font-black uppercase tracking-[0.25em] text-[#00e5ff]">INSTITUTIONAL INNOVATION</span>
+          <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">OUR SEVEN LABORATORIES</h2>
+          <p className="text-xs text-slate-400 max-w-xl mx-auto">
+            Discover our seven state-of-the-art laboratories operating sequentially across research domains.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
-          {OFFICIAL_LABS.map((labName) => {
+        {/* Staggered Alternating Sequential Pop Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+          {OFFICIAL_LABS.map((labName, index) => {
             const info = LAB_VISIONS[labName];
+            const isLeft = index % 2 === 0;
             return (
               <div
                 key={labName}
-                className="group relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 p-6 rounded-3xl backdrop-blur-2xl transition-all duration-300 hover:border-cyan-500/40 hover:shadow-2xl hover:shadow-cyan-500/10 flex flex-col justify-between"
+                className={`bg-[#0b101d] border border-slate-800 p-8 rounded-3xl space-y-4 hover:border-[#00e5ff]/40 hover:shadow-2xl hover:shadow-[#00e5ff]/10 transition-all duration-500 transform hover:-translate-y-1 ${
+                  isLeft ? "lg:mr-4 animate-fade-in" : "lg:ml-4 animate-fade-in"
+                }`}
+                style={{ animationDelay: `${index * 150}ms` }}
               >
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <span className="text-[10px] font-bold tracking-widest text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full uppercase">
-                      {info?.iconTag || "LAB"}
-                    </span>
-                    <Cpu className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#00e5ff] bg-[#00e5ff]/10 border border-[#00e5ff]/20 px-3 py-1 rounded-full">
+                    Lab {index + 1} &bull; {info?.iconTag}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500">
+                    {isLeft ? "← Left Lab Unit" : "Right Lab Unit →"}
+                  </span>
+                </div>
 
-                  <div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors leading-tight">
-                      {labName}
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-1 font-medium">{info?.desc}</p>
-                  </div>
+                <h3 className="text-xl font-bold text-white">{labName}</h3>
+                <p className="text-xs text-slate-400 font-medium">{info?.desc}</p>
 
-                  <ul className="space-y-2 pt-2 border-t border-white/5 text-xs text-slate-300 font-normal">
-                    {info?.points.map((pt, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0 mt-0.5" />
-                        <span>{pt}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
+                  {info?.points.map((pt, pIdx) => (
+                    <div key={pIdx} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-[#00e5ff] flex-shrink-0 mt-0.5" />
+                      <span>{pt}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             );
@@ -335,267 +542,31 @@ export default function Login() {
         </div>
       </section>
 
-      {/* Apple Vision Pro Style Spatial Login Portal Section */}
-      <section id="auth-section" className="relative z-10 max-w-lg mx-auto px-4 py-20">
-        
-        {/* Spatial Glass Card Container */}
-        <div className="bg-white/[0.04] border border-white/15 p-8 md:p-10 rounded-3xl backdrop-blur-3xl shadow-2xl shadow-black/80 space-y-8 relative overflow-hidden">
-          
-          {/* Subtle Ambient Light Pill Inside Card */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full filter blur-2xl pointer-events-none" />
-
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 mb-1">
-              <Lock className="w-6 h-6" />
-            </div>
-            <h2 className="text-2xl font-black text-white tracking-tight">
-              {mode === "signin" ? "TrackFlow Spatial Login" : "Create Student Account"}
-            </h2>
-            <p className="text-xs text-slate-400 font-medium">
-              Select your role tab to access your personalized lab workspace
-            </p>
+      {/* Integrated Bottom Scroll-Down Login Portal */}
+      <section id="auth-section" className="relative z-10 max-w-4xl mx-auto px-8 py-20">
+        <div className="bg-[#0b101d] border border-slate-800 p-10 rounded-3xl shadow-2xl text-center space-y-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff]">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div>
+            <h2 className="text-2xl md:text-3xl font-black text-white">TrackFlow AI Login Portal</h2>
+            <p className="text-xs text-slate-400 mt-1">Ready to manage your projects, log daily reports, and access lab resources?</p>
           </div>
 
-          {/* 3 Login Tabs (Vision Pro Pill Switcher) */}
-          <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold">
+          <div className="flex justify-center pt-2">
             <button
-              type="button"
-              onClick={() => {
-                setRole("student");
-                if (!email.includes("@")) setEmail("");
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200 ${
-                role === "student"
-                  ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/30 font-extrabold"
-                  : "text-slate-400 hover:text-white"
-              }`}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="px-8 py-3.5 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-[#00e5ff]/20 transition cursor-pointer"
             >
-              <GraduationCap className="w-4 h-4" />
-              Student
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setRole("coordinator");
-                setMode("signin");
-                if (email === "") setEmail("coordinator@srishakthi.ac.in");
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200 ${
-                role === "coordinator"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30 font-extrabold"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              Coordinator
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setRole("master_admin");
-                setMode("signin");
-                setEmail("sathish@srishakthi.ac.in");
-                setName("Sathish");
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200 ${
-                role === "master_admin"
-                  ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30 font-extrabold"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <KeyRound className="w-4 h-4" />
-              Master
+              Access Console Top Login ↑
             </button>
           </div>
-
-          {/* Student Toggle Sign In vs Sign Up */}
-          {role === "student" && (
-            <div className="flex bg-black/40 p-1 rounded-xl text-xs font-bold border border-white/10">
-              <button
-                type="button"
-                onClick={() => setMode("signin")}
-                className={`flex-1 py-2 rounded-lg transition-all ${
-                  mode === "signin" ? "bg-white/15 text-cyan-300 font-extrabold shadow" : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("signup")}
-                className={`flex-1 py-2 rounded-lg transition-all ${
-                  mode === "signup" ? "bg-white/15 text-cyan-300 font-extrabold shadow" : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Create Student Account
-              </button>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5 text-left">
-            
-            {/* Email input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                {role === "student" ? "Sri Shakthi Student Email *" : "Official Email Address *"}
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  required
-                  placeholder={
-                    role === "student" 
-                      ? "e.g. rishis24cs@srishakthi.ac.in" 
-                      : (role === "coordinator" ? "coordinator@srishakthi.ac.in" : "sathish@srishakthi.ac.in")
-                  }
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 text-xs transition"
-                />
-              </div>
-              {role === "student" && (
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Format: <code className="text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">studentname[23|24|25|26]dept@srishakthi.ac.in</code>
-                </p>
-              )}
-            </div>
-
-            {/* Full Name */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                Full Name *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder={role === "master_admin" ? "Sathish" : "Full Name"}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs transition"
-              />
-            </div>
-
-            {/* Password Fields for Signup */}
-            {mode === "signup" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                    Password *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Create Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                    Confirm Password *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Student Fields */}
-            {role === "student" && (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                      Register Number *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 732724CS001"
-                      value={registerNumber}
-                      onChange={(e) => setRegisterNumber(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-cyan-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                      Section
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="A / B / C"
-                      value={section}
-                      onChange={(e) => setSection(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-cyan-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Lab Selection */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                    Assigned Lab (7 Official Labs) *
-                  </label>
-                  <select
-                    value={lab}
-                    onChange={(e) => setLab(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-[#0f172a] border border-white/15 text-white text-xs cursor-pointer focus:outline-none focus:border-cyan-500"
-                  >
-                    {OFFICIAL_LABS.map((l) => (
-                      <option key={l} value={l} className="bg-[#0f172a] text-white">
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-
-            {/* Remember Me */}
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded text-cyan-500 bg-white/10 border-white/20 cursor-pointer accent-cyan-500"
-                />
-                <span>Remember session on this device</span>
-              </label>
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full mt-4 py-3.5 px-6 font-extrabold rounded-2xl text-xs tracking-wider uppercase transition-all duration-300 shadow-xl cursor-pointer ${
-                role === "master_admin"
-                  ? "bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/30"
-                  : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-black shadow-cyan-500/25"
-              } disabled:opacity-50 transform hover:scale-[1.02]`}
-            >
-              {loading ? "Authenticating Spatial Credentials..." : (role === "master_admin" ? "Access Master Control Portal" : (mode === "signup" ? "Submit Registration Request" : "Sign In to Portal"))}
-            </button>
-          </form>
-
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-white/10 py-8 text-center text-xs text-slate-500 font-medium">
-        Sri Shakthi Institute of Engineering & Technology &bull; TrackFlow AI Spatial Experience
+      <footer className="relative z-10 border-t border-slate-900 py-8 text-center text-xs text-slate-500">
+        Sri Shakthi Institute of Engineering & Technology &bull; TrackFlow AI Command Console
       </footer>
     </div>
   );
