@@ -256,7 +256,7 @@ async function startServer() {
       if (typeof val === "function") return undefined;
       if (Array.isArray(val)) return val.map(item => this.sanitizeForFirestore(item)).filter(item => item !== undefined);
       if (typeof val === "object") {
-        if (typeof val.getMonth === "function") {
+        if (typeof val.getMonth === "function" || val.constructor?.name === "Date" || val._seconds !== undefined || val._nanoseconds !== undefined) {
           const time = new Date(val).getTime();
           return isNaN(time) ? new Date().toISOString() : new Date(val).toISOString();
         }
@@ -266,10 +266,12 @@ async function startServer() {
           const cleanVal = this.sanitizeForFirestore(v);
           if (cleanVal !== undefined) res[k] = cleanVal;
         }
-        return res;
+        return JSON.parse(JSON.stringify(res));
       }
       return val;
     }
+
+
 
 
     async create(data: any) {
@@ -356,13 +358,10 @@ async function startServer() {
       updatedData.updatedAt = new Date();
 
       if (firestoreDb) {
-        const cleanData = { ...updatedData };
-        delete (cleanData as any)._id;
-        delete (cleanData as any).id;
-        delete (cleanData as any).toObject;
-        delete (cleanData as any).save;
+        const cleanData = this.sanitizeForFirestore(updatedData);
         await firestoreDb.collection(this.collectionName).doc(doc._id).set(cleanData, { merge: true });
       }
+
       this.localStore.set(doc._id, updatedData);
       return this.formatDoc(doc._id, updatedData);
     }
@@ -1275,12 +1274,13 @@ Return them as a JSON array of objects fitting this schema:
 Do not include any markdown format tags (like \`\`\`json) in your response, return a clean raw JSON string.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-2.5-flash",
           contents: prompt,
           config: {
             tools: [{ googleSearch: {} }]
           }
         });
+
 
 
 
@@ -1386,12 +1386,13 @@ Return them as a JSON array of objects fitting this schema:
 Do not include any markdown format tags (like \`\`\`json) in your response, return a clean raw JSON string.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-2.5-flash",
           contents: prompt,
           config: {
             tools: [{ googleSearch: {} }]
           }
         });
+
 
 
 
