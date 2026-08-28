@@ -11,3 +11,7 @@ coverage/
 !.env.example
 mongodb_data/
 uploads/
+.firebaserc
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
