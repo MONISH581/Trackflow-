@@ -2399,7 +2399,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const { role, userId } = req.query;
       let query: any = {};
       if (role === 'student' && userId) {
-        query.teamMembers = String(userId);
+        const uid = String(userId);
+        // Match if student is in teamMembers OR is the teamLeader
+        query.$or = [
+          { teamMembers: uid },
+          { teamLeader: uid }
+        ];
       }
       const projects = await Project.find(query).sort({ updatedAt: -1 });
       res.json({ projects: projects.map(p => ({ id: p._id, ...p.toObject() })) });
@@ -2426,6 +2431,9 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const projDeadline = new Date(projStartDate);
       projDeadline.setMonth(projDeadline.getMonth() + 2);
 
+      // Always include studentId in teamMembers
+      const teamMembersList = studentId ? [studentId] : [];
+
       const newProj = new Project({
         name,
         department,
@@ -2443,7 +2451,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         modules: "",
         references: "",
         futureEnhancements: "",
-        teamMembers: studentId ? [studentId] : [],
+        teamMembers: teamMembersList,
         teamLeader: studentId || "",
         progress: 0,
         status: mentorId ? "Active" : "MENTOR_PENDING",
@@ -2451,6 +2459,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       });
       await newProj.save();
 
+      // Also patch existing project created by this student if teamMembers is empty
+      // (backfill fix for projects created without studentId)
       await new ActivityLog({
         userId: studentId || "system",
         userName: "System",
@@ -2459,6 +2469,18 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         entityId: newProj._id,
         timestamp: new Date()
       }).save();
+
+      // Notify coordinator that student created a project
+      const coords = await User.find({ role: 'coordinator' });
+      for (const coord of coords) {
+        await new Notification({
+          userId: coord.userId,
+          title: 'New Student Project Created',
+          message: `A student created project "${name}" and is awaiting mentor assignment.`,
+          read: false,
+          type: 'general'
+        }).save();
+      }
 
       io.emit("project_updated", { projectId: newProj._id, project: newProj });
       res.json({ project: { id: newProj._id, ...newProj.toObject() } });
