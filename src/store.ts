@@ -379,6 +379,17 @@ interface AppState {
 
 const API_BASE = "";
 
+async function safeJson(response: Response, defaultFallback: any = {}) {
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    return await response.json();
+  }
+  const text = await response.text();
+  console.warn("API response was not JSON:", text.substring(0, 100));
+  return defaultFallback;
+}
+
+
 export const useStore = create<AppState>((set, get) => ({
   currentUser: null,
   activeProject: null,
@@ -419,17 +430,10 @@ export const useStore = create<AppState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
       });
-      const contentType = response.headers.get("content-type");
-      let data: any = {};
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        throw new Error("Backend server API unavailable. Please verify your backend web server URL.");
-      }
+      const data = await safeJson(response, {});
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.error || (response.status === 404 ? "Backend server is currently offline or unreachable." : "Login failed"));
       }
       
       const user = data.user;
