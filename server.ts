@@ -247,26 +247,44 @@ async function startServer() {
       return runner;
     }
 
+    private sanitizeForFirestore(val: any): any {
+      if (val === null || val === undefined) return null;
+      if (val instanceof Date) {
+        const time = val.getTime();
+        return isNaN(time) ? new Date().toISOString() : val.toISOString();
+      }
+      if (typeof val === "function") return undefined;
+      if (Array.isArray(val)) return val.map(item => this.sanitizeForFirestore(item)).filter(item => item !== undefined);
+      if (typeof val === "object") {
+        if (typeof val.getMonth === "function") {
+          const time = new Date(val).getTime();
+          return isNaN(time) ? new Date().toISOString() : new Date(val).toISOString();
+        }
+        const res: any = {};
+        for (const [k, v] of Object.entries(val)) {
+          if (k === "_id" || k === "toObject" || k === "save" || typeof v === "function") continue;
+          const cleanVal = this.sanitizeForFirestore(v);
+          if (cleanVal !== undefined) res[k] = cleanVal;
+        }
+        return res;
+      }
+      return val;
+    }
+
+
     async create(data: any) {
       const id = data._id || data.id || this.generateId();
       const now = new Date();
       const docData = { ...data, _id: id, id, createdAt: data.createdAt || now, updatedAt: now };
 
       if (firestoreDb) {
-        const cleanData: any = {};
-        for (const [key, value] of Object.entries(docData)) {
-          if (key === "_id" || key === "toObject" || key === "save") continue;
-          if (value instanceof Date) {
-            cleanData[key] = value.toISOString();
-          } else if (value !== undefined) {
-            cleanData[key] = value;
-          }
-        }
+        const cleanData = this.sanitizeForFirestore(docData);
         await firestoreDb.collection(this.collectionName).doc(id).set(cleanData, { merge: true });
       }
       this.localStore.set(id, docData);
       return this.formatDoc(id, docData);
     }
+
 
 
     async insertMany(items: any[]) {
