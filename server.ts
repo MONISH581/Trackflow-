@@ -431,7 +431,12 @@ async function startServer() {
     const ModelConstructor: any = function(this: any, data: any = {}) {
       Object.assign(this, data);
       this.save = async () => {
-        return await instance.create(this);
+        const savedDoc = await instance.create(this);
+        if (savedDoc) {
+          this._id = savedDoc._id;
+          this.id = savedDoc.id;
+        }
+        return savedDoc;
       };
       this.toObject = function() {
         const copy = { ...this };
@@ -2932,8 +2937,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         await calculateAndUpdateProjectProgress(projectId);
 
         if (abstract && oldAbstract !== abstract) {
-          const latestHistory = await AbstractHistory.findOne({ projectId }).sort({ version: -1 });
-          const newVersion = latestHistory ? latestHistory.version + 1 : 1;
+          const histories = await AbstractHistory.find({ projectId });
+          let newVersion = 1;
+          if (histories && histories.length > 0) {
+            const maxVer = Math.max(...histories.map(h => h.version || 1));
+            newVersion = maxVer + 1;
+          }
           const history = new AbstractHistory({
             projectId,
             studentId,
