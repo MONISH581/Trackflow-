@@ -14,7 +14,12 @@ import {
   Activity,
   LogIn,
   Filter,
+  Download,
+  FileSpreadsheet,
+  Printer,
+  FileText,
 } from "lucide-react";
+
 
 export default function Attendance() {
   const {
@@ -187,10 +192,146 @@ export default function Attendance() {
     setRegistering(false);
   };
 
+  const handleExportCSV = () => {
+    if (students.length === 0) {
+      addToast("No student attendance data to export.", "info");
+      return;
+    }
+
+    const headers = ["Register Number", "Student Name", "Email Address", "Department", "Academic Year", "Assigned Lab", "Attendance Date", "Status"];
+    const rows = students.map((s: any) => {
+      const identifier = s.userId || s.id || s._id;
+      const status = attendanceSheet[identifier] || "Present";
+      return [
+        `"${s.registerNumber || 'N/A'}"`,
+        `"${s.name || ''}"`,
+        `"${s.email || ''}"`,
+        `"${s.department || ''}"`,
+        `"Year ${s.year || '1'}"`,
+        `"${s.lab || 'N/A'}"`,
+        `"${selectedDate}"`,
+        `"${status}"`
+      ];
+    });
+
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `TrackFlow_Attendance_${selectedDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addToast(`Exported attendance log for ${selectedDate} (Google Sheets CSV format)`, "success");
+  };
+
+  const handleExportPDF = () => {
+    if (students.length === 0) {
+      addToast("No student attendance data to export.", "info");
+      return;
+    }
+
+    let presentCount = 0;
+    let absentCount = 0;
+
+    const tableRows = students.map((s: any, index: number) => {
+      const identifier = s.userId || s.id || s._id;
+      const status = attendanceSheet[identifier] || "Present";
+      if (status === "Present") presentCount++;
+      else absentCount++;
+
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px; text-align: center;">${index + 1}</td>
+          <td style="padding: 10px; font-weight: bold;">${s.registerNumber || 'N/A'}</td>
+          <td style="padding: 10px;">${s.name}</td>
+          <td style="padding: 10px; color: #475569;">${s.email}</td>
+          <td style="padding: 10px;">${s.department} (Yr ${s.year || 1})</td>
+          <td style="padding: 10px;">${s.lab || 'N/A'}</td>
+          <td style="padding: 10px; text-align: center; font-weight: bold; color: ${status === 'Present' ? '#059669' : '#dc2626'};">
+            ${status.toUpperCase()}
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    const totalStudents = students.length;
+    const attendancePercentage = Math.round((presentCount / totalStudents) * 100);
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>TrackFlow AI - Attendance Record (${selectedDate})</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #0f172a; }
+            .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; }
+            .header h1 { margin: 0; color: #1e293b; font-size: 24px; }
+            .header p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+            .meta-grid { display: flex; justify-content: space-between; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+            th { background: #0f172a; color: white; padding: 10px; text-align: left; }
+            .footer { margin-top: 30px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Sri Shakthi Institute of Engineering & Technology</h1>
+            <p>TrackFlow AI — Official Laboratory Attendance Record Log</p>
+          </div>
+          <div class="meta-grid">
+            <div>
+              <strong>Date of Record:</strong> ${selectedDate}<br>
+              <strong>Total Enrolled Students:</strong> ${totalStudents}
+            </div>
+            <div>
+              <strong>Present Count:</strong> <span style="color: #059669; font-weight: bold;">${presentCount}</span> | 
+              <strong>Absent Count:</strong> <span style="color: #dc2626; font-weight: bold;">${absentCount}</span><br>
+              <strong>Attendance Percentage:</strong> <span style="color: #2563eb; font-weight: bold;">${attendancePercentage}%</span>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: center;">#</th>
+                <th>Register No</th>
+                <th>Student Name</th>
+                <th>Email Address</th>
+                <th>Department</th>
+                <th>Assigned Lab</th>
+                <th style="text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          <div class="footer">
+            Generated automatically by TrackFlow AI System &bull; Sri Shakthi Institute of Engineering & Technology
+          </div>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      addToast(`Opened PDF Print Record for ${selectedDate}`, "success");
+    } else {
+      addToast("Please allow pop-ups to generate PDF record.", "error");
+    }
+  };
+
   const filteredAttendanceStudents = students.filter(s =>
     s.name.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
     s.email.toLowerCase().includes(attendanceSearch.toLowerCase())
   );
+
 
   const filteredLabLogs = activeLabLogs.filter(log =>
     log.studentName.toLowerCase().includes(labSearch.toLowerCase()) ||
@@ -299,24 +440,48 @@ export default function Attendance() {
               </div>
             </div>
 
-            {/* Action */}
-            <div className="flex justify-end pt-4 md:pt-0">
+            {/* Actions */}
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-4 md:pt-0 col-span-1 md:col-span-3 lg:col-span-1">
               <button
+                type="button"
+                onClick={handleExportPDF}
+                disabled={students.length === 0}
+                className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow"
+                title="Export formatted PDF record for printing/archiving"
+              >
+                <Printer className="w-4 h-4 text-emerald-400" />
+                <span>PDF Record</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                disabled={students.length === 0}
+                className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow"
+                title="Export CSV compatible with Google Sheets & Excel"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Google Sheets (.csv)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleSaveAttendance}
                 disabled={savingAttendance || students.length === 0}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-500/10 flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-500/10 flex items-center gap-1.5 cursor-pointer"
               >
                 {savingAttendance ? (
                   <>Saving...</>
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    Save Attendance Log
+                    Save Log
                   </>
                 )}
               </button>
             </div>
           </div>
+
 
           {/* Student Sheet Grid */}
           {filteredAttendanceStudents.length === 0 ? (
