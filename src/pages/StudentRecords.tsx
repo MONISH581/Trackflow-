@@ -264,17 +264,29 @@ export default function StudentRecords() {
                             Live GitHub Commits
                           </span>
                           {project?.githubRepo && (
-                            <a
-                              href={`https://github.com/${project.githubRepo}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[10px] text-blue-600 hover:underline inline-flex items-center gap-0.5 lowercase font-bold"
-                            >
-                              {project.githubRepo}
-                              <Link2 className="w-3 h-3" />
-                            </a>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`https://github.com/${project.githubRepo}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-blue-600 hover:underline inline-flex items-center gap-0.5 lowercase font-bold"
+                              >
+                                {project.githubRepo}
+                                <Link2 className="w-3 h-3" />
+                              </a>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`https://github.com/${project.githubRepo}`);
+                                  alert("Student GitHub Repository URL copied to clipboard!");
+                                }}
+                                className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200"
+                              >
+                                Copy URL
+                              </button>
+                            </div>
                           )}
                         </h4>
+
 
                         {project?.githubRepo ? (
                           <StudentCommitsViewer githubRepo={project.githubRepo} />

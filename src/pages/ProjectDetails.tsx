@@ -345,7 +345,34 @@ export default function ProjectDetails() {
             <span>Leader: {project.teamLeader || "None"}</span>
             <span>&bull;</span>
             <span>Members: {project.teamMembers.join(", ") || "None"}</span>
+            {project.githubRepo && (
+              <>
+                <span>&bull;</span>
+                <div className="inline-flex items-center gap-1.5">
+                  <a 
+                    href={project.githubRepo.startsWith("http") ? project.githubRepo : `https://github.com/${project.githubRepo}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors font-bold"
+                  >
+                    <Github className="w-3.5 h-3.5" />
+                    {project.githubRepo}
+                  </a>
+                  <button
+                    onClick={() => {
+                      const cleanUrl = project.githubRepo?.startsWith("http") ? project.githubRepo : `https://github.com/${project.githubRepo}`;
+                      navigator.clipboard.writeText(cleanUrl || "");
+                      addToast("Student GitHub Repository URL copied to clipboard!", "success");
+                    }}
+                    className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-[10px] font-bold border border-blue-200"
+                  >
+                    Copy URL
+                  </button>
+                </div>
+              </>
+            )}
           </div>
+
         </div>
 
         {/* Buttons / Actions */}

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useStore, DailyReportInfo, ProjectInfo } from "../store.ts";
-import { ClipboardCheck, History, Send, Calendar, CheckCircle2, GitCommit, FileText, AlertCircle, Link as LinkIcon, Plus } from "lucide-react";
+import { useStore, DailyReportInfo } from "../store.ts";
+import { ClipboardCheck, History, Send, GitCommit, Link as LinkIcon, Search, Copy, Check } from "lucide-react";
 
 export default function DailyReportSystem() {
-  const { currentUser, activeProject, projects, submitDailyReport, fetchDailyReports, fetchStudentDailyReportHistory, connectGithubRepo } = useStore();
-  const [activeTab, setActiveTab] = useState<"submit" | "history">("submit");
+  const { currentUser, activeProject, projects, submitDailyReport, fetchDailyReports, fetchStudentDailyReportHistory, connectGithubRepo, addToast } = useStore();
+  
+  // Coordinators default to viewing history (student reports)
+  const [activeTab, setActiveTab] = useState<"submit" | "history">(currentUser?.role === "coordinator" ? "history" : "submit");
   const [reportsHistory, setReportsHistory] = useState<DailyReportInfo[]>([]);
-  const [selectedReport, setSelectedReport] = useState<DailyReportInfo | null>(null);
+  const [searchStudent, setSearchStudent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // GitHub Repo connection state
   const [githubInput, setGithubInput] = useState(activeProject?.githubRepo || "");
@@ -29,7 +32,10 @@ export default function DailyReportSystem() {
   });
 
   useEffect(() => {
-    if (activeProject) {
+    if (currentUser?.role === "coordinator") {
+      // Load all daily reports across all active projects for Coordinator viewing
+      fetchAllDailyReportsForCoordinator();
+    } else if (activeProject) {
       setFormData((prev) => ({ ...prev, progress: activeProject.progress }));
       setGithubInput(activeProject.githubRepo || "");
       fetchReportsForProject(activeProject._id || activeProject.id);
@@ -37,6 +43,17 @@ export default function DailyReportSystem() {
       fetchStudentHistory(currentUser.userId);
     }
   }, [activeProject, currentUser]);
+
+  const fetchAllDailyReportsForCoordinator = async () => {
+    try {
+      const allReports: DailyReportInfo[] = [];
+      for (const p of projects) {
+        const list = await fetchDailyReports(p._id || p.id);
+        allReports.push(...list);
+      }
+      setReportsHistory(allReports);
+    } catch (e) {}
+  };
 
   const fetchReportsForProject = async (projectId: string) => {
     const list = await fetchDailyReports(projectId);
@@ -54,6 +71,15 @@ export default function DailyReportSystem() {
     setIsConnectingGithub(true);
     await connectGithubRepo(activeProject._id || activeProject.id, currentUser?.userId || "", githubInput);
     setIsConnectingGithub(false);
+  };
+
+  const handleCopyGithubUrl = (url: string, idStr: string) => {
+    if (!url) return;
+    const cleanUrl = url.startsWith("http") ? url : `https://github.com/${url}`;
+    navigator.clipboard.writeText(cleanUrl);
+    setCopiedId(idStr);
+    addToast("Student GitHub Repository URL copied to clipboard!", "success");
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,8 +120,14 @@ export default function DailyReportSystem() {
     }
   };
 
+  const filteredReports = reportsHistory.filter((r) =>
+    (r.studentName || "").toLowerCase().includes(searchStudent.toLowerCase()) ||
+    (r.objective || "").toLowerCase().includes(searchStudent.toLowerCase()) ||
+    (r.date || "").includes(searchStudent)
+  );
+
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-8 animate-fade-in pb-12 text-left">
       {/* Header Banner */}
       <div className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -103,35 +135,43 @@ export default function DailyReportSystem() {
             <ClipboardCheck className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Daily Report System</h1>
-            <p className="text-sm text-slate-500">Record daily project progress, log challenges & link GitHub commits</p>
+            <h1 className="text-xl font-bold text-slate-800">
+              {currentUser?.role === "coordinator" ? "Student Daily Reports Monitoring" : "Daily Project Report System"}
+            </h1>
+            <p className="text-sm text-slate-500">
+              {currentUser?.role === "coordinator"
+                ? "Review student daily logs, inspect progress milestones, and copy GitHub repositories"
+                : "Record daily project progress, log challenges & link GitHub commits"}
+            </p>
           </div>
         </div>
 
         {/* Tab Switcher */}
         <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <button
-            onClick={() => setActiveTab("submit")}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              activeTab === "submit" ? "bg-white text-blue-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Submit Today's Report
-          </button>
+          {currentUser?.role === "student" && (
+            <button
+              onClick={() => setActiveTab("submit")}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                activeTab === "submit" ? "bg-white text-blue-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Submit Today's Report
+            </button>
+          )}
           <button
             onClick={() => setActiveTab("history")}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
               activeTab === "history" ? "bg-white text-blue-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Development History ({reportsHistory.length})
+            {currentUser?.role === "coordinator" ? "Student Daily Reports History" : "Development History"} ({filteredReports.length})
           </button>
         </div>
       </div>
 
-      {/* GitHub Repository Banner */}
+      {/* GitHub Repository Banner for Student */}
       {currentUser?.role === "student" && activeProject && (
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
@@ -148,6 +188,16 @@ export default function DailyReportSystem() {
                 </p>
               </div>
             </div>
+
+            {activeProject.githubRepo && (
+              <button
+                onClick={() => handleCopyGithubUrl(activeProject.githubRepo!, "my-repo")}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow"
+              >
+                {copiedId === "my-repo" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedId === "my-repo" ? "Copied!" : "Copy My GitHub Link"}</span>
+              </button>
+            )}
           </div>
 
           <form onSubmit={handleConnectGithub} className="flex flex-col sm:flex-row gap-3">
@@ -172,7 +222,7 @@ export default function DailyReportSystem() {
       )}
 
       {/* Main Content Area */}
-      {activeTab === "submit" ? (
+      {activeTab === "submit" && currentUser?.role === "student" ? (
         <div className="glass-card p-8 border border-slate-200 space-y-6">
           <div className="border-b pb-4">
             <h2 className="text-lg font-bold text-slate-800">Daily Project Status Form</h2>
@@ -301,7 +351,7 @@ export default function DailyReportSystem() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/20 transition-all"
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/20 transition-all cursor-pointer"
               >
                 <Send className="w-4 h-4" />
                 <span>Submit Daily Report</span>
@@ -310,70 +360,114 @@ export default function DailyReportSystem() {
           </form>
         </div>
       ) : (
-        /* History Timeline View */
+        /* History / Coordinator Daily Reports Monitoring View */
         <div className="space-y-6">
-          <div className="glass-card p-6 border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-800">Permanent Development History Log</h2>
-            <p className="text-xs text-slate-500">Every daily report submitted is permanently preserved as a historical record</p>
+          <div className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">
+                {currentUser?.role === "coordinator" ? "Student Daily Reports Archive" : "Permanent Development History Log"}
+              </h2>
+              <p className="text-xs text-slate-500">Every daily report submitted is permanently preserved as an official record</p>
+            </div>
+
+            {/* Search filter for Coordinator / Students */}
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search student or report..."
+                value={searchStudent}
+                onChange={(e) => setSearchStudent(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
-          {reportsHistory.length === 0 ? (
+          {filteredReports.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
               <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-700">No Historical Reports Found</h3>
-              <p className="text-xs text-slate-400 mt-1">Submit your first daily report to begin building your permanent development history.</p>
+              <h3 className="text-sm font-bold text-slate-700">No Daily Reports Found</h3>
+              <p className="text-xs text-slate-400 mt-1">Submitted reports will appear here automatically.</p>
             </div>
           ) : (
             <div className="relative border-l-2 border-blue-500/30 ml-4 space-y-6 pl-6">
-              {reportsHistory.map((report) => (
-                <div key={report.id || report._id} className="glass-card p-6 border border-slate-200 rounded-2xl relative hover:shadow-xl transition-all">
-                  <div className="absolute -left-[31px] top-6 w-4 h-4 rounded-full bg-blue-600 ring-4 ring-white" />
-                  
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b pb-3 mb-4">
-                    <div>
-                      <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{report.date}</span>
-                      <h3 className="font-bold text-slate-800 text-base">{report.objective || "Daily Report Submission"}</h3>
-                      <p className="text-xs text-slate-500">By {report.studentName}</p>
+              {filteredReports.map((report) => {
+                const reportId = report.id || report._id || Math.random().toString();
+                const proj = projects.find(p => p.id === report.projectId || p._id === report.projectId);
+                const repoUrl = report.githubCommitUrl || proj?.githubRepo;
+
+                return (
+                  <div key={reportId} className="glass-card p-6 border border-slate-200 rounded-2xl relative hover:shadow-xl transition-all">
+                    <div className="absolute -left-[31px] top-6 w-4 h-4 rounded-full bg-blue-600 ring-4 ring-white" />
+                    
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b pb-3 mb-4">
+                      <div>
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{report.date}</span>
+                        <h3 className="font-bold text-slate-800 text-base">{report.objective || "Daily Report Submission"}</h3>
+                        <p className="text-xs text-slate-500 font-semibold">
+                          Student: <span className="text-slate-800 font-bold">{report.studentName}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {repoUrl && (
+                          <button
+                            onClick={() => handleCopyGithubUrl(repoUrl, reportId)}
+                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                          >
+                            {copiedId === reportId ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                            <span>{copiedId === reportId ? "Copied!" : "Copy GitHub URL"}</span>
+                          </button>
+                        )}
+                        <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-full border border-emerald-200/60">
+                          {report.progress}% Completed
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-full border border-emerald-200/60">
-                        {report.progress}% Completed
-                      </span>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <span className="font-bold text-slate-700 block mb-1">Work Completed:</span>
+                        <p className="text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/60">{report.workDone}</p>
+                      </div>
+
+                      <div>
+                        <span className="font-bold text-slate-700 block mb-1">Issues & Solutions:</span>
+                        <p className="text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                          <span className="font-semibold text-rose-600">Issues:</span> {report.challenges}<br/>
+                          {report.solution && <><span className="font-semibold text-emerald-600">Solution:</span> {report.solution}</>}
+                        </p>
+                      </div>
                     </div>
+
+                    {report.nextDayPlan && (
+                      <div className="mt-3 text-xs">
+                        <span className="font-bold text-slate-700">Tomorrow's Plan:</span>
+                        <span className="text-slate-600 ml-2">{report.nextDayPlan}</span>
+                      </div>
+                    )}
+
+                    {report.githubCommitUrl && (
+                      <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <GitCommit className="w-4 h-4" />
+                          <a href={report.githubCommitUrl} target="_blank" rel="noreferrer" className="hover:underline font-semibold truncate max-w-xs sm:max-w-md">
+                            Commit: {report.githubCommitMessage || report.githubCommitUrl}
+                          </a>
+                        </div>
+
+                        <button
+                          onClick={() => handleCopyGithubUrl(report.githubCommitUrl!, `commit-${reportId}`)}
+                          className="text-xs text-slate-500 hover:text-blue-600 font-bold flex items-center gap-1"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy Commit URL</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <span className="font-bold text-slate-700 block mb-1">Work Completed:</span>
-                      <p className="text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/60">{report.workDone}</p>
-                    </div>
-
-                    <div>
-                      <span className="font-bold text-slate-700 block mb-1">Issues & Solutions:</span>
-                      <p className="text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
-                        <span className="font-semibold text-rose-600">Issues:</span> {report.challenges}<br/>
-                        {report.solution && <><span className="font-semibold text-emerald-600">Solution:</span> {report.solution}</>}
-                      </p>
-                    </div>
-                  </div>
-
-                  {report.nextDayPlan && (
-                    <div className="mt-3 text-xs">
-                      <span className="font-bold text-slate-700">Tomorrow's Plan:</span>
-                      <span className="text-slate-600 ml-2">{report.nextDayPlan}</span>
-                    </div>
-                  )}
-
-                  {report.githubCommitUrl && (
-                    <div className="mt-3 pt-3 border-t flex items-center gap-2 text-xs text-blue-600">
-                      <GitCommit className="w-4 h-4" />
-                      <a href={report.githubCommitUrl} target="_blank" rel="noreferrer" className="hover:underline font-semibold">
-                        Commit Reference: {report.githubCommitMessage || report.githubCommitUrl}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
