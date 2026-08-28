@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../store.ts";
-import { Shield, GraduationCap, KeyRound, Cpu, ArrowDown, Lock, CheckCircle2, ChevronRight, Layers, Sparkles } from "lucide-react";
+import { Shield, GraduationCap, KeyRound, Cpu, ArrowDown, Lock, CheckCircle2, ChevronRight, Layers, Sparkles, X, Info, ExternalLink } from "lucide-react";
 
 export default function Login() {
   const { login, loading, addToast } = useStore();
@@ -25,6 +25,7 @@ export default function Login() {
   const [mode, setMode] = React.useState<"signin" | "signup">("signin");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [activeLabModal, setActiveLabModal] = React.useState<string | null>(null);
 
   const OFFICIAL_LABS = [
     "Artificial Intelligence and Research Lab",
@@ -36,10 +37,11 @@ export default function Login() {
     "VLSI Lab"
   ];
 
-  const LAB_VISIONS: Record<string, { desc: string; points: string[]; iconTag: string }> = {
+  const LAB_VISIONS: Record<string, { desc: string; points: string[]; iconTag: string; detailedIntro: string }> = {
     "Artificial Intelligence and Research Lab": {
       desc: "Machine Learning & Research Innovation",
       iconTag: "AI & ML",
+      detailedIntro: "Dedicated to advancing machine learning architectures, neural network research, and intelligent software engineering.",
       points: [
         "Build practical AI and machine-learning solutions.",
         "Encourage research-driven innovation.",
@@ -50,6 +52,7 @@ export default function Login() {
     "Cyber Security / Cloud Computing Lab": {
       desc: "Zero-Trust Security & Cloud Scalability",
       iconTag: "SEC & CLOUD",
+      detailedIntro: "Focused on cloud infrastructure resilience, penetration testing, cryptographic security, and distributed computing.",
       points: [
         "Build secure digital systems.",
         "Develop practical cybersecurity capabilities.",
@@ -60,6 +63,7 @@ export default function Login() {
     "AR/VR Lab": {
       desc: "Spatial Computing & Virtual Prototyping",
       iconTag: "SPATIAL VR",
+      detailedIntro: "Pioneering augmented reality, virtual spatial rendering, digital twin simulations, and immersive user experiences.",
       points: [
         "Develop immersive digital experiences.",
         "Explore augmented and virtual reality.",
@@ -70,6 +74,7 @@ export default function Login() {
     "IoT (Internet of Things) Lab": {
       desc: "Edge Computing & Automation Systems",
       iconTag: "IOT EDGE",
+      detailedIntro: "Connecting physical sensors, microcontrollers, and edge AI models to create real-world smart automation platforms.",
       points: [
         "Connect physical systems with intelligent computing.",
         "Develop smart automation solutions.",
@@ -80,6 +85,7 @@ export default function Login() {
     "PCB Lab": {
       desc: "Embedded Hardware & Prototyping",
       iconTag: "HARDWARE",
+      detailedIntro: "Specializing in printed circuit board fabrication, surface-mount technology, embedded systems, and hardware design.",
       points: [
         "Develop practical electronic hardware.",
         "Promote PCB design and prototyping.",
@@ -90,6 +96,7 @@ export default function Login() {
     "Robotics Lab": {
       desc: "Autonomous Systems & Controls",
       iconTag: "ROBOTICS",
+      detailedIntro: "Engineered for autonomous mobile robots, robotic arm manipulation, ROS2 programming, and industrial control systems.",
       points: [
         "Build intelligent autonomous systems.",
         "Develop robotic automation.",
@@ -100,6 +107,7 @@ export default function Login() {
     "VLSI Lab": {
       desc: "Silicon Architecture & Microchips",
       iconTag: "VLSI CHIP",
+      detailedIntro: "Focused on Very Large Scale Integration, ASIC design, Verilog/VHDL chip simulation, and semiconductor technology.",
       points: [
         "Develop advanced digital hardware systems.",
         "Explore VLSI design and semiconductor technologies.",
@@ -255,251 +263,45 @@ export default function Login() {
 
         <button
           onClick={scrollToAuth}
-          className="px-6 py-2.5 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-extrabold text-xs rounded-xl shadow-lg shadow-[#00e5ff]/20 transition-all duration-300 transform hover:scale-105 cursor-pointer uppercase tracking-wider"
+          className="px-6 py-2.5 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-extrabold text-xs rounded-xl shadow-lg shadow-[#00e5ff]/20 transition-all duration-300 transform hover:scale-105 cursor-pointer uppercase tracking-wider flex items-center gap-2"
         >
-          Initialize Console ↓
+          <span>Scroll Down to Login</span>
+          <ArrowDown className="w-4 h-4" />
         </button>
       </header>
 
-      {/* Hero 2-Column Section Matching Placify Screenshot */}
-      <section className="relative z-10 max-w-7xl mx-auto px-8 pt-16 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        
-        {/* Left Side Hero Content */}
-        <div className="lg:col-span-7 space-y-6 text-left">
-          <div className="inline-block text-xs font-black uppercase tracking-[0.25em] text-[#00e5ff]">
-            SECURE AUTHENTICATION
-          </div>
-
-          <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-none">
-            Initialize Your <br />
-            Command Console.
-          </h1>
-
-          <p className="text-sm md:text-base text-slate-400 max-w-xl leading-relaxed font-normal">
-            Log in utilizing the official student profile or coordinator access to manage projects, verify daily reports, track GitHub development, and supervise seven laboratories inside the admin studio.
-          </p>
-
-          <div className="pt-4 flex items-center gap-4">
-            <button
-              onClick={scrollToAuth}
-              className="px-6 py-3 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs rounded-xl backdrop-blur-md transition flex items-center gap-2"
-            >
-              <span>Scroll to Login Portal</span>
-              <ArrowDown className="w-4 h-4 text-[#00e5ff]" />
-            </button>
-          </div>
+      {/* Hero Top Intro Section (NO login console here - pure hero banner!) */}
+      <section className="relative z-10 max-w-5xl mx-auto px-8 pt-20 pb-16 text-center space-y-6">
+        <div className="inline-block text-xs font-black uppercase tracking-[0.3em] text-[#00e5ff] bg-[#00e5ff]/10 border border-[#00e5ff]/20 px-4 py-1.5 rounded-full">
+          SECURE INSTITUTIONAL AUTHENTICATION
         </div>
 
-        {/* Right Side: Command Console Login Card (Matching Screenshot exactly) */}
-        <div className="lg:col-span-5 text-left">
-          <div className="bg-[#0b101d] border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6">
-            
-            {/* Top Login / Register Pill Tabs */}
-            <div className="grid grid-cols-2 gap-1 bg-[#121829] p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setMode("signin")}
-                className={`py-2.5 rounded-xl transition ${
-                  mode === "signin"
-                    ? "bg-[#00e5ff] text-black font-black shadow-md shadow-[#00e5ff]/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Login
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole("student");
-                  setMode("signup");
-                }}
-                className={`py-2.5 rounded-xl transition ${
-                  mode === "signup"
-                    ? "bg-[#00e5ff] text-black font-black shadow-md shadow-[#00e5ff]/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Register
-              </button>
-            </div>
+        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
+          Initialize Your Command Console.
+        </h1>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email / Username Field */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
-                  {role === "student" ? "College Email (Format: name24cs@srishakthi.ac.in) *" : "Official Email Address *"}
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder={
-                    role === "student"
-                      ? "e.g. rishis24cs@srishakthi.ac.in"
-                      : (role === "coordinator" ? "coordinator@srishakthi.ac.in" : "sathish@srishakthi.ac.in")
-                  }
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#00e5ff] transition"
-                />
-              </div>
+        <p className="text-sm md:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-normal">
+          TrackFlow AI empowers engineering students, lab coordinators, and master administrators across 7 specialized laboratories with automated progress calculation, daily reports, milestone presentation locks, and GitHub synchronization.
+        </p>
 
-              {/* Full Name */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={role === "master_admin" ? "Sathish" : "Full Name"}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#00e5ff] transition"
-                />
-              </div>
-
-              {/* Security Pin / Password fields for signup */}
-              {mode === "signup" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
-                      Password *
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
-                      Confirm Password *
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="Confirm Password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Student Fields */}
-              {role === "student" && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
-                        Register No *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="732724CS001"
-                        value={registerNumber}
-                        onChange={(e) => setRegisterNumber(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
-                        Assigned Lab *
-                      </label>
-                      <select
-                        value={lab}
-                        onChange={(e) => setLab(e.target.value)}
-                        className="w-full px-3 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-[11px] cursor-pointer focus:outline-none focus:border-[#00e5ff]"
-                      >
-                        {OFFICIAL_LABS.map((l) => (
-                          <option key={l} value={l} className="bg-[#131929] text-white">
-                            {l}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Cyan Access Command Console Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 px-6 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-[#00e5ff]/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <Lock className="w-4 h-4" />
-                <span>{loading ? "Authenticating..." : "Access Command Console"}</span>
-              </button>
-
-              {/* Preset Quick Role Selectors */}
-              <div className="pt-2 grid grid-cols-3 gap-2 border-t border-slate-800 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("student");
-                    setMode("signin");
-                    if (!email.includes("@")) setEmail("rishis24cs@srishakthi.ac.in");
-                  }}
-                  className={`py-2 px-2 rounded-xl border transition ${
-                    role === "student"
-                      ? "bg-slate-800 text-[#00e5ff] border-[#00e5ff]/40 font-bold"
-                      : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
-                  }`}
-                >
-                  Student Demo
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("coordinator");
-                    setMode("signin");
-                    setEmail("coordinator@srishakthi.ac.in");
-                  }}
-                  className={`py-2 px-2 rounded-xl border transition ${
-                    role === "coordinator"
-                      ? "bg-slate-800 text-[#00e5ff] border-[#00e5ff]/40 font-bold"
-                      : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
-                  }`}
-                >
-                  Admin Coordinator
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("master_admin");
-                    setMode("signin");
-                    setEmail("sathish@srishakthi.ac.in");
-                    setName("Sathish");
-                  }}
-                  className={`py-2 px-2 rounded-xl border transition ${
-                    role === "master_admin"
-                      ? "bg-slate-800 text-purple-400 border-purple-500/40 font-bold"
-                      : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
-                  }`}
-                >
-                  Master Sathish
-                </button>
-              </div>
-            </form>
-          </div>
+        <div className="pt-4 flex justify-center gap-4">
+          <button
+            onClick={scrollToAuth}
+            className="px-8 py-3.5 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-xl shadow-[#00e5ff]/20 transition duration-300 flex items-center gap-2 cursor-pointer"
+          >
+            <span>Scroll Down to Login Console</span>
+            <ArrowDown className="w-4 h-4" />
+          </button>
         </div>
       </section>
 
-      {/* Sequential Lab Pop Section (Left one first, Right one next) */}
-      <section className="relative z-10 max-w-7xl mx-auto px-8 py-20 space-y-12">
+      {/* Sequential Lab Pop Section (Left one first, Right one next + Pop-up Modals!) */}
+      <section className="relative z-10 max-w-7xl mx-auto px-8 py-16 space-y-12">
         <div className="text-center space-y-2">
-          <span className="text-xs font-black uppercase tracking-[0.25em] text-[#00e5ff]">INSTITUTIONAL INNOVATION</span>
+          <span className="text-xs font-black uppercase tracking-[0.25em] text-[#00e5ff]">SEVEN SPECIALIZED INNOVATION LABS</span>
           <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">OUR SEVEN LABORATORIES</h2>
           <p className="text-xs text-slate-400 max-w-xl mx-auto">
-            Discover our seven state-of-the-art laboratories operating sequentially across research domains.
+            Click any laboratory card to open its interactive Vision Pop-Up modal with complete objectives.
           </p>
         </div>
 
@@ -511,8 +313,9 @@ export default function Login() {
             return (
               <div
                 key={labName}
-                className={`bg-[#0b101d] border border-slate-800 p-8 rounded-3xl space-y-4 hover:border-[#00e5ff]/40 hover:shadow-2xl hover:shadow-[#00e5ff]/10 transition-all duration-500 transform hover:-translate-y-1 ${
-                  isLeft ? "lg:mr-4 animate-fade-in" : "lg:ml-4 animate-fade-in"
+                onClick={() => setActiveLabModal(labName)}
+                className={`group bg-[#0b101d] border border-slate-800 p-8 rounded-3xl space-y-4 hover:border-[#00e5ff]/60 hover:shadow-2xl hover:shadow-[#00e5ff]/15 transition-all duration-500 transform hover:-translate-y-1.5 cursor-pointer relative overflow-hidden ${
+                  isLeft ? "lg:mr-2" : "lg:ml-2"
                 }`}
                 style={{ animationDelay: `${index * 150}ms` }}
               >
@@ -520,21 +323,28 @@ export default function Login() {
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#00e5ff] bg-[#00e5ff]/10 border border-[#00e5ff]/20 px-3 py-1 rounded-full">
                     Lab {index + 1} &bull; {info?.iconTag}
                   </span>
-                  <span className="text-xs font-bold text-slate-500">
-                    {isLeft ? "← Left Lab Unit" : "Right Lab Unit →"}
+                  <span className="text-[11px] font-bold text-slate-500 group-hover:text-[#00e5ff] transition-colors flex items-center gap-1">
+                    <span>Click for Pop-Up</span>
+                    <Info className="w-3.5 h-3.5" />
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white">{labName}</h3>
+                <h3 className="text-xl font-bold text-white group-hover:text-[#00e5ff] transition-colors">{labName}</h3>
                 <p className="text-xs text-slate-400 font-medium">{info?.desc}</p>
 
                 <div className="pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
-                  {info?.points.map((pt, pIdx) => (
+                  {info?.points.slice(0, 2).map((pt, pIdx) => (
                     <div key={pIdx} className="flex items-start gap-2">
                       <CheckCircle2 className="w-4 h-4 text-[#00e5ff] flex-shrink-0 mt-0.5" />
                       <span>{pt}</span>
                     </div>
                   ))}
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <span className="text-xs font-bold text-[#00e5ff] group-hover:underline flex items-center gap-1">
+                    Open Lab Pop-Up Modal &rarr;
+                  </span>
                 </div>
               </div>
             );
@@ -542,25 +352,263 @@ export default function Login() {
         </div>
       </section>
 
-      {/* Integrated Bottom Scroll-Down Login Portal */}
-      <section id="auth-section" className="relative z-10 max-w-4xl mx-auto px-8 py-20">
-        <div className="bg-[#0b101d] border border-slate-800 p-10 rounded-3xl shadow-2xl text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff]">
-            <Lock className="w-7 h-7" />
+      {/* Interactive Pop-Up Modal for Lab Details */}
+      {activeLabModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0b101d] border border-[#00e5ff]/40 max-w-lg w-full p-8 rounded-3xl shadow-2xl space-y-6 text-left relative animate-scale-up">
+            
+            <button
+              onClick={() => setActiveLabModal(null)}
+              className="absolute top-6 right-6 p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-2">
+              <span className="text-xs font-black uppercase tracking-widest text-[#00e5ff] bg-[#00e5ff]/10 border border-[#00e5ff]/20 px-3 py-1 rounded-full">
+                {LAB_VISIONS[activeLabModal]?.iconTag} &bull; OFFICIAL VISION
+              </span>
+              <h2 className="text-2xl font-black text-white">{activeLabModal}</h2>
+              <p className="text-xs text-slate-300 font-medium">{LAB_VISIONS[activeLabModal]?.detailedIntro}</p>
+            </div>
+
+            <div className="space-y-3 pt-2 border-t border-slate-800">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">LAB VISION & OBJECTIVES</h3>
+              <ul className="space-y-2.5 text-xs text-slate-200">
+                {LAB_VISIONS[activeLabModal]?.points.map((pt, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 bg-[#131929] p-3 rounded-xl border border-slate-800">
+                    <CheckCircle2 className="w-4 h-4 text-[#00e5ff] flex-shrink-0 mt-0.5" />
+                    <span>{pt}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => {
+                  setLab(activeLabModal);
+                  setActiveLabModal(null);
+                  scrollToAuth();
+                }}
+                className="px-6 py-2.5 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-extrabold text-xs uppercase rounded-xl cursor-pointer shadow-lg shadow-[#00e5ff]/20"
+              >
+                Select {activeLabModal.split(" ")[0]} Lab & Login ↓
+              </button>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl md:text-3xl font-black text-white">TrackFlow AI Login Portal</h2>
-            <p className="text-xs text-slate-400 mt-1">Ready to manage your projects, log daily reports, and access lab resources?</p>
+        </div>
+      )}
+
+      {/* Integrated Command Console Login Portal STRICTLY AT THE BOTTOM */}
+      <section id="auth-section" className="relative z-10 max-w-2xl mx-auto px-8 py-20">
+        
+        {/* Command Console Box (Matching Placify Screenshot exactly) */}
+        <div className="bg-[#0b101d] border border-slate-800 p-8 md:p-10 rounded-3xl shadow-2xl text-left space-y-6">
+          
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#00e5ff]/10 text-[#00e5ff] mb-1">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h2 className="text-2xl font-black text-white tracking-tight">Command Console Login</h2>
+            <p className="text-xs text-slate-400">Log in utilizing your official profile to access student, coordinator, or master studio.</p>
           </div>
 
-          <div className="flex justify-center pt-2">
+          {/* Top Login / Register Pill Tabs */}
+          <div className="grid grid-cols-2 gap-1 bg-[#121829] p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
             <button
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="px-8 py-3.5 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-[#00e5ff]/20 transition cursor-pointer"
+              type="button"
+              onClick={() => setMode("signin")}
+              className={`py-2.5 rounded-xl transition ${
+                mode === "signin"
+                  ? "bg-[#00e5ff] text-black font-black shadow-md shadow-[#00e5ff]/20"
+                  : "text-slate-400 hover:text-white"
+              }`}
             >
-              Access Console Top Login ↑
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRole("student");
+                setMode("signup");
+              }}
+              className={`py-2.5 rounded-xl transition ${
+                mode === "signup"
+                  ? "bg-[#00e5ff] text-black font-black shadow-md shadow-[#00e5ff]/20"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Register
             </button>
           </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email / Username Field */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                {role === "student" ? "College Email (Format: name24cs@srishakthi.ac.in) *" : "Official Email Address *"}
+              </label>
+              <input
+                type="email"
+                required
+                placeholder={
+                  role === "student"
+                    ? "e.g. rishis24cs@srishakthi.ac.in"
+                    : (role === "coordinator" ? "coordinator@srishakthi.ac.in" : "sathish@srishakthi.ac.in")
+                }
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#00e5ff] transition"
+              />
+            </div>
+
+            {/* Full Name */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder={role === "master_admin" ? "Sathish" : "Full Name"}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#00e5ff] transition"
+              />
+            </div>
+
+            {/* Security Pin / Password fields for signup */}
+            {mode === "signup" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Student Fields */}
+            {role === "student" && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                      Register No *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="732724CS001"
+                      value={registerNumber}
+                      onChange={(e) => setRegisterNumber(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-xs focus:outline-none focus:border-[#00e5ff]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                      Assigned Lab *
+                    </label>
+                    <select
+                      value={lab}
+                      onChange={(e) => setLab(e.target.value)}
+                      className="w-full px-3 py-3 rounded-xl bg-[#131929] border border-slate-700/80 text-white text-[11px] cursor-pointer focus:outline-none focus:border-[#00e5ff]"
+                    >
+                      {OFFICIAL_LABS.map((l) => (
+                        <option key={l} value={l} className="bg-[#131929] text-white">
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Cyan Access Command Console Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-6 bg-[#00e5ff] hover:bg-[#00c8e0] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-[#00e5ff]/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Lock className="w-4 h-4" />
+              <span>{loading ? "Authenticating..." : "Access Command Console"}</span>
+            </button>
+
+            {/* Preset Quick Role Selectors */}
+            <div className="pt-2 grid grid-cols-3 gap-2 border-t border-slate-800 text-[11px]">
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("student");
+                  setMode("signin");
+                  if (!email.includes("@")) setEmail("rishis24cs@srishakthi.ac.in");
+                }}
+                className={`py-2 px-2 rounded-xl border transition ${
+                  role === "student"
+                    ? "bg-slate-800 text-[#00e5ff] border-[#00e5ff]/40 font-bold"
+                    : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
+                }`}
+              >
+                Student Demo
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("coordinator");
+                  setMode("signin");
+                  setEmail("coordinator@srishakthi.ac.in");
+                }}
+                className={`py-2 px-2 rounded-xl border transition ${
+                  role === "coordinator"
+                    ? "bg-slate-800 text-[#00e5ff] border-[#00e5ff]/40 font-bold"
+                    : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
+                }`}
+              >
+                Admin Coordinator
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("master_admin");
+                  setMode("signin");
+                  setEmail("sathish@srishakthi.ac.in");
+                  setName("Sathish");
+                }}
+                className={`py-2 px-2 rounded-xl border transition ${
+                  role === "master_admin"
+                    ? "bg-slate-800 text-purple-400 border-purple-500/40 font-bold"
+                    : "bg-[#131929] text-slate-400 border-slate-800 hover:text-white"
+                }`}
+              >
+                Master Sathish
+              </button>
+            </div>
+          </form>
         </div>
       </section>
 
