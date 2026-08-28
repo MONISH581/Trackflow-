@@ -167,11 +167,18 @@ async function startServer() {
         const docVal = doc[key];
 
         if (value && typeof value === "object" && !(value instanceof Date) && !(value instanceof RegExp) && !Array.isArray(value)) {
+          const getCompareValue = (v: any) => {
+            if (v instanceof Date) return v.getTime();
+            if (typeof v === "string" && !isNaN(Date.parse(v))) return new Date(v).getTime();
+            return v;
+          };
+          const targetVal = getCompareValue(docVal);
+
           if ("$ne" in value && docVal === value.$ne) return false;
-          if ("$gt" in value && !(docVal > value.$gt)) return false;
-          if ("$gte" in value && !(docVal >= value.$gte)) return false;
-          if ("$lt" in value && !(docVal < value.$lt)) return false;
-          if ("$lte" in value && !(docVal <= value.$lte)) return false;
+          if ("$gt" in value && !(targetVal > getCompareValue(value.$gt))) return false;
+          if ("$gte" in value && !(targetVal >= getCompareValue(value.$gte))) return false;
+          if ("$lt" in value && !(targetVal < getCompareValue(value.$lt))) return false;
+          if ("$lte" in value && !(targetVal <= getCompareValue(value.$lte))) return false;
           if ("$in" in value && Array.isArray(value.$in)) {
             if (Array.isArray(docVal)) {
               if (!docVal.some(v => value.$in.includes(v))) return false;
@@ -179,6 +186,7 @@ async function startServer() {
               if (!value.$in.includes(docVal)) return false;
             }
           }
+
           if ("$nin" in value && Array.isArray(value.$nin)) {
             if (value.$nin.includes(docVal)) return false;
           }
@@ -1273,13 +1281,30 @@ Return them as a JSON array of objects fitting this schema:
 ]
 Do not include any markdown format tags (like \`\`\`json) in your response, return a clean raw JSON string.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: prompt,
-          config: {
-            tools: [{ googleSearch: {} }]
+        let response;
+        try {
+          response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+              tools: [{ googleSearch: {} }]
+            }
+          });
+        } catch (e: any) {
+          if (e?.status === 404 || e?.message?.includes("404") || e?.message?.includes("is no longer available")) {
+            console.log("gemini-2.5-flash unavailable on current key tier, falling back to gemini-3.6-flash...");
+            response = await ai.models.generateContent({
+              model: "gemini-3.6-flash",
+              contents: prompt,
+              config: {
+                tools: [{ googleSearch: {} }]
+              }
+            });
+          } else {
+            throw e;
           }
-        });
+        }
+
 
 
 
@@ -1385,13 +1410,30 @@ Return them as a JSON array of objects fitting this schema:
 ]
 Do not include any markdown format tags (like \`\`\`json) in your response, return a clean raw JSON string.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: prompt,
-          config: {
-            tools: [{ googleSearch: {} }]
+        let response;
+        try {
+          response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+              tools: [{ googleSearch: {} }]
+            }
+          });
+        } catch (e: any) {
+          if (e?.status === 404 || e?.message?.includes("404") || e?.message?.includes("is no longer available")) {
+            console.log("gemini-2.5-flash unavailable on current key tier, falling back to gemini-3.6-flash...");
+            response = await ai.models.generateContent({
+              model: "gemini-3.6-flash",
+              contents: prompt,
+              config: {
+                tools: [{ googleSearch: {} }]
+              }
+            });
+          } else {
+            throw e;
           }
-        });
+        }
+
 
 
 
