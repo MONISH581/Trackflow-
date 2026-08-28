@@ -114,6 +114,22 @@ export interface HackathonInfo {
   registrationDeadline: string;
   registrationLink: string;
   status: string;
+  event_type?: string;
+  government_level?: string;
+  tn_eligibility?: string;
+  mode?: string;
+  parent_ministry?: string;
+  department?: string;
+  organization?: string;
+  state?: string;
+  eligibility?: string[];
+  source_info?: {
+    url?: string;
+    name?: string;
+    type?: string;
+    last_verified_at?: string;
+    confidence?: string;
+  };
 }
 
 export interface HackathonRegistrationInfo {

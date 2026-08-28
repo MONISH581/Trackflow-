@@ -391,7 +391,7 @@ export default function AdminOpportunities() {
                   <td className="p-4">
                     <div className="flex flex-col gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
                       <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400" /> {opp.mode} ({opp.location})
+                        <MapPin className="w-3 h-3 text-slate-400" /> {opp.government_level ? opp.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{opp.mode} ({opp.location})
                       </span>
                       <span className="flex items-center gap-1">
                         <DollarSign className="w-3 h-3 text-slate-400" /> {opp.freeOrPaid}

@@ -94,6 +94,7 @@ export default function Opportunities() {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState("");
   const [mode, setMode] = React.useState("");
+  const [governmentLevel, setGovernmentLevel] = React.useState("");
   const [freeOrPaid, setFreeOrPaid] = React.useState("");
   const [difficulty, setDifficulty] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -118,13 +119,14 @@ export default function Opportunities() {
     fetchOpportunities({
       category: selectedCategory,
       mode,
+      governmentLevel,
       freeOrPaid,
       difficulty,
       status,
       search,
       sort
     });
-  }, [selectedCategory, mode, freeOrPaid, difficulty, status, search, sort, fetchOpportunities]);
+  }, [selectedCategory, mode, governmentLevel, freeOrPaid, difficulty, status, search, sort, fetchOpportunities]);
 
   // Load stats and recommendation lists
   React.useEffect(() => {
@@ -348,6 +350,7 @@ export default function Opportunities() {
                 onClick={() => {
                   setSearch("");
                   setMode("");
+                  setGovernmentLevel("");
                   setFreeOrPaid("");
                   setDifficulty("");
                   setStatus("");
@@ -383,6 +386,22 @@ export default function Opportunities() {
                 <option value="Online">Online / Virtual</option>
                 <option value="Offline">Offline / In-Person</option>
                 <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
+
+            {/* Government Level Select */}
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700">Government Sponsor</label>
+              <select
+                value={governmentLevel}
+                onChange={(e) => setGovernmentLevel(e.target.value)}
+                className="w-full glass-input p-2.5 rounded-xl text-xs font-bold text-slate-800 bg-white"
+              >
+                <option value="">All Sponsors</option>
+                <option value="CENTRAL_GOVERNMENT">Central Government</option>
+                <option value="STATE_GOVERNMENT">State Government</option>
+                <option value="DEFENCE">Defence</option>
+                <option value="PSU">PSU / Public Sector</option>
               </select>
             </div>
 
@@ -483,7 +502,9 @@ export default function Opportunities() {
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
                       <span>{opp.organizer}</span>
-                      <span className="text-indigo-600 dark:text-blue-400 font-bold">{opp.mode}</span>
+                      <span className="text-indigo-600 dark:text-blue-400 font-bold">
+                        {opp.government_level ? opp.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{opp.mode}
+                      </span>
                     </div>
                   </Link>
                 ))}
@@ -775,7 +796,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-800 pt-1 font-bold">
             <span className="flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span>{opp.location} ({opp.mode})</span>
+              <span>{opp.location} ({opp.government_level ? opp.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{opp.mode})</span>
             </span>
             <span className="flex items-center gap-1">
               <DollarSign className="w-3.5 h-3.5 text-emerald-600 shrink-0" />

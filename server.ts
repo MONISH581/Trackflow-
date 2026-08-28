@@ -1157,7 +1157,7 @@ Return them as a JSON array of objects fitting this schema:
 Do not include any markdown format tags (like \`\`\`json) in your response, return a clean raw JSON string.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.6-flash",
           contents: prompt,
           config: {
             tools: [{ googleSearch: {} }]
@@ -1223,13 +1223,131 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       console.error("Failed to clean up expired opportunities:", err.message);
     }
   }
+  async function syncGovernmentHackathons() {
+    console.log("Starting government and PSU hackathons sync via Gemini AI...");
+    try {
+      if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY") {
+        const prompt = `You are an expert researcher for Indian Government Opportunities.
+Do a live web search using Google Search to find 8 actual, real, live, and upcoming Indian Government hackathons, challenges, and ideathons that are currently open for registration or coming soon.
+Specifically look for:
+- Central Government Hackathons (e.g., Smart India Hackathon, IndiaAI, MeitY)
+- State Government Hackathons (e.g., Tamil Nadu Naan Mudhalvan, Kerala Startup Mission)
+- Defence and PSU Challenges (e.g., DRDO, ISRO, iDEX, BHEL)
+
+Make sure the website and registrationLink redirect correctly to the original official URL of the opportunity. Do not invent links or placeholders.
+Return them as a JSON array of objects fitting this schema:
+[
+  {
+    "title": "Opportunity Title",
+    "description": "Engaging description mentioning the government body.",
+    "organizer": "Official Ministry/Dept/PSU Name",
+    "organizerLogo": "Vercel avatar slug based on organizer name",
+    "website": "https://...",
+    "registrationLink": "https://...",
+    "location": "Online or City",
+    "mode": "Online" | "Offline" | "Hybrid",
+    "freeOrPaid": "Free",
+    "prizePool": "Description of prize, funding, or grant",
+    "registrationDeadlineISO": "ISO string of deadline in the future",
+    "eventStartDateISO": "ISO string of start date in the future",
+    "eventEndDateISO": "ISO string of end date in the future",
+    "difficulty": "Intermediate",
+    "eligibility": "Academic criteria",
+    "timeline": "Important dates",
+    "rules": "Participant terms",
+    "judgingCriteria": "Evaluation metrics",
+    "tags": ["Government", "Hackathon", "Tag3"],
+    "government_level": "CENTRAL_GOVERNMENT" | "STATE_GOVERNMENT" | "DEFENCE" | "PSU",
+    "event_type": "HACKATHON" | "IDEATHON" | "ROBOTICS_CHALLENGE" | "AI_CHALLENGE" | "STARTUP_CHALLENGE" | "INNOVATION_CHALLENGE"
+  }
+]
+Do not include any markdown format tags (like \`\`\`json) in your response, return a clean raw JSON string.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }]
+          }
+        });
+
+        const text = response.text ? response.text.trim() : "";
+        const jsonStr = text.replace(/^```json/, "").replace(/```$/, "").trim();
+        
+        const items = JSON.parse(jsonStr);
+        if (Array.isArray(items)) {
+          let count = 0;
+          for (const item of items) {
+            const exists = await Opportunity.findOne({
+              $or: [
+                { title: item.title },
+                { website: item.website }
+              ]
+            });
+            if (!exists) {
+              const newHack = new Opportunity({
+                title: item.title,
+                description: item.description,
+                category: "Hackathons",
+                organizer: item.organizer,
+                organizerLogo: `https://avatar.vercel.sh/${item.organizerLogo || 'gov'}`,
+                bannerImage: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80",
+                website: item.website,
+                registrationLink: item.registrationLink,
+                location: item.location,
+                mode: item.mode,
+                freeOrPaid: item.freeOrPaid,
+                targetAudience: "Student Only",
+                prizePool: item.prizePool,
+                registrationDeadline: new Date(item.registrationDeadlineISO),
+                eventStartDate: new Date(item.eventStartDateISO),
+                eventEndDate: new Date(item.eventEndDateISO),
+                difficulty: item.difficulty,
+                eligibility: item.eligibility,
+                timeline: item.timeline,
+                rules: item.rules,
+                judgingCriteria: item.judgingCriteria,
+                tags: item.tags,
+                featured: true,
+                trending: true,
+                approved: true,
+                event_type: item.event_type,
+                government_level: item.government_level,
+                tn_eligibility: item.government_level === "STATE_GOVERNMENT" && item.organizer.toLowerCase().includes("tamil nadu") ? "YES" : "UNKNOWN",
+                parent_ministry: item.organizer.split('/')[0].trim(),
+                source_info: {
+                  url: item.website,
+                  name: item.organizer,
+                  type: "Official Portal",
+                  last_verified_at: new Date().toISOString(),
+                  confidence: "High"
+                }
+              });
+              await newHack.save();
+              count++;
+            }
+          }
+          console.log(`Generated and synced ${count} real government hackathons via Gemini AI.`);
+          if (count > 0) {
+            io.emit("opportunities_updated");
+          }
+        }
+      } else {
+        console.log("Skipping Government Hackathon AI Sync (GEMINI_API_KEY missing).");
+      }
+    } catch (err: any) {
+      console.error("Failed to sync government hackathons:", err.message);
+    }
+  }
 
   const runStartupJobs = async () => {
     try {
       await seedDemoData();
       await seedOpportunities();
+      await syncGovernmentHackathons();
       await syncOpportunities();
-      setInterval(syncOpportunities, 24 * 60 * 60 * 1000);
+      setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
+      setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
     } catch (err) {
       console.error("Failed running startup data seed/sync jobs:", err);
     }
@@ -2746,11 +2864,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   app.get("/api/opportunities", async (req, res) => {
     try {
-      const { category, mode, freeOrPaid, targetAudience, difficulty, status, search, sort } = req.query;
+      const { category, mode, freeOrPaid, targetAudience, difficulty, status, search, sort, governmentLevel } = req.query;
       let query: any = { approved: true };
 
       if (category) query.category = String(category);
       if (mode) query.mode = String(mode);
+      if (governmentLevel) query.government_level = String(governmentLevel);
       if (freeOrPaid) query.freeOrPaid = String(freeOrPaid);
       if (targetAudience) query.targetAudience = String(targetAudience);
       if (difficulty) query.difficulty = String(difficulty);
@@ -3047,7 +3166,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       Provide a short, 3-sentence summary highlighting the health of the project and recommendations.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         contents: prompt,
       });
 

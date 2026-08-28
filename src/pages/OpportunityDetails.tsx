@@ -420,7 +420,7 @@ export default function OpportunityDetails() {
                       {item.title}
                     </span>
                     <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 mt-3 font-medium">
-                      <span>{item.mode}</span>
+                      <span>{item.government_level ? item.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{item.mode}</span>
                       <span className="text-blue-600 dark:text-blue-400 font-bold">{item.freeOrPaid}</span>
                     </div>
                   </Link>
