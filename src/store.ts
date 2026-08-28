@@ -239,9 +239,21 @@ export interface OpportunityInfo {
   submittedBy?: string;
   submittedByName?: string;
   approved?: boolean;
+  event_type?: string;
+  government_level?: string;
+  tn_eligibility?: string;
+  parent_ministry?: string;
+  source_info?: {
+    url?: string;
+    name?: string;
+    type?: string;
+    last_verified_at?: string;
+    confidence?: string;
+  };
   createdAt?: string;
   updatedAt?: string;
 }
+
 
 interface AppState {
   currentUser: UserInfo | null;
