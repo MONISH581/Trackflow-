@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useStore, ProjectInfo, UserInfo, API_BASE } from "../store.ts";
 import {
   FileText,
@@ -124,7 +124,7 @@ export default function ProjectDetails() {
   // Fetch approved students and abstract history
   React.useEffect(() => {
     if (currentUser?.role === "coordinator") {
-      fetch("/api/users/students")
+      fetch(`${API_BASE}/api/users/students`)
         .then((r) => r.json())
         .then((data) => {
           if (data.students) setStudents(data.students);

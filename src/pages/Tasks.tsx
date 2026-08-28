@@ -1,5 +1,5 @@
 import React from "react";
-import { useStore, TaskInfo, ProjectInfo, UserInfo } from "../store.ts";
+import { useStore, TaskInfo, ProjectInfo, UserInfo, API_BASE } from "../store.ts";
 import { Plus, CheckCircle, Clock, AlertCircle, Calendar, PlusCircle, ArrowRight, UserPlus } from "lucide-react";
 
 export default function Tasks() {
@@ -31,7 +31,7 @@ export default function Tasks() {
     fetchTasks().then(() => setLoading(false));
 
     if (currentUser?.role === "coordinator") {
-      fetch("/api/users/students")
+      fetch(`${API_BASE}/api/users/students`)
         .then((r) => r.json())
         .then((data) => {
           if (data.students) setStudents(data.students);

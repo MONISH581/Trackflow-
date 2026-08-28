@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { useStore, ProjectInfo, TaskInfo } from "../store.ts";
+import { useStore, ProjectInfo, TaskInfo, API_BASE } from "../store.ts";
 import {
   Users,
   Briefcase,
@@ -71,11 +71,11 @@ export default function Dashboard() {
       setLoading(true);
       try {
         if (currentUser.role === "coordinator") {
-          const res = await fetch("/api/dashboard-metrics");
+          const res = await fetch(`${API_BASE}/api/dashboard-metrics`);
           const data = await res.json();
           setCoordMetrics(data);
         } else {
-          const res = await fetch(`/api/student-dashboard-metrics/${currentUser.userId}`);
+          const res = await fetch(`${API_BASE}/api/student-dashboard-metrics/${currentUser.userId}`);
           const data = await res.json();
           setStudentMetrics(data);
         }

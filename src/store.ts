@@ -377,7 +377,7 @@ interface AppState {
 }
 
 
-export const API_BASE = import.meta.env.MODE === "production" ? "https://trackflow-backend-qfbp.onrender.com" : "";
+export const API_BASE = (import.meta as any).env?.MODE === "production" ? "https://trackflow-backend-qfbp.onrender.com" : "";
 
 async function safeJson(response: Response, defaultFallback: any = {}) {
   const contentType = response.headers.get("content-type");
@@ -1184,7 +1184,7 @@ export const useStore = create<AppState>((set, get) => ({
       Object.entries(filters).forEach(([key, val]) => {
         if (val) params.append(key, String(val));
       });
-      const res = await fetch(`/api/opportunities?${params.toString()}`);
+      const res = await fetch(`${API_BASE}/api/opportunities?${params.toString()}`);
       const data = await res.json();
       if (data.opportunities) {
         set({ opportunities: data.opportunities });
@@ -1194,7 +1194,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchOpportunityById: async (id) => {
     try {
-      const res = await fetch(`/api/opportunities/${id}`);
+      const res = await fetch(`${API_BASE}/api/opportunities/${id}`);
       const data = await res.json();
       return data.opportunity || null;
     } catch (err) {
@@ -1205,7 +1205,7 @@ export const useStore = create<AppState>((set, get) => ({
   createOpportunity: async (oppData) => {
     get().setLoading(true);
     try {
-      const res = await fetch(`/api/opportunities`, {
+      const res = await fetch(`${API_BASE}/api/opportunities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(oppData),
@@ -1226,7 +1226,7 @@ export const useStore = create<AppState>((set, get) => ({
   updateOpportunity: async (oppId, updates) => {
     get().setLoading(true);
     try {
-      const res = await fetch(`/api/opportunities/${oppId}`, {
+      const res = await fetch(`${API_BASE}/api/opportunities/${oppId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
@@ -1247,7 +1247,7 @@ export const useStore = create<AppState>((set, get) => ({
   deleteOpportunity: async (oppId) => {
     get().setLoading(true);
     try {
-      const res = await fetch(`/api/opportunities/${oppId}`, {
+      const res = await fetch(`${API_BASE}/api/opportunities/${oppId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete opportunity");
@@ -1269,7 +1269,7 @@ export const useStore = create<AppState>((set, get) => ({
       return false;
     }
     try {
-      const res = await fetch(`/api/bookmark`, {
+      const res = await fetch(`${API_BASE}/api/bookmark`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ opportunityId, userId: user.userId }),
@@ -1305,7 +1305,7 @@ export const useStore = create<AppState>((set, get) => ({
       return false;
     }
     try {
-      const res = await fetch(`/api/opportunities/${opportunityId}/apply`, {
+      const res = await fetch(`${API_BASE}/api/opportunities/${opportunityId}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.userId }),
@@ -1330,7 +1330,7 @@ export const useStore = create<AppState>((set, get) => ({
     const user = get().currentUser;
     if (!user) return;
     try {
-      const res = await fetch(`/api/bookmarks?userId=${user.userId}`);
+      const res = await fetch(`${API_BASE}/api/bookmarks?userId=${user.userId}`);
       const data = await res.json();
       if (data.bookmarks) {
         set({ bookmarkedOpportunities: data.bookmarks });
@@ -1340,7 +1340,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchRecommendations: async (userId) => {
     try {
-      const res = await fetch(`/api/opportunities/recommendations/${userId}`);
+      const res = await fetch(`${API_BASE}/api/opportunities/recommendations/${userId}`);
       const data = await res.json();
       return data.recommendations || [];
     } catch (err) {
@@ -1350,7 +1350,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchCategoryCounts: async () => {
     try {
-      const res = await fetch(`/api/categories`);
+      const res = await fetch(`${API_BASE}/api/categories`);
       const data = await res.json();
       return data.categories || [];
     } catch (err) {
@@ -1361,7 +1361,7 @@ export const useStore = create<AppState>((set, get) => ({
   syncOpportunities: async () => {
     get().setLoading(true);
     try {
-      const res = await fetch(`/api/opportunities/sync`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/api/opportunities/sync`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Sync failed");
       get().addToast("Successfully fetched latest hackathons!", "success");

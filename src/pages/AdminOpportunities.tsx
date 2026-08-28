@@ -1,5 +1,5 @@
 import React from "react";
-import { useStore, OpportunityInfo } from "../store.ts";
+import { useStore, OpportunityInfo, API_BASE } from "../store.ts";
 import {
   ArrowLeft,
   Plus,
@@ -313,7 +313,7 @@ export default function AdminOpportunities() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={async () => {
-                      const res = await fetch(`/api/opportunities/${opp._id || opp.id}/approve`, { method: "PUT" });
+                      const res = await fetch(`${API_BASE}/api/opportunities/${opp._id || opp.id}/approve`, { method: "PUT" });
                       if (res.ok) {
                         addToast("Opportunity approved & published!", "success");
                         fetchOpportunities({ search });

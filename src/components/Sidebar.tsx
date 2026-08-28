@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useStore } from "../store.ts";
+import { useStore, API_BASE } from "../store.ts";
 import {
   LayoutDashboard,
   Briefcase,
@@ -27,7 +27,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   React.useEffect(() => {
     if (currentUser?.role === "coordinator") {
-      fetch("/api/approvals")
+      fetch(`${API_BASE}/api/approvals`)
         .then((r) => r.json())
         .then((data) => {
           if (data.requests) {
