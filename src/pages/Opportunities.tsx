@@ -143,10 +143,32 @@ export default function Opportunities() {
   };
 
   const getLiveOpportunityList = () => {
-    if (activeTab === "bookmarks") return bookmarkedOpportunities;
-    if (activeTab === "recommendations") return recommendations;
-    return opportunities;
+    let list = opportunities;
+    if (activeTab === "bookmarks") list = bookmarkedOpportunities;
+    if (activeTab === "recommendations") list = recommendations;
+
+    if (activeTab !== "all") {
+      return list.filter(opp => {
+        if (selectedCategory && opp.category !== selectedCategory) return false;
+        if (mode && opp.mode !== mode) return false;
+        if (governmentLevel && opp.government_level !== governmentLevel) return false;
+        if (freeOrPaid && opp.freeOrPaid !== freeOrPaid) return false;
+        if (difficulty && opp.difficulty !== difficulty) return false;
+        if (search) {
+          const q = search.toLowerCase();
+          const matchTitle = opp.title?.toLowerCase().includes(q);
+          const matchOrg = opp.organizer?.toLowerCase().includes(q);
+          const matchDesc = opp.description?.toLowerCase().includes(q);
+          const matchTags = opp.tags?.some(t => t.toLowerCase().includes(q));
+          if (!matchTitle && !matchOrg && !matchDesc && !matchTags) return false;
+        }
+        return true;
+      });
+    }
+
+    return list;
   };
+
 
   return (
     <div className="space-y-8 text-left pb-16">
