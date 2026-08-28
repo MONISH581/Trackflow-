@@ -419,7 +419,15 @@ export const useStore = create<AppState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
       });
-      const data = await response.json();
+      const contentType = response.headers.get("content-type");
+      let data: any = {};
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error("Backend server API unavailable. Please verify your backend web server URL.");
+      }
+
       if (!response.ok) {
         throw new Error(data.error || "Login failed");
       }
