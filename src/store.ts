@@ -377,7 +377,7 @@ interface AppState {
 }
 
 
-const API_BASE = "https://trackflow-backend-qfbp.onrender.com";
+const API_BASE = "";
 
 async function safeJson(response: Response, defaultFallback: any = {}) {
   const contentType = response.headers.get("content-type");

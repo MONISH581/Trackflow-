@@ -783,9 +783,10 @@ export default function ProjectDetails() {
                       href={file.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      download
                       className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-lg font-bold border border-slate-200"
                     >
-                      View
+                      Download
                     </a>
                   </div>
                 ))
