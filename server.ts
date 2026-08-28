@@ -1541,15 +1541,18 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       }
 
       let userRole = role || 'student';
-      if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in' || role === 'master_admin') {
+      if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in' || (role === 'master_admin' && !req.body.isPublicSignup)) {
         userRole = 'master_admin';
       }
 
       let user = await User.findOne({ email: cleanEmail });
       if (!user) {
+        // Teacher/Coordinator & Student registrations require approval
+        const initialStatus = (userRole === 'master_admin') ? 'approved' : 'pending';
+
         user = new User({
-          userId: userRole === 'master_admin' ? 'master-sathish' : (userRole === 'coordinator' ? 'coordinator-demo' : `student-${Date.now()}`),
-          name: name || (userRole === 'master_admin' ? 'Sathish Sir (Master Controller)' : (userRole === 'coordinator' ? 'Dr. Sarah Chen' : 'New Student')),
+          userId: userRole === 'master_admin' ? `master-${Date.now()}` : (userRole === 'coordinator' ? `coord-${Date.now()}` : `student-${Date.now()}`),
+          name: name || (userRole === 'master_admin' ? 'Master Sathish' : (userRole === 'coordinator' ? 'Teacher / Coordinator' : 'New Student')),
           registerNumber: registerNumber || "",
           phone: phone || "",
           section: section || "A",
@@ -1558,21 +1561,32 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           role: userRole,
           accountStatus: 'ACTIVE',
           avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
-          department: department || (userRole === 'master_admin' ? 'Master Control' : (userRole === 'coordinator' ? 'AI Department' : 'Computer Science')),
+          department: department || (userRole === 'master_admin' ? 'Master Control' : (userRole === 'coordinator' ? 'Engineering' : 'Computer Science')),
           preferredDomain: preferredDomain || "Artificial Intelligence",
           year: year || "3",
-          status: 'approved',
+          status: initialStatus,
           registrationDate: new Date()
         });
         await user.save();
         
         if (userRole === 'student') {
-          const coordinators = await User.find({ role: 'coordinator' });
+          const coordinators = await User.find({ role: 'coordinator', status: 'approved' });
           for (const coord of coordinators) {
             await new Notification({
               userId: coord.userId,
               title: "New Student Registration",
               message: `A new student, ${user.name} (${user.registerNumber || 'Reg Pending'}), has registered.`,
+              relatedId: user.userId,
+              type: "general"
+            }).save();
+          }
+        } else if (userRole === 'coordinator') {
+          const masters = await User.find({ role: 'master_admin' });
+          for (const master of masters) {
+            await new Notification({
+              userId: master.userId,
+              title: "New Teacher / Admin Registration",
+              message: `Teacher/Admin ${user.name} (${user.email}) has registered and is waiting for Master Admin approval.`,
               relatedId: user.userId,
               type: "general"
             }).save();
@@ -1650,8 +1664,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         return res.status(404).json({ error: "User not found" });
       }
 
-      const { name, department, year, avatar, githubUsername, githubToken, skills, interestedCategories, college, notificationPreferences, registerNumber, phone, section, lab, preferredDomain } = req.body;
+      const { name, email, password, department, year, avatar, githubUsername, githubToken, skills, interestedCategories, college, notificationPreferences, registerNumber, phone, section, lab, preferredDomain } = req.body;
       if (name) existingUser.name = name;
+      if (email) existingUser.email = email.toLowerCase().trim();
+      if (password) existingUser.password = password;
       if (department) existingUser.department = department;
       if (registerNumber !== undefined) existingUser.registerNumber = registerNumber;
       if (phone !== undefined) existingUser.phone = phone;
@@ -1716,6 +1732,96 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       await notif.save();
 
       res.json({ success: true, user });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Master Control User Management Endpoints
+  app.get("/api/master-control/users", async (req, res) => {
+    try {
+      const masters = await User.find({ role: 'master_admin' });
+      const coordinators = await User.find({ role: 'coordinator', status: 'approved' });
+      const pendingCoordinators = await User.find({ role: 'coordinator', status: 'pending' });
+      const students = await User.find({ role: 'student' });
+      
+      res.json({
+        masters: masters.map(u => ({ id: u.userId, ...u.toObject() })),
+        coordinators: coordinators.map(u => ({ id: u.userId, ...u.toObject() })),
+        pendingCoordinators: pendingCoordinators.map(u => ({ id: u.userId, ...u.toObject() })),
+        students: students.map(u => ({ id: u.userId, ...u.toObject() })),
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/master-control/add-master", async (req, res) => {
+    try {
+      const { name, email } = req.body;
+      if (!email || !name) {
+        return res.status(400).json({ error: "Name and Email are required to create a Master Admin" });
+      }
+
+      const cleanEmail = email.toLowerCase().trim();
+      let existing = await User.findOne({ email: cleanEmail });
+      if (existing) {
+        existing.role = 'master_admin';
+        existing.status = 'approved';
+        await existing.save();
+        return res.json({ success: true, message: `${name} updated to Master Admin`, user: existing });
+      }
+
+      const newMaster = new User({
+        userId: `master-${Date.now()}`,
+        name,
+        email: cleanEmail,
+        role: 'master_admin',
+        department: 'Master Control',
+        status: 'approved',
+        accountStatus: 'ACTIVE',
+        avatar: `https://avatar.vercel.sh/${cleanEmail}`,
+        registrationDate: new Date()
+      });
+      await newMaster.save();
+      res.json({ success: true, message: `New Master Admin ${name} created successfully!`, user: newMaster });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/master-control/approve-coordinator/:id", async (req, res) => {
+    try {
+      const { approve } = req.body;
+      const status = approve ? 'approved' : 'rejected';
+      const user = await User.findOneAndUpdate({ userId: req.params.id }, { status }, { new: true });
+      if (!user) {
+        return res.status(404).json({ error: "Teacher/Admin record not found" });
+      }
+
+      await new Notification({
+        userId: user.userId,
+        title: approve ? "Teacher Account Approved" : "Teacher Account Declined",
+        message: approve
+          ? "Your Admin Teacher account has been approved by Master Sathish. You can now access the Admin Console."
+          : "Your Admin Teacher registration was declined by Master Sathish.",
+        read: false,
+        type: "general"
+      }).save();
+
+      res.json({ success: true, user });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const user = await User.findOneAndDelete({ userId: req.params.id });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ success: true, message: `User ${user.name} removed successfully` });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

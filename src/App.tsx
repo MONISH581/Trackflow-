@@ -32,32 +32,7 @@ export default function App() {
     checkSession();
   }, [checkSession]);
 
-  // Inactivity timeout: auto logout after 15 minutes of no activity
-  React.useEffect(() => {
-    const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
-    let timeoutId: ReturnType<typeof setTimeout>;
 
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        window.location.reload();
-      }, INACTIVITY_LIMIT);
-    };
-
-    resetTimer();
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('keydown', resetTimer);
-    window.addEventListener('click', resetTimer);
-    window.addEventListener('touchstart', resetTimer);
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keydown', resetTimer);
-      window.removeEventListener('click', resetTimer);
-      window.removeEventListener('touchstart', resetTimer);
-    };
-  }, [logout]);
 
   // If not logged in, render the login page
   if (!currentUser) {
@@ -76,30 +51,44 @@ export default function App() {
   if (currentUser.status === "pending" || currentUser.status === "rejected") {
     return (
       <BrowserRouter>
-        <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9] p-4">
-          <div className="max-w-md w-full glass-card p-8 border border-blue-200/40 shadow-xl text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200/55 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-8 h-8 animate-pulse" />
+        <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9] p-4 text-left">
+          <div className="max-w-md w-full glass-card p-8 border border-blue-200/50 shadow-2xl text-center space-y-6 bg-white/90 backdrop-blur-xl rounded-3xl">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center mx-auto shadow-sm">
+              <AlertCircle className="w-8 h-8 animate-pulse text-blue-600" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">
-                {currentUser.status === "pending" ? "Registration Pending Approval" : "Registration Rejected"}
+            <div className="space-y-2">
+              <span className="inline-block text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200/60 px-3 py-1 rounded-full">
+                {currentUser.status === "pending" ? "Teacher Approval Required" : "Access Declined"}
+              </span>
+              <h2 className="text-2xl font-black text-slate-900">
+                {currentUser.status === "pending" ? "Student Registration Request Submitted" : "Registration Request Declined"}
               </h2>
-              <p className="text-sm text-slate-500 mt-2">
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
                 {currentUser.status === "pending"
-                  ? "Your account is waiting for coordinator approval."
-                  : "Your account request was declined. Please contact your coordinator."}
+                  ? "Your student account request has been registered. Please ask your Teacher or Lab Coordinator to grant your login request in their Admin Approvals Console."
+                  : "Your registration request was declined by the coordinator. Please contact your department teacher."}
               </p>
             </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem("trackflow_user");
-                window.location.reload();
-              }}
-              className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700/80 text-white rounded-xl text-sm font-semibold transition"
-            >
-              Sign Out / Retry
-            </button>
+
+            <div className="pt-2 flex flex-col gap-2">
+              {currentUser.status === "pending" && (
+                <button
+                  onClick={() => checkSession()}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-lg shadow-blue-500/20 cursor-pointer"
+                >
+                  Re-Check Approval Status
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  logout();
+                  window.location.href = "/login";
+                }}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Sign Out / Return to Login
+              </button>
+            </div>
           </div>
         </div>
         <ToastContainer toasts={toasts} removeToast={removeToast} />
