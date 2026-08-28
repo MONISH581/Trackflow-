@@ -370,6 +370,10 @@ interface AppState {
   fetchMasterControlOverview: () => Promise<any>;
   lockStudentUser: (userId: string, reason?: string) => Promise<boolean>;
   unlockStudentUser: (userId: string) => Promise<boolean>;
+  fetchMasterUsers: () => Promise<any>;
+  addMasterAdmin: (name: string, email: string) => Promise<boolean>;
+  approveCoordinator: (userId: string, approve: boolean) => Promise<boolean>;
+  deleteUser: (userId: string) => Promise<boolean>;
 }
 
 
@@ -1387,6 +1391,65 @@ export const useStore = create<AppState>((set, get) => ({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Lock failed");
       get().addToast("Student account locked successfully", "info");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchMasterUsers: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/master-control/users`);
+      const data = await response.json();
+      return data;
+    } catch (e: any) {
+      return null;
+    }
+  },
+
+  addMasterAdmin: async (name: string, email: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/master-control/add-master`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to add Master Admin");
+      get().addToast(data.message || "Master Admin added successfully", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  approveCoordinator: async (userId: string, approve: boolean) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/master-control/approve-coordinator/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approve }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to update teacher approval");
+      get().addToast(approve ? "Approved Admin Teacher account" : "Declined Teacher registration", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  deleteUser: async (userId: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Delete failed");
+      get().addToast("User removed successfully", "info");
       return true;
     } catch (e: any) {
       get().addToast(e.message, "error");
