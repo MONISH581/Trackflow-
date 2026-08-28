@@ -377,7 +377,8 @@ interface AppState {
 }
 
 
-export const API_BASE = (import.meta as any).env?.MODE === "production" ? "https://trackflow-backend-qfbp.onrender.com" : "";
+const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+export const API_BASE = isLocalhost ? "" : "https://trackflow-backend-qfbp.onrender.com";
 
 async function safeJson(response: Response, defaultFallback: any = {}) {
   const contentType = response.headers.get("content-type");
