@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { useStore, ProjectInfo, UserInfo } from "../store.ts";
+import { useStore, ProjectInfo, UserInfo, API_BASE } from "../store.ts";
 import {
   FileText,
   Upload,
@@ -780,7 +780,7 @@ export default function ProjectDetails() {
                       </p>
                     </div>
                     <a
-                      href={file.url}
+                      href={file.url.startsWith('/') ? `${API_BASE}${file.url}` : file.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       download

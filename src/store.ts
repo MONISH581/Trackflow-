@@ -377,7 +377,7 @@ interface AppState {
 }
 
 
-const API_BASE = "";
+export const API_BASE = import.meta.env.MODE === "production" ? "https://trackflow-backend-qfbp.onrender.com" : "";
 
 async function safeJson(response: Response, defaultFallback: any = {}) {
   const contentType = response.headers.get("content-type");
