@@ -1,10 +1,11 @@
 import React from "react";
 import { useStore } from "../store.ts";
-import { User, Mail, Building, GraduationCap, Github, Save, Copy, Check } from "lucide-react";
+import { User, Mail, Building, GraduationCap, Github, Save, Copy, Check, Camera, Image, Upload } from "lucide-react";
 
 export default function Profile() {
   const { currentUser, updateProfile, addToast } = useStore();
 
+  const [avatar, setAvatar] = React.useState(currentUser?.avatar || "https://avatar.vercel.sh/user");
   const [githubUsername, setGithubUsername] = React.useState(currentUser?.githubUsername || "");
   const [githubToken, setGithubToken] = React.useState(currentUser?.githubToken || "");
   const [saving, setSaving] = React.useState(false);
@@ -12,6 +13,7 @@ export default function Profile() {
 
   React.useEffect(() => {
     if (currentUser) {
+      setAvatar(currentUser.avatar || "https://avatar.vercel.sh/user");
       setGithubUsername(currentUser.githubUsername || "");
       setGithubToken(currentUser.githubToken || "");
     }
@@ -19,10 +21,30 @@ export default function Profile() {
 
   if (!currentUser) return null;
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      addToast("Profile photo must be less than 3MB.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setAvatar(reader.result);
+        addToast("Profile photo selected! Click Save Profile to apply.", "info");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     const success = await updateProfile(currentUser.userId, {
+      avatar,
       githubUsername,
       githubToken,
     });
@@ -43,17 +65,32 @@ export default function Profile() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isStudent = currentUser.role === "student";
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 text-left">
       <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
         
-        {/* Header Profile Summary (Read-Only) */}
+        {/* Header Profile Summary */}
         <div className="flex items-center gap-5 pb-6 border-b border-slate-200">
-          <img
-            src={currentUser.avatar}
-            alt={currentUser.name}
-            className="w-20 h-20 rounded-2xl ring-2 ring-blue-500/20 object-cover"
-          />
+          <div className="relative group">
+            <img
+              src={avatar || currentUser.avatar}
+              alt={currentUser.name}
+              className="w-20 h-20 rounded-2xl ring-2 ring-blue-500/20 object-cover shadow-sm"
+            />
+            <label className="absolute inset-0 bg-black/50 text-white rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition text-xs font-bold gap-1">
+              <Camera className="w-4 h-4" />
+              <span>Change</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageFileChange}
+                className="hidden"
+              />
+            </label>
+          </div>
+
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-slate-900">{currentUser.name}</h2>
             <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">
@@ -63,34 +100,82 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Read-Only Student & Coordinator Details */}
+        {/* Read-Only Information */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs">
           <div>
             <span className="font-bold text-slate-500 uppercase tracking-wider block">Full Name</span>
             <span className="font-semibold text-slate-800 text-sm">{currentUser.name}</span>
           </div>
+
           <div>
             <span className="font-bold text-slate-500 uppercase tracking-wider block">Email Address</span>
             <span className="font-semibold text-slate-800 text-sm">{currentUser.email}</span>
           </div>
+
           <div>
             <span className="font-bold text-slate-500 uppercase tracking-wider block">Department</span>
             <span className="font-semibold text-slate-800 text-sm">{currentUser.department}</span>
           </div>
-          {currentUser.year && (
+
+          {/* Academic Year ONLY for Students! */}
+          {isStudent && currentUser.year && (
             <div>
               <span className="font-bold text-slate-500 uppercase tracking-wider block">Academic Year</span>
-              <span className="font-semibold text-slate-800 text-sm">Year {currentUser.year}</span>
+              <span className="font-semibold text-blue-600 text-sm">Year {currentUser.year}</span>
+            </div>
+          )}
+
+          {/* Register Number for Students */}
+          {isStudent && currentUser.registerNumber && (
+            <div>
+              <span className="font-bold text-slate-500 uppercase tracking-wider block">Register Number</span>
+              <span className="font-semibold text-slate-800 text-sm">{currentUser.registerNumber}</span>
             </div>
           )}
         </div>
 
-        {/* GitHub Repository Configuration ONLY */}
-        <form onSubmit={handleSubmit} className="space-y-5 pt-2">
-          <div className="space-y-2">
+        {/* Form: Avatar Photo & GitHub Config */}
+        <form onSubmit={handleSubmit} className="space-y-6 pt-2">
+          
+          {/* Profile Photo Section */}
+          <div className="space-y-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Camera className="w-4 h-4 text-blue-600" />
+              Update Profile Photo
+            </h3>
+            <p className="text-xs text-slate-500 font-medium">
+              Upload an image file from your device or specify a custom avatar image URL below.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <label className="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
+                <Upload className="w-4 h-4 text-blue-600" />
+                <span>Upload Image File</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
+                  className="hidden"
+                />
+              </label>
+
+              <span className="text-xs text-slate-400 font-semibold">or Image URL:</span>
+
+              <input
+                type="text"
+                placeholder="https://avatar.vercel.sh/yourname"
+                value={avatar}
+                onChange={(e) => setAvatar(e.target.value)}
+                className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 bg-white"
+              />
+            </div>
+          </div>
+
+          {/* GitHub Repository Configuration */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Github className="w-4.5 h-4.5 text-blue-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Github className="w-4 h-4 text-blue-600" />
                 GitHub Repository Configuration
               </h3>
 
@@ -106,11 +191,7 @@ export default function Profile() {
               )}
             </div>
 
-            <p className="text-xs text-slate-500 font-medium">
-              You can only add or update your GitHub Repository URL below. Personal details and photo uploads are managed by administration.
-            </p>
-
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-1">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                   GitHub Repository / Username URL *
@@ -147,7 +228,7 @@ export default function Profile() {
               className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{saving ? "Saving..." : "Save GitHub Repository"}</span>
+              <span>{saving ? "Saving..." : "Save Profile & Avatar"}</span>
             </button>
           </div>
         </form>
