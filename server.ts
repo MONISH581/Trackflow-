@@ -19,7 +19,7 @@ import axios from "axios";
 const socketOptions = {
   pingInterval: 25000, // send ping every 25s
   pingTimeout: 5000,   // consider dead after 5s no pong
-  cors: { origin: process.env.APP_URL || "http://localhost:5001", methods: ["GET", "POST", "PUT", "DELETE"], credentials: true }
+  cors: { origin: true, methods: ["GET", "POST", "PUT", "DELETE"], credentials: true }
 };
 
 dotenv.config();
@@ -48,7 +48,7 @@ async function startServer() {
   });
 
   app.use(cors({
-    origin: process.env.APP_URL || "http://localhost:5001",
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"]
   }));
