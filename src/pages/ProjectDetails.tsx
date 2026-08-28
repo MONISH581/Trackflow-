@@ -261,35 +261,90 @@ export default function ProjectDetails() {
     setAnalyzing(false);
   };
 
+  const getDaysRemaining = (deadlineStr?: string) => {
+    if (!deadlineStr) return null;
+    const deadline = new Date(deadlineStr);
+    const now = new Date();
+    const diffTime = deadline.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const daysRemaining = getDaysRemaining(project.deadline);
+
   return (
     <div className="space-y-6 text-left">
+      
+      {/* Milestone Review Lock Warning Banner */}
+      {project.status === "MILESTONE_REVIEW_REQUIRED" && (
+        <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-xl flex items-center justify-between gap-4 text-amber-900">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-200 flex items-center justify-center font-bold text-amber-800">
+              {project.currentMilestone || 25}%
+            </div>
+            <div>
+              <h4 className="font-bold text-sm">Milestone Presentation Approval Required</h4>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Project progress has reached {project.currentMilestone || 25}%. Milestone presentation review with mentor & coordinator is required before further progress accumulation can resume.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expired Project Warning Banner */}
+      {project.status === "EXPIRED" && (
+        <div className="bg-rose-50 border-2 border-rose-300 p-4 rounded-xl flex items-center justify-between gap-4 text-rose-900">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-rose-200 flex items-center justify-center font-bold text-rose-800">
+              !
+            </div>
+            <div>
+              <h4 className="font-bold text-sm">Project Deadline Expired</h4>
+              <p className="text-xs text-rose-700 mt-0.5">
+                The 2-month project deadline has expired. Further project activity is restricted until an extension is requested and approved.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Workspace Summary Row */}
       <div className="flex flex-col lg:flex-row gap-6 justify-between lg:items-center">
         <div>
-          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2.5 py-0.5 rounded">
-            {project.department}
-          </span>
-          <h2 className="text-xl font-bold text-slate-800 tracking-tight mt-2 leading-tight">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2.5 py-0.5 rounded">
+              {project.department}
+            </span>
+
+            {/* Deadline Countdown Badge */}
+            {daysRemaining !== null && (
+              <span
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded ${
+                  daysRemaining < 0
+                    ? "bg-rose-600 text-white"
+                    : daysRemaining <= 3
+                    ? "bg-rose-100 text-rose-700 border border-rose-300 animate-pulse"
+                    : daysRemaining <= 7
+                    ? "bg-amber-100 text-amber-700 border border-amber-300"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                {daysRemaining < 0
+                  ? `Expired (${Math.abs(daysRemaining)} days ago)`
+                  : `${daysRemaining} Days Remaining`}
+              </span>
+            )}
+          </div>
+
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight mt-1 leading-tight">
             {project.name}
           </h2>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1 font-semibold">
+            <span>Mentor: {project.mentorName || "Unassigned"}</span>
+            <span>&bull;</span>
             <span>Leader: {project.teamLeader || "None"}</span>
             <span>&bull;</span>
             <span>Members: {project.teamMembers.join(", ") || "None"}</span>
-            {project.githubRepo && (
-              <>
-                <span>&bull;</span>
-                <a 
-                  href={`https://github.com/${project.githubRepo}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                >
-                  <Github className="w-3.5 h-3.5" />
-                  {project.githubRepo}
-                </a>
-              </>
-            )}
           </div>
         </div>
 
@@ -299,11 +354,11 @@ export default function ProjectDetails() {
             <button
               onClick={() => setShowDailyReportModal(true)}
               className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-lg ${
-                dailyReportSubmitted
+                dailyReportSubmitted || project.status === "EXPIRED"
                   ? "bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed"
-                  : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/10 glow-btn"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/10"
               }`}
-              disabled={dailyReportSubmitted}
+              disabled={dailyReportSubmitted || project.status === "EXPIRED"}
             >
               <FileCheck className="w-4.5 h-4.5" />
               <span>{dailyReportSubmitted ? "Daily Log Submitted" : "Log Daily Report"}</span>
@@ -322,6 +377,7 @@ export default function ProjectDetails() {
           )}
         </div>
       </div>
+
 
       {/* Main Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

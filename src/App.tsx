@@ -22,6 +22,8 @@ import HackathonHub from "./pages/HackathonHub.tsx";
 import ActivityAnalytics from "./pages/ActivityAnalytics.tsx";
 import { X, AlertCircle, CheckCircle, Info } from "lucide-react";
 
+import MasterControl from "./pages/MasterControl.tsx";
+
 export default function App() {
   const { currentUser, toasts, removeToast, checkSession, logout } = useStore();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
@@ -109,10 +111,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-[#f1f5f9] text-slate-800 relative selection:bg-blue-500 selection:text-white overflow-x-hidden">
-        {/* Hyper-3D Animated Grid & Particle Ambient Background */}
-        <div className="hyper-3d-bg">
-          <div className="hyper-3d-grid" />
-        </div>
         <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
         {/* Content Shell */}
@@ -122,10 +120,11 @@ export default function App() {
           <main className="flex-1 p-6 overflow-y-auto">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/master-control" element={<MasterControl />} />
               <Route path="/daily-reports" element={<DailyReportSystem />} />
               <Route path="/hackathons" element={<HackathonHub />} />
               
-              {currentUser.role === "coordinator" ? (
+              {currentUser.role === "coordinator" || currentUser.role === "master_admin" ? (
                 <>
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetails />} />
@@ -141,6 +140,7 @@ export default function App() {
                   <Route path="/project-hub" element={<ProjectDetails />} />
                 </>
               )}
+
               
               <Route path="/opportunities" element={<Opportunities />} />
               <Route path="/opportunities/:id" element={<OpportunityDetails />} />

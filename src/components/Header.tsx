@@ -18,7 +18,9 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === "/") return "Overview Dashboard";
+    if (path === "/master-control") return "Master Control – 6 Labs Overview";
     if (path === "/projects") return "Projects Directory";
+
     if (path === "/project-hub") return "Project Hub";
     if (path === "/approvals") return "Approval Queue";
     if (path === "/records") return "Student Records";

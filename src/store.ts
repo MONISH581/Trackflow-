@@ -9,7 +9,9 @@ export interface UserInfo {
   section?: string;
   lab?: string;
   email: string;
-  role: "coordinator" | "student";
+  role: "coordinator" | "student" | "master_admin";
+  accountStatus?: "ACTIVE" | "PENDING" | "REJECTED" | "SUSPENDED" | "LOCKED";
+  lockReason?: string;
   avatar: string;
   department: string;
   preferredDomain?: string;
@@ -28,6 +30,7 @@ export interface UserInfo {
   };
   createdAt?: string;
 }
+
 
 export interface MentorInfo {
   id?: string;
@@ -334,7 +337,13 @@ interface AppState {
   fetchRecommendations: (userId: string) => Promise<OpportunityInfo[]>;
   fetchCategoryCounts: () => Promise<any[]>;
   syncOpportunities: () => Promise<boolean>;
+
+  // Master Control & Account Locking
+  fetchMasterControlOverview: () => Promise<any>;
+  lockStudentUser: (userId: string, reason?: string) => Promise<boolean>;
+  unlockStudentUser: (userId: string) => Promise<boolean>;
 }
+
 
 const API_BASE = "";
 
@@ -1328,4 +1337,49 @@ export const useStore = create<AppState>((set, get) => ({
       get().setLoading(false);
     }
   },
+
+  fetchMasterControlOverview: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/master-control/overview`);
+      const data = await response.json();
+      return data;
+    } catch (e: any) {
+      get().addToast("Failed to fetch Master Control overview", "error");
+      return null;
+    }
+  },
+
+  lockStudentUser: async (userId: string, reason?: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/users/${userId}/lock`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Lock failed");
+      get().addToast("Student account locked successfully", "info");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  unlockStudentUser: async (userId: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/users/${userId}/unlock`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unlock failed");
+      get().addToast("Student account unlocked successfully", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
 }));
+

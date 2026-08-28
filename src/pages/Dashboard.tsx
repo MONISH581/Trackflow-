@@ -42,10 +42,17 @@ interface StudentMetrics {
   upcomingDeadlines: TaskInfo[];
 }
 
+import MasterControl from "./MasterControl";
+
 export default function Dashboard() {
   const { currentUser, analyzeProject, addToast } = useStore();
 
+  if (currentUser?.role === "master_admin") {
+    return <MasterControl />;
+  }
+
   const [coordMetrics, setCoordMetrics] = React.useState<CoordinatorMetrics | null>(null);
+
   const [studentMetrics, setStudentMetrics] = React.useState<StudentMetrics | null>(null);
   const [loading, setLoading] = React.useState(true);
 

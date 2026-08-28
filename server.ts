@@ -440,6 +440,80 @@ async function startServer() {
   const LabAccess = createModelWrapper("lab_accesses");
   const Opportunity = createModelWrapper("opportunities");
   const ActivityLog = createModelWrapper("activity_logs");
+  const MilestonePresentation = createModelWrapper("milestone_presentations");
+  const ProjectExtension = createModelWrapper("project_extensions");
+
+  const OFFICIAL_LABS = [
+    "Artificial Intelligence and Research Lab",
+    "Cyber Security / Cloud Computing Lab",
+    "AR/VR Lab",
+    "IoT (Internet of Things) Lab",
+    "PCB Lab",
+    "Robotics Lab"
+  ];
+
+  function isValidStudentEmail(email: string): boolean {
+    if (!email || typeof email !== "string") return false;
+    const lower = email.trim().toLowerCase();
+    if (!lower.endsWith("@srishakthi.ac.in")) return false;
+    if (lower === "demo.student@srishakthi.ac.in") return true;
+
+    const username = lower.split("@")[0];
+    const regex = /^[a-z0-9._]+(23|24|25|26)[a-z]{2,5}$/;
+    return regex.test(username);
+  }
+
+  async function calculateAndUpdateProjectProgress(projectId: string) {
+    const project = await Project.findById(projectId);
+    if (!project) return null;
+
+    const tasks = await Task.find({ projectId });
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((t: any) => t.status === "Completed" || t.status === "COMPLETED").length;
+    const taskProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 50 : 0;
+
+    const reports = await DailyReport.find({ projectId });
+    const reportProgress = Math.min(25, reports.length * 2.5);
+
+    const hasGithub = project.githubRepo && project.githubRepo.trim().length > 0 ? 15 : 0;
+    const hasFiles = project.files && project.files.length > 0 ? 10 : 0;
+
+    let rawProgress = Math.round(taskProgress + reportProgress + hasGithub + hasFiles);
+    if (rawProgress > 100) rawProgress = 100;
+
+    let milestoneThreshold = 0;
+    if (rawProgress >= 100) milestoneThreshold = 100;
+    else if (rawProgress >= 75) milestoneThreshold = 75;
+    else if (rawProgress >= 50) milestoneThreshold = 50;
+    else if (rawProgress >= 25) milestoneThreshold = 25;
+
+    if (milestoneThreshold > 0) {
+      const approvedPres = await MilestonePresentation.findOne({
+        projectId,
+        milestone: milestoneThreshold,
+        status: "APPROVED"
+      });
+
+      if (!approvedPres && milestoneThreshold > (project.lastApprovedMilestone || 0)) {
+        project.status = "MILESTONE_REVIEW_REQUIRED";
+        project.currentMilestone = milestoneThreshold;
+        project.progress = milestoneThreshold;
+        await project.save();
+        return project;
+      }
+    }
+
+    if (project.deadline) {
+      const deadlineDate = new Date(project.deadline);
+      if (new Date() > deadlineDate && project.status !== "EXTENDED" && project.status !== "Completed") {
+        project.status = "EXPIRED";
+      }
+    }
+
+    project.progress = rawProgress;
+    await project.save();
+    return project;
+  }
 
   async function seedDemoData() {
     // Firestore seed check
@@ -1168,46 +1242,57 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         return res.status(400).json({ error: "Email is required" });
       }
 
+      const cleanEmail = email.toLowerCase().trim();
+
       // Enforce student college email rule
       if (role === 'student') {
-        if (!email.toLowerCase().endsWith('@srishakthi.ac.in')) {
-          return res.status(400).json({ error: "Please sign in using your official college email." });
+        if (!isValidStudentEmail(cleanEmail)) {
+          return res.status(400).json({ error: "Please use your official Sri Shakthi student email address." });
         }
       }
 
-      let user = await User.findOne({ email: email.toLowerCase() });
+      let userRole = role || 'student';
+      if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in' || role === 'master_admin') {
+        userRole = 'master_admin';
+      }
+
+      let user = await User.findOne({ email: cleanEmail });
       if (!user) {
         user = new User({
-          userId: role === 'coordinator' ? 'coordinator-demo' : `student-${Date.now()}`,
-          name: name || (role === 'coordinator' ? 'Dr. Sarah Chen' : 'New Student'),
+          userId: userRole === 'master_admin' ? 'master-sathish' : (userRole === 'coordinator' ? 'coordinator-demo' : `student-${Date.now()}`),
+          name: name || (userRole === 'master_admin' ? 'Sathish Sir (Master Controller)' : (userRole === 'coordinator' ? 'Dr. Sarah Chen' : 'New Student')),
           registerNumber: registerNumber || "",
           phone: phone || "",
           section: section || "A",
-          lab: lab || "AI Lab",
-          email: email.toLowerCase(),
-          role: role,
-          avatar: avatar || `https://avatar.vercel.sh/${role === 'coordinator' ? 'sarah' : 'student'}`,
-          department: department || (role === 'coordinator' ? 'AI Department' : 'Computer Science'),
+          lab: lab || OFFICIAL_LABS[0],
+          email: cleanEmail,
+          role: userRole,
+          accountStatus: 'ACTIVE',
+          avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
+          department: department || (userRole === 'master_admin' ? 'Master Control' : (userRole === 'coordinator' ? 'AI Department' : 'Computer Science')),
           preferredDomain: preferredDomain || "Artificial Intelligence",
-          year: year || "1",
-          status: role === 'coordinator' ? 'approved' : 'pending',
+          year: year || "3",
+          status: 'approved',
           registrationDate: new Date()
         });
         await user.save();
         
-        if (role === 'student') {
+        if (userRole === 'student') {
           const coordinators = await User.find({ role: 'coordinator' });
           for (const coord of coordinators) {
             await new Notification({
               userId: coord.userId,
               title: "New Student Registration",
-              message: `A new student, ${user.name} (${user.registerNumber || 'Reg Pending'}), has requested account approval.`,
+              message: `A new student, ${user.name} (${user.registerNumber || 'Reg Pending'}), has registered.`,
               relatedId: user.userId,
               type: "general"
             }).save();
           }
         }
       } else {
+        if (user.accountStatus === 'LOCKED') {
+          return res.status(403).json({ error: "Your TrackFlow account is currently locked. Please contact your coordinator for permission." });
+        }
         if (name) user.name = name;
         if (avatar) user.avatar = avatar;
         if (department) user.department = department;
@@ -1216,17 +1301,58 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         if (section) user.section = section;
         if (lab) user.lab = lab;
         if (preferredDomain) user.preferredDomain = preferredDomain;
-        if (year && role === 'student') user.year = year;
+        if (year && user.role === 'student') user.year = year;
         await user.save();
       }
 
-      // Issue a JWT that lives longer (7 days) to keep the session alive
+      // Automatic Attendance Marking on Login for Students
+      if (user.role === 'student') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const existingAtt = await Attendance.findOne({ studentId: user.userId, date: todayStr });
+        if (!existingAtt) {
+          await Attendance.create({
+            attendanceId: `att-${Date.now()}`,
+            studentId: user.userId,
+            studentName: user.name,
+            lab: user.lab || OFFICIAL_LABS[0],
+            date: todayStr,
+            firstLoginTime: new Date(),
+            lastLogoutTime: new Date(),
+            status: "PRESENT"
+          });
+        } else {
+          existingAtt.lastLogoutTime = new Date();
+          await existingAtt.save();
+        }
+
+        const activeCheckIn = await LabAccess.findOne({ studentId: user.userId, status: "Checked-In" });
+        if (!activeCheckIn) {
+          await LabAccess.create({
+            studentId: user.userId,
+            checkInTime: new Date(),
+            status: "Checked-In"
+          });
+        }
+      }
+
+      // Log activity
+      await new ActivityLog({
+        userId: user.userId,
+        userName: user.name,
+        action: "LOGIN",
+        entity: "USER",
+        entityId: user.userId,
+        timestamp: new Date()
+      }).save();
+
+      // Issue JWT
       const token = jwt.sign({ id: user.userId, role: user.role }, process.env.JWT_SECRET || 'secretKeyTrackflow', { expiresIn: "7d" });
       res.json({ token, user: { id: user.userId, ...user.toObject() } });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
+
 
   app.put("/api/users/:id", async (req, res) => {
     try {
@@ -1889,7 +2015,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   app.post("/api/projects", async (req, res) => {
     try {
-      const { name, department, domain, mentorId, startDate, deadline } = req.body;
+      const { name, department, domain, mentorId, startDate, lab, studentId } = req.body;
       if (!name || !department) {
         return res.status(400).json({ error: "Project Title and Department are required" });
       }
@@ -1900,14 +2026,20 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         if (m) mentorName = m.name;
       }
 
+      const projStartDate = startDate ? new Date(startDate) : new Date();
+      // Strictly 2-month deadline
+      const projDeadline = new Date(projStartDate);
+      projDeadline.setMonth(projDeadline.getMonth() + 2);
+
       const newProj = new Project({
         name,
         department,
         domain: domain || "Artificial Intelligence",
+        lab: lab || OFFICIAL_LABS[0],
         mentorId: mentorId || "",
         mentorName,
-        startDate: startDate ? new Date(startDate) : new Date(),
-        deadline: deadline ? new Date(deadline) : undefined,
+        startDate: projStartDate,
+        deadline: projDeadline,
         abstract: "",
         description: "",
         objectives: "",
@@ -1916,12 +2048,22 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         modules: "",
         references: "",
         futureEnhancements: "",
-        teamMembers: [],
-        teamLeader: "",
+        teamMembers: studentId ? [studentId] : [],
+        teamLeader: studentId || "",
         progress: 0,
-        status: "Active"
+        status: mentorId ? "Active" : "MENTOR_PENDING",
+        files: []
       });
       await newProj.save();
+
+      await new ActivityLog({
+        userId: studentId || "system",
+        userName: "System",
+        action: "PROJECT_CREATED",
+        entity: "PROJECT",
+        entityId: newProj._id,
+        timestamp: new Date()
+      }).save();
 
       io.emit("project_updated", { projectId: newProj._id, project: newProj });
       res.json({ project: { id: newProj._id, ...newProj.toObject() } });
@@ -1929,6 +2071,259 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       res.status(500).json({ error: e.message });
     }
   });
+
+  // Authenticated Project ZIP Download Endpoint
+  app.get("/api/projects/:id/download-zip/:fileIndex", async (req, res) => {
+    try {
+      const project = await Project.findById(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      const fileIndex = parseInt(req.params.fileIndex);
+      if (isNaN(fileIndex) || !project.files || !project.files[fileIndex]) {
+        return res.status(404).json({ error: "Uploaded file version not found" });
+      }
+
+      const fileInfo = project.files[fileIndex];
+      const relativePath = fileInfo.url.replace(/^\/uploads\//, "");
+      const absolutePath = path.join(process.cwd(), "uploads", relativePath);
+
+      if (!fs.existsSync(absolutePath)) {
+        return res.status(404).json({ error: "Physical file archive not found on server." });
+      }
+
+      res.setHeader("Content-Disposition", `attachment; filename="${fileInfo.name}"`);
+      res.download(absolutePath, fileInfo.name);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Master Control 6-Lab Dashboard Metrics Endpoint
+  app.get("/api/master-control/overview", async (req, res) => {
+    try {
+      const allStudents = await User.find({ role: 'student' });
+      const allCoordinators = await User.find({ role: 'coordinator' });
+      const allMentors = await Mentor.find({ status: 'Active' });
+      const allProjects = await Project.find();
+      const allReports = await DailyReport.find();
+      const allAttendance = await Attendance.find();
+      const allHackathons = await HackathonRegistration.find();
+      const allMilestones = await MilestonePresentation.find();
+      const allExtensions = await ProjectExtension.find();
+
+      const labSummaries: Record<string, any> = {};
+
+      for (const labName of OFFICIAL_LABS) {
+        const labStudents = allStudents.filter(s => s.lab === labName);
+        const labProjects = allProjects.filter(p => p.lab === labName);
+        const labMentors = allMentors.filter(m => m.lab === labName);
+
+        const activeProjs = labProjects.filter(p => p.status === 'Active' || p.status === 'ACTIVE');
+        const completedProjs = labProjects.filter(p => p.status === 'Completed' || p.status === 'COMPLETED');
+        const lockedProjs = labProjects.filter(p => p.status === 'LOCKED' || p.status === 'EXPIRED' || p.status === 'MILESTONE_REVIEW_REQUIRED');
+        const lockedStudents = labStudents.filter(s => s.accountStatus === 'LOCKED');
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const presentToday = allAttendance.filter(a => a.lab === labName && a.date === todayStr && a.status === 'PRESENT').length;
+
+        labSummaries[labName] = {
+          labName,
+          totalStudents: labStudents.length,
+          totalProjects: labProjects.length,
+          activeProjects: activeProjs.length,
+          completedProjects: completedProjs.length,
+          lockedProjects: lockedProjs.length,
+          lockedStudents: lockedStudents.length,
+          totalMentors: labMentors.length,
+          attendanceToday: presentToday,
+          totalReports: allReports.filter(r => labProjects.some(p => p._id === r.projectId)).length
+        };
+      }
+
+      res.json({
+        totalLabs: OFFICIAL_LABS.length,
+        totalStudents: allStudents.length,
+        totalCoordinators: allCoordinators.length,
+        totalMentors: allMentors.length,
+        totalProjects: allProjects.length,
+        activeProjects: allProjects.filter(p => p.status === 'Active' || p.status === 'ACTIVE').length,
+        completedProjects: allProjects.filter(p => p.status === 'Completed' || p.status === 'COMPLETED').length,
+        lockedProjects: allProjects.filter(p => p.status === 'LOCKED' || p.status === 'EXPIRED' || p.status === 'MILESTONE_REVIEW_REQUIRED').length,
+        lockedStudents: allStudents.filter(s => s.accountStatus === 'LOCKED').length,
+        pendingApprovals: allStudents.filter(s => s.status === 'pending').length,
+        totalDailyReports: allReports.length,
+        totalHackathonRegistrations: allHackathons.length,
+        pendingMilestones: allMilestones.filter(m => m.status === 'PENDING').length,
+        pendingExtensions: allExtensions.filter(e => e.status === 'PENDING').length,
+        labSummaries
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Student Account Lock/Unlock APIs
+  app.put("/api/users/:id/lock", async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const user = await User.findOneAndUpdate(
+        { userId: req.params.id },
+        { accountStatus: "LOCKED", lockReason: reason || "Administrative Lock", lockedAt: new Date() },
+        { new: true }
+      );
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      await new ActivityLog({
+        userId: user.userId,
+        userName: user.name,
+        action: "ACCOUNT_LOCKED",
+        entity: "USER",
+        entityId: user.userId,
+        timestamp: new Date()
+      }).save();
+
+      res.json({ success: true, user });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/users/:id/unlock", async (req, res) => {
+    try {
+      const user = await User.findOneAndUpdate(
+        { userId: req.params.id },
+        { accountStatus: "ACTIVE", lockReason: "", unlockedAt: new Date() },
+        { new: true }
+      );
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      await new ActivityLog({
+        userId: user.userId,
+        userName: user.name,
+        action: "ACCOUNT_UNLOCKED",
+        entity: "USER",
+        entityId: user.userId,
+        timestamp: new Date()
+      }).save();
+
+      res.json({ success: true, user });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Milestone Presentation APIs
+  app.get("/api/projects/:id/milestones", async (req, res) => {
+    try {
+      const milestones = await MilestonePresentation.find({ projectId: req.params.id }).sort({ milestone: 1 });
+      res.json({ milestones });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/projects/:id/milestones", async (req, res) => {
+    try {
+      const { milestone, remarks, presentationLink } = req.body;
+      const project = await Project.findById(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      const pres = new MilestonePresentation({
+        presentationId: `pres-${Date.now()}`,
+        projectId: project._id,
+        milestone: Number(milestone),
+        status: "PENDING",
+        remarks: remarks || "",
+        presentationLink: presentationLink || "",
+        presentedAt: new Date()
+      });
+      await pres.save();
+
+      res.json({ success: true, presentation: pres });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/milestones/:id/approve", async (req, res) => {
+    try {
+      const { approved, remarks } = req.body;
+      const pres = await MilestonePresentation.findById(req.params.id);
+      if (!pres) return res.status(404).json({ error: "Milestone record not found" });
+
+      pres.status = approved ? "APPROVED" : "REJECTED";
+      pres.remarks = remarks || pres.remarks;
+      await pres.save();
+
+      if (approved) {
+        const project = await Project.findById(pres.projectId);
+        if (project) {
+          project.lastApprovedMilestone = pres.milestone;
+          project.status = "ACTIVE";
+          await project.save();
+        }
+      }
+
+      res.json({ success: true, presentation: pres });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Extension Request APIs
+  app.post("/api/projects/:id/extensions", async (req, res) => {
+    try {
+      const { reason, requestedDays } = req.body;
+      const project = await Project.findById(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      const ext = new ProjectExtension({
+        extensionId: `ext-${Date.now()}`,
+        projectId: project._id,
+        reason,
+        requestedDays: Number(requestedDays) || 30,
+        previousDeadline: project.deadline,
+        status: "PENDING",
+        requestedAt: new Date()
+      });
+      await ext.save();
+
+      project.status = "EXTENSION_PENDING";
+      await project.save();
+
+      res.json({ success: true, extension: ext });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/extensions/:id/approve", async (req, res) => {
+    try {
+      const { approved } = req.body;
+      const ext = await ProjectExtension.findById(req.params.id);
+      if (!ext) return res.status(404).json({ error: "Extension record not found" });
+
+      ext.status = approved ? "APPROVED" : "REJECTED";
+      await ext.save();
+
+      const project = await Project.findById(ext.projectId);
+      if (project && approved) {
+        const currentDeadline = new Date(project.deadline || Date.now());
+        currentDeadline.setDate(currentDeadline.getDate() + ext.requestedDays);
+        project.deadline = currentDeadline;
+        project.status = "EXTENDED";
+        await project.save();
+      } else if (project && !approved) {
+        project.status = "EXPIRED";
+        await project.save();
+      }
+
+      res.json({ success: true, extension: ext });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 
   app.put("/api/projects/:id", async (req, res) => {
     try {
@@ -2114,9 +2509,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const project = await Project.findById(projectId);
       if (project) {
         const oldAbstract = project.abstract;
-        project.progress = progress;
         if (abstract) project.abstract = abstract;
         await project.save();
+
+        await calculateAndUpdateProjectProgress(projectId);
 
         if (abstract && oldAbstract !== abstract) {
           const latestHistory = await AbstractHistory.findOne({ projectId }).sort({ version: -1 });

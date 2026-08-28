@@ -74,7 +74,25 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { name: "Profile", path: "/profile", icon: User },
   ];
 
-  const menuItems = currentUser.role === "coordinator" ? coordinatorMenu : studentMenu;
+  const masterControlMenu: MenuItem[] = [
+    { name: "Master Control", path: "/master-control", icon: ShieldCheck },
+    { name: "All Projects", path: "/projects", icon: Briefcase },
+    { name: "Mentors", path: "/mentors", icon: Users },
+    { name: "Approvals", path: "/approvals", icon: ShieldCheck, badge: pendingCount },
+    { name: "Daily Reports", path: "/daily-reports", icon: ClipboardCheck },
+    { name: "Hackathons", path: "/hackathons", icon: Sparkles },
+    { name: "Activity Analytics", path: "/activity-analytics", icon: LayoutDashboard },
+    { name: "Student Records", path: "/records", icon: Users },
+    { name: "Attendance & Labs", path: "/attendance", icon: ClipboardCheck },
+    { name: "Tasks Board", path: "/tasks", icon: CheckSquare },
+    { name: "Opportunities Hub", path: "/opportunities", icon: Compass },
+    { name: "Profile", path: "/profile", icon: User },
+  ];
+
+  const menuItems = currentUser.role === "master_admin" 
+    ? masterControlMenu 
+    : (currentUser.role === "coordinator" ? coordinatorMenu : studentMenu);
+
 
   return (
     <>
