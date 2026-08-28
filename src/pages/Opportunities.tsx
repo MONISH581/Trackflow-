@@ -240,27 +240,28 @@ export default function Opportunities() {
           Hub Analytics & Counts
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {categoryCounts.map((stat, idx) => {
-            const config = CATEGORIES_CONFIG.find(c => c.name === stat.category) || { icon: "⭐️", gradient: "from-blue-500/10 to-indigo-500/10" };
+          {CATEGORIES_CONFIG.map((cat, idx) => {
+            const statMatch = categoryCounts.find((s: any) => s.category === cat.name);
+            const count = statMatch ? statMatch.count : 0;
             return (
               <button
                 key={idx}
                 onClick={() => {
-                  setSelectedCategory(stat.category);
+                  setSelectedCategory(cat.name);
                   setActiveTab("all");
                   document.getElementById("opportunities-grid")?.scrollIntoView({ behavior: "smooth" });
                 }}
                 className={`glass-card p-4 border border-slate-200/60 dark:border-slate-800 flex flex-col justify-between items-start text-left hover:scale-[1.02] hover:shadow-md transition-all ${
-                  selectedCategory === stat.category ? "ring-2 ring-blue-500" : ""
+                  selectedCategory === cat.name ? "ring-2 ring-blue-500 bg-blue-50/50" : ""
                 }`}
               >
-                <span className="text-xl">{config.icon}</span>
+                <span className="text-xl">{cat.icon}</span>
                 <div className="mt-4">
-                  <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block truncate w-full" title={stat.category}>
-                    {stat.category}
+                  <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block truncate w-full" title={cat.name}>
+                    {cat.name}
                   </span>
                   <span className="text-2xl font-black text-blue-700 mt-1 block">
-                    {stat.count} <span className="text-xs font-bold text-slate-600">live</span>
+                    {count} <span className="text-xs font-bold text-slate-600">live</span>
                   </span>
                 </div>
               </button>
@@ -268,6 +269,7 @@ export default function Opportunities() {
           })}
         </div>
       </div>
+
 
       {/* Category Selection Filter Bar */}
       <div className="flex flex-wrap gap-2 pt-2 overflow-x-auto pb-2 border-b border-slate-200/60 dark:border-slate-800">
