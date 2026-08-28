@@ -5,7 +5,8 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import jwt from "jsonwebtoken"; // JWT handling
-import mongoose from "mongoose";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { execFile } from "child_process";
@@ -13,7 +14,6 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import multer from "multer";
 import axios from "axios";
-import { MongoMemoryServer } from "mongodb-memory-server";
 
 // Adjust Socket.io keep‑alive to avoid premature disconnects
 const socketOptions = {
@@ -78,251 +78,371 @@ async function startServer() {
   });
   const upload = multer({ storage });
 
+  // Firebase Admin Firestore Initialization
+  let firestoreDb: Firestore | null = null;
   try {
-    const mongod = await MongoMemoryServer.create();
-    const mongoUri = mongod.getUri();
-    await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      autoIndex: true
-    });
-    console.log("Connected to local in-memory MongoDB database successfully!");
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
+    if (getApps().length === 0) {
+      if (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
+        const serviceAccount = JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
+        initializeApp({ credential: cert(serviceAccount) });
+        firestoreDb = getFirestore();
+        console.log("Connected to Google Cloud Firestore via GOOGLE_APPLICATION_CREDENTIALS!");
+      } else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY) {
+        initializeApp({
+          credential: cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          })
+        });
+        firestoreDb = getFirestore();
+        console.log("Connected to Google Cloud Firestore via environment variables!");
+      } else {
+        console.log("No active Firebase credentials found in environment. Operating with in-memory Firestore document adapter.");
+      }
+    } else {
+      firestoreDb = getFirestore();
+    }
+  } catch (err) {
+    console.warn("Firestore initialization error, using local document manager:", err);
   }
 
-  // Schema Definitions
-  const userSchema = new mongoose.Schema({
-    userId: String,
-    name: String,
-    registerNumber: { type: String, default: "" },
-    phone: { type: String, default: "" },
-    section: { type: String, default: "A" },
-    lab: { type: String, default: "AI Lab" },
-    email: String,
-    role: String,
-    avatar: String,
-    department: String,
-    preferredDomain: { type: String, default: "Artificial Intelligence" },
-    githubToken: String,
-    githubUsername: String,
-    year: { type: String, default: "1" },
-    status: { type: String, default: "approved" }, // "pending" | "approved" | "rejected"
-    registrationDate: { type: Date, default: Date.now },
-    skills: { type: [String], default: [] },
-    interestedCategories: { type: [String], default: [] },
-    appliedOpportunities: { type: [String], default: [] },
-    college: { type: String, default: "Sri Shakthi Institute of Engineering and Technology" },
-    notificationPreferences: {
-      newOpportunities: { type: Boolean, default: true },
-      deadlineReminders: { type: Boolean, default: true }
+  // Firestore Collection Abstract Adapter
+  class FirestoreCollection {
+    private collectionName: string;
+    private static memoryStore: Map<string, Map<string, any>> = new Map();
+
+    constructor(collectionName: string) {
+      this.collectionName = collectionName;
+      if (!FirestoreCollection.memoryStore.has(collectionName)) {
+        FirestoreCollection.memoryStore.set(collectionName, new Map());
+      }
     }
-  }, { timestamps: true });
 
-  const mentorSchema = new mongoose.Schema({
-    mentorId: String,
-    name: String,
-    email: String,
-    phone: String,
-    expertise: String,
-    status: { type: String, default: "Active" }
-  }, { timestamps: true });
+    private get localStore(): Map<string, any> {
+      return FirestoreCollection.memoryStore.get(this.collectionName)!;
+    }
 
-  const projectSchema = new mongoose.Schema({
-    name: String,
-    department: String,
-    domain: { type: String, default: "Artificial Intelligence" },
-    mentorId: { type: String, default: "" },
-    mentorName: { type: String, default: "" },
-    startDate: { type: Date, default: Date.now },
-    deadline: { type: Date },
-    abstract: { type: String, default: "" },
-    description: { type: String, default: "" },
-    objectives: { type: String, default: "" },
-    methodology: { type: String, default: "" },
-    techStack: { type: [String], default: [] },
-    modules: { type: String, default: "" },
-    references: { type: String, default: "" },
-    futureEnhancements: { type: String, default: "" },
-    teamMembers: { type: [String], default: [] }, // student userIds
-    teamLeader: { type: String, default: "" }, // student userId
-    progress: { type: Number, default: 0 },
-    status: { type: String, default: "Active" }, // 'Not Started' | 'Planning' | 'Development' | 'Testing' | 'Completed' | 'On Hold' | 'Active'
-    githubRepo: { type: String, default: "" },
-    files: { type: [{ name: String, url: String, fileType: String, size: Number, uploadedAt: Date }], default: [] }
-  }, { timestamps: true });
+    private generateId(): string {
+      return firestoreDb ? firestoreDb.collection(this.collectionName).doc().id : `doc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
 
-  const githubRepoSchema = new mongoose.Schema({
-    repositoryId: String,
-    projectId: String,
-    studentId: String,
-    repositoryUrl: String,
-    repositoryName: String,
-    owner: String,
-    branch: { type: String, default: "main" },
-    lastUpdated: { type: Date, default: Date.now },
-    status: { type: String, default: "Connected" }
-  }, { timestamps: true });
+    private formatDoc(id: string, data: any) {
+      if (!data) return null;
+      const self = this;
+      const docData: any = {
+        _id: id,
+        id: id,
+        ...data,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
+      };
+      docData.toObject = function() {
+        const copy = { ...this };
+        delete copy.toObject;
+        delete copy.save;
+        return copy;
+      };
+      docData.save = async function() {
+        return await self.create({ ...this, _id: id, id });
+      };
+      return docData;
+    }
 
-  const taskSchema = new mongoose.Schema({
-    title: String,
-    status: { type: String, default: "Not Started" }, // 'Not Started' | 'In Progress' | 'Completed' | 'Overdue'
-    date: String, // due date
-    assigneeId: String,
-    assigneeName: String,
-    projectId: String,
-    projectName: String,
-    createdBy: String,
-    priority: { type: String, default: "medium" }, // 'low' | 'medium' | 'high'
-    estimatedHours: { type: Number, default: 0 }
-  }, { timestamps: true });
+    private matchFilter(doc: any, filter: Record<string, any>): boolean {
+      if (!filter || Object.keys(filter).length === 0) return true;
 
-  const notificationSchema = new mongoose.Schema({
-    userId: String,
-    title: String,
-    message: String,
-    read: { type: Boolean, default: false },
-    relatedId: String,
-    type: { type: String, default: "general" }, // 'general' | 'team'
-  }, { timestamps: true });
+      for (const [key, value] of Object.entries(filter)) {
+        if (key === "$or" && Array.isArray(value)) {
+          const matched = value.some(subFilter => this.matchFilter(doc, subFilter));
+          if (!matched) return false;
+          continue;
+        }
+        if (key === "$and" && Array.isArray(value)) {
+          const matched = value.every(subFilter => this.matchFilter(doc, subFilter));
+          if (!matched) return false;
+          continue;
+        }
 
-  const messageSchema = new mongoose.Schema({
-    user: String,
-    userId: String,
-    text: String,
-    projectId: { type: String, default: "" }, // empty = global chat, non-empty = project team chat
-  }, { timestamps: true });
+        const docVal = doc[key];
 
-  const dailyReportSchema = new mongoose.Schema({
-    projectId: String,
-    studentId: String,
-    studentName: String,
-    date: String, // YYYY-MM-DD
-    objective: { type: String, default: "" },
-    workDone: String,
-    challenges: String,
-    solution: { type: String, default: "" },
-    technologies: { type: [String], default: [] },
-    codeCompleted: { type: String, default: "" },
-    nextDayPlan: String,
-    progress: Number,
-    remarks: { type: String, default: "" },
-    githubCommitUrl: { type: String, default: "" },
-    githubCommitMessage: { type: String, default: "" },
-    attachmentUrl: { type: String, default: "" },
-    abstract: String
-  }, { timestamps: true });
+        if (value && typeof value === "object" && !(value instanceof Date) && !(value instanceof RegExp) && !Array.isArray(value)) {
+          if ("$ne" in value && docVal === value.$ne) return false;
+          if ("$gt" in value && !(docVal > value.$gt)) return false;
+          if ("$gte" in value && !(docVal >= value.$gte)) return false;
+          if ("$lt" in value && !(docVal < value.$lt)) return false;
+          if ("$lte" in value && !(docVal <= value.$lte)) return false;
+          if ("$in" in value && Array.isArray(value.$in)) {
+            if (Array.isArray(docVal)) {
+              if (!docVal.some(v => value.$in.includes(v))) return false;
+            } else {
+              if (!value.$in.includes(docVal)) return false;
+            }
+          }
+          if ("$nin" in value && Array.isArray(value.$nin)) {
+            if (value.$nin.includes(docVal)) return false;
+          }
+          if ("$exists" in value) {
+            const exists = docVal !== undefined;
+            if (value.$exists !== exists) return false;
+          }
+          continue;
+        }
 
-  const hackathonSchema = new mongoose.Schema({
-    hackathonId: String,
-    name: String,
-    organizer: String,
-    description: String,
-    domain: { type: String, default: "General Tech" },
-    startDate: Date,
-    endDate: Date,
-    registrationDeadline: Date,
-    registrationLink: String,
-    status: { type: String, default: "Active" }
-  }, { timestamps: true });
+        if (value instanceof RegExp) {
+          if (typeof docVal !== "string" || !value.test(docVal)) return false;
+          continue;
+        }
 
-  const hackathonRegistrationSchema = new mongoose.Schema({
-    registrationId: String,
-    hackathonId: String,
-    hackathonName: String,
-    studentId: String,
-    studentName: String,
-    registerNumber: String,
-    registrationDate: { type: Date, default: Date.now },
-    screenshotUrl: { type: String, required: true },
-    verificationStatus: { type: String, enum: ["Pending", "Verified", "Rejected"], default: "Pending" },
-    verifiedBy: String,
-    verifiedAt: Date,
-    rejectionReason: String
-  }, { timestamps: true });
+        if (key === "_id" || key === "id") {
+          if (doc._id !== value && doc.id !== value && String(doc._id) !== String(value)) return false;
+          continue;
+        }
 
-  const abstractHistorySchema = new mongoose.Schema({
-    projectId: String,
-    studentId: String,
-    abstract: String,
-    version: Number,
-    updatedAt: { type: Date, default: Date.now }
-  }, { timestamps: true });
+        if (Array.isArray(docVal)) {
+          if (!docVal.includes(value)) return false;
+          continue;
+        }
 
-  const attendanceSchema = new mongoose.Schema({
-    studentId: { type: String, required: true },
-    date: { type: String, required: true }, // YYYY-MM-DD
-    status: { type: String, enum: ["Present", "Absent"], default: "Present" },
-    markedBy: String
-  }, { timestamps: true });
-  attendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
+        if (docVal !== value) return false;
+      }
+      return true;
+    }
 
-  const labAccessSchema = new mongoose.Schema({
-    studentId: { type: String, required: true },
-    checkInTime: { type: Date, default: Date.now },
-    checkOutTime: Date,
-    status: { type: String, enum: ["Checked-In", "Checked-Out"], default: "Checked-In" }
-  }, { timestamps: true });
+    private createQueryRunner(fetchDocs: () => Promise<any[]>) {
+      let sortFn: ((a: any, b: any) => number) | null = null;
+      let limitNum: number | null = null;
 
-  const opportunitySchema = new mongoose.Schema({
-    title: String,
-    description: String,
-    category: String,
-    organizer: String,
-    organizerLogo: String,
-    bannerImage: String,
-    website: String,
-    registrationLink: String,
-    location: String,
-    mode: { type: String, enum: ["Online", "Offline", "Hybrid"], default: "Online" },
-    freeOrPaid: { type: String, enum: ["Free", "Paid"], default: "Free" },
-    targetAudience: { type: String, enum: ["Student Only", "College", "International"], default: "Student Only" },
-    prizePool: String,
-    registrationDeadline: Date,
-    eventStartDate: Date,
-    eventEndDate: Date,
-    difficulty: { type: String, enum: ["Beginner", "Intermediate", "Advanced"], default: "Beginner" },
-    eligibility: String,
-    timeline: String,
-    rules: String,
-    judgingCriteria: String,
-    tags: { type: [String], default: [] },
-    featured: { type: Boolean, default: false },
-    trending: { type: Boolean, default: false },
-    views: { type: Number, default: 0 },
-    bookmarks: { type: [String], default: [] }, // Array of userIds
-    submittedBy: { type: String, default: "Coordinator" },
-    submittedByName: { type: String, default: "Coordinator" },
-    approved: { type: Boolean, default: true }
-  }, { timestamps: true });
+      const runner: any = {
+        sort: (sortObj: Record<string, number>) => {
+          const entries = Object.entries(sortObj);
+          if (entries.length > 0) {
+            const [field, direction] = entries[0];
+            sortFn = (a: any, b: any) => {
+              let valA = a[field];
+              let valB = b[field];
+              if (valA instanceof Date) valA = valA.getTime();
+              if (valB instanceof Date) valB = valB.getTime();
+              if (valA === undefined) return 1;
+              if (valB === undefined) return -1;
+              if (valA < valB) return direction === 1 ? -1 : 1;
+              if (valA > valB) return direction === 1 ? 1 : -1;
+              return 0;
+            };
+          }
+          return runner;
+        },
+        limit: (n: number) => {
+          limitNum = n;
+          return runner;
+        },
+        then: (resolve: any, reject: any) => {
+          return fetchDocs().then(docs => {
+            if (sortFn) docs.sort(sortFn);
+            if (limitNum !== null) docs = docs.slice(0, limitNum);
+            return resolve(docs);
+          }).catch(reject);
+        }
+      };
+      return runner;
+    }
 
-  const activityLogSchema = new mongoose.Schema({
-    userId: String,
-    userName: String,
-    action: String,
-    entity: String,
-    entityId: String,
-    timestamp: { type: Date, default: Date.now }
-  }, { timestamps: true });
+    async create(data: any) {
+      const id = data._id || data.id || this.generateId();
+      const now = new Date();
+      const docData = { ...data, _id: id, id, createdAt: data.createdAt || now, updatedAt: now };
 
-  const User = mongoose.model("User", userSchema);
-  const Mentor = mongoose.model("Mentor", mentorSchema);
-  const Project = mongoose.model("Project", projectSchema);
-  const GitHubRepo = mongoose.model("GitHubRepo", githubRepoSchema);
-  const Task = mongoose.model("Task", taskSchema);
-  const Notification = mongoose.model("Notification", notificationSchema);
-  const Message = mongoose.model("Message", messageSchema);
-  const DailyReport = mongoose.model("DailyReport", dailyReportSchema);
-  const Hackathon = mongoose.model("Hackathon", hackathonSchema);
-  const HackathonRegistration = mongoose.model("HackathonRegistration", hackathonRegistrationSchema);
-  const AbstractHistory = mongoose.model("AbstractHistory", abstractHistorySchema);
-  const Attendance = mongoose.model("Attendance", attendanceSchema);
-  const LabAccess = mongoose.model("LabAccess", labAccessSchema);
-  const Opportunity = mongoose.model("Opportunity", opportunitySchema);
-  const ActivityLog = mongoose.model("ActivityLog", activityLogSchema);
+      if (firestoreDb) {
+        const cleanData = { ...docData };
+        delete (cleanData as any)._id;
+        delete (cleanData as any).toObject;
+        delete (cleanData as any).save;
+        await firestoreDb.collection(this.collectionName).doc(id).set(cleanData, { merge: true });
+      }
+      this.localStore.set(id, docData);
+      return this.formatDoc(id, docData);
+    }
+
+    async insertMany(items: any[]) {
+      const created = [];
+      for (const item of items) {
+        const doc = await this.create(item);
+        created.push(doc);
+      }
+      return created;
+    }
+
+    find(filter: Record<string, any> = {}) {
+      return this.createQueryRunner(async () => {
+        let results: any[] = [];
+        if (firestoreDb) {
+          try {
+            const snapshot = await firestoreDb.collection(this.collectionName).get();
+            snapshot.forEach(doc => {
+              const formatted = this.formatDoc(doc.id, doc.data());
+              if (this.matchFilter(formatted, filter)) {
+                results.push(formatted);
+              }
+            });
+            return results;
+          } catch (err) {
+            console.warn(`Firestore read error on ${this.collectionName}, fallback to memory:`, err);
+          }
+        }
+        for (const [id, data] of this.localStore.entries()) {
+          const formatted = this.formatDoc(id, data);
+          if (this.matchFilter(formatted, filter)) {
+            results.push(formatted);
+          }
+        }
+        return results;
+      });
+    }
+
+    async findOne(filter: Record<string, any> = {}) {
+      const results = await this.find(filter);
+      return results.length > 0 ? results[0] : null;
+    }
+
+    async findById(id: string) {
+      if (!id) return null;
+      if (firestoreDb) {
+        try {
+          const doc = await firestoreDb.collection(this.collectionName).doc(id).get();
+          if (doc.exists) {
+            return this.formatDoc(doc.id, doc.data());
+          }
+        } catch (e) {}
+      }
+      if (this.localStore.has(id)) {
+        return this.formatDoc(id, this.localStore.get(id));
+      }
+      return this.findOne({ _id: id });
+    }
+
+    async updateOne(filter: Record<string, any>, update: Record<string, any>) {
+      const doc = await this.findOne(filter);
+      if (!doc) return null;
+
+      const updatedData = { ...doc };
+
+      if (update.$set) Object.assign(updatedData, update.$set);
+      else Object.assign(updatedData, update);
+
+      updatedData.updatedAt = new Date();
+
+      if (firestoreDb) {
+        const cleanData = { ...updatedData };
+        delete (cleanData as any)._id;
+        delete (cleanData as any).id;
+        delete (cleanData as any).toObject;
+        delete (cleanData as any).save;
+        await firestoreDb.collection(this.collectionName).doc(doc._id).set(cleanData, { merge: true });
+      }
+      this.localStore.set(doc._id, updatedData);
+      return this.formatDoc(doc._id, updatedData);
+    }
+
+    async findOneAndUpdate(filter: Record<string, any>, update: Record<string, any>, options: any = {}) {
+      let doc = await this.findOne(filter);
+      if (!doc && options.upsert) {
+        const initial = update.$set ? { ...filter, ...update.$set } : { ...filter, ...update };
+        return this.create(initial);
+      }
+      if (!doc) return null;
+      return this.updateOne({ _id: doc._id }, update);
+    }
+
+    async findByIdAndUpdate(id: string, update: Record<string, any>, options: any = {}) {
+      return this.findOneAndUpdate({ _id: id }, update, options);
+    }
+
+    async findOneAndDelete(filter: Record<string, any>) {
+      const doc = await this.findOne(filter);
+      if (!doc) return null;
+      if (firestoreDb) {
+        try {
+          await firestoreDb.collection(this.collectionName).doc(doc._id).delete();
+        } catch (e) {}
+      }
+      this.localStore.delete(doc._id);
+      return doc;
+    }
+
+    async findByIdAndDelete(id: string) {
+      return this.findOneAndDelete({ _id: id });
+    }
+
+    async deleteMany(filter: Record<string, any> = {}) {
+      const docs = await this.find(filter);
+      let deletedCount = 0;
+      for (const doc of docs) {
+        if (firestoreDb) {
+          try {
+            await firestoreDb.collection(this.collectionName).doc(doc._id).delete();
+          } catch (e) {}
+        }
+        this.localStore.delete(doc._id);
+        deletedCount++;
+      }
+      return { deletedCount };
+    }
+
+    async countDocuments(filter: Record<string, any> = {}) {
+      const docs = await this.find(filter);
+      return docs.length;
+    }
+  }
+
+  function createModelWrapper(collectionName: string) {
+    const instance = new FirestoreCollection(collectionName);
+
+    const ModelConstructor: any = function(this: any, data: any = {}) {
+      Object.assign(this, data);
+      this.save = async () => {
+        return await instance.create(this);
+      };
+      this.toObject = function() {
+        const copy = { ...this };
+        delete copy.save;
+        delete copy.toObject;
+        return copy;
+      };
+    };
+
+    ModelConstructor.find = (filter?: any) => instance.find(filter);
+    ModelConstructor.findOne = (filter?: any) => instance.findOne(filter);
+    ModelConstructor.findById = (id: string) => instance.findById(id);
+    ModelConstructor.findOneAndUpdate = (filter: any, update: any, options?: any) => instance.findOneAndUpdate(filter, update, options);
+    ModelConstructor.findByIdAndUpdate = (id: string, update: any, options?: any) => instance.findByIdAndUpdate(id, update, options);
+    ModelConstructor.findOneAndDelete = (filter: any) => instance.findOneAndDelete(filter);
+    ModelConstructor.findByIdAndDelete = (id: string) => instance.findByIdAndDelete(id);
+    ModelConstructor.deleteMany = (filter?: any) => instance.deleteMany(filter);
+    ModelConstructor.countDocuments = (filter?: any) => instance.countDocuments(filter);
+    ModelConstructor.create = (data: any) => instance.create(data);
+    ModelConstructor.insertMany = (items: any[]) => instance.insertMany(items);
+
+    return ModelConstructor;
+  }
+
+  const User = createModelWrapper("users");
+  const Mentor = createModelWrapper("mentors");
+  const Project = createModelWrapper("projects");
+  const GitHubRepo = createModelWrapper("github_repos");
+  const Task = createModelWrapper("tasks");
+  const Notification = createModelWrapper("notifications");
+  const Message = createModelWrapper("messages");
+  const DailyReport = createModelWrapper("daily_reports");
+  const Hackathon = createModelWrapper("hackathons");
+  const HackathonRegistration = createModelWrapper("hackathon_registrations");
+  const AbstractHistory = createModelWrapper("abstract_histories");
+  const Attendance = createModelWrapper("attendances");
+  const LabAccess = createModelWrapper("lab_accesses");
+  const Opportunity = createModelWrapper("opportunities");
+  const ActivityLog = createModelWrapper("activity_logs");
 
   async function seedDemoData() {
-    if (mongoose.connection.readyState !== 1) return;
+    // Firestore seed check
 
     const coordinator = {
       userId: "coordinator-demo",
@@ -430,8 +550,6 @@ async function startServer() {
   }
 
   async function seedOpportunities() {
-    if (mongoose.connection.readyState !== 1) return;
-
     const count = await Opportunity.countDocuments();
     if (count > 0) return;
 
@@ -664,8 +782,6 @@ async function startServer() {
   }
 
   async function syncOpportunities() {
-    if (mongoose.connection.readyState !== 1) return;
-
     console.log("Starting automatic opportunities sync background job...");
     try {
       const response = await axios.get("https://kontests.net/api/v1/all", { timeout: 10000 });
@@ -1324,31 +1440,21 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
-  // Lab Access endpoints
   app.get("/api/lab-access/active", async (req, res) => {
     try {
-      const activeLogs = await LabAccess.aggregate([
-        { $match: { status: "Checked-In" } },
-        {
-          $lookup: {
-            from: "users",
-            localField: "studentId",
-            foreignField: "userId",
-            as: "studentInfo"
-          }
-        },
-        { $unwind: "$studentInfo" },
-        {
-          $project: {
-            id: "$_id",
-            studentId: 1,
-            studentName: "$studentInfo.name",
-            studentEmail: "$studentInfo.email",
-            checkInTime: 1,
-            status: 1
-          }
-        }
-      ]);
+      const checkIns = await LabAccess.find({ status: "Checked-In" });
+      const activeLogs = [];
+      for (const log of checkIns) {
+        const studentInfo = await User.findOne({ userId: log.studentId });
+        activeLogs.push({
+          id: log._id || log.id,
+          studentId: log.studentId,
+          studentName: studentInfo ? studentInfo.name : "Unknown",
+          studentEmail: studentInfo ? studentInfo.email : "",
+          checkInTime: log.checkInTime,
+          status: log.status
+        });
+      }
       res.json({ activeLogs });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

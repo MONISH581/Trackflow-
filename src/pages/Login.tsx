@@ -11,7 +11,7 @@ export default function Login() {
   const [email, setEmail] = React.useState("");
   const [name, setName] = React.useState("");
   const [registerNumber, setRegisterNumber] = React.useState("");
-  const [phone, setPhone] = React.useState("");
+  const [rememberMe, setRememberMe] = React.useState(true);
   const [section, setSection] = React.useState("A");
   const [lab, setLab] = React.useState("AI Lab");
   const [preferredDomain, setPreferredDomain] = React.useState("Artificial Intelligence");
@@ -19,15 +19,27 @@ export default function Login() {
   const [year, setYear] = React.useState("3");
   const [verificationCode, setVerificationCode] = React.useState("");
 
+  React.useEffect(() => {
+    const savedEmail = localStorage.getItem("trackflow_remembered_email");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (rememberMe && email) {
+      localStorage.setItem("trackflow_remembered_email", email);
+    } else {
+      localStorage.removeItem("trackflow_remembered_email");
+    }
     const success = await login({
       email,
       name,
       role,
       department,
       registerNumber: role === "student" ? registerNumber : undefined,
-      phone: role === "student" ? phone : undefined,
       section: role === "student" ? section : undefined,
       lab,
       preferredDomain: role === "student" ? preferredDomain : undefined,
@@ -162,21 +174,8 @@ export default function Login() {
 
           {role === "student" && (
             <>
-              {/* Phone & Section */}
+              {/* Section & Preferred Domain */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1 text-left">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                    Phone Number
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="+91 9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm"
-                  />
-                </div>
-
                 <div className="space-y-1 text-left">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
                     Section
@@ -189,24 +188,23 @@ export default function Login() {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm"
                   />
                 </div>
-              </div>
 
-              {/* Preferred Domain */}
-              <div className="space-y-1 text-left">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  Preferred Project Domain *
-                </label>
-                <select
-                  value={preferredDomain}
-                  onChange={(e) => setPreferredDomain(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white cursor-pointer"
-                >
-                  {domains.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-1 text-left">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Preferred Project Domain *
+                  </label>
+                  <select
+                    value={preferredDomain}
+                    onChange={(e) => setPreferredDomain(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white cursor-pointer"
+                  >
+                    {domains.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </>
           )}
@@ -269,6 +267,19 @@ export default function Login() {
               </div>
             </div>
           )}
+
+          {/* Remember Me Checkbox */}
+          <div className="flex items-center justify-between pt-1 text-left">
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+              />
+              <span>Remember me on this device</span>
+            </label>
+          </div>
 
           {/* Submit */}
           <button

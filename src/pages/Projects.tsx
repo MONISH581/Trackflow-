@@ -118,9 +118,9 @@ export default function Projects() {
                   </span>
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                      project.status === "Active"
+                      (project.status as string) === "Active"
                         ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                        : project.status === "At Risk"
+                        : (project.status as string) === "At Risk" || (project.status as string) === "On Hold"
                         ? "bg-rose-50 text-rose-700 border border-rose-200/60"
                         : "bg-blue-50 text-blue-700 border border-blue-200/60"
                     }`}
