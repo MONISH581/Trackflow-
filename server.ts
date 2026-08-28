@@ -253,15 +253,21 @@ async function startServer() {
       const docData = { ...data, _id: id, id, createdAt: data.createdAt || now, updatedAt: now };
 
       if (firestoreDb) {
-        const cleanData = { ...docData };
-        delete (cleanData as any)._id;
-        delete (cleanData as any).toObject;
-        delete (cleanData as any).save;
+        const cleanData: any = {};
+        for (const [key, value] of Object.entries(docData)) {
+          if (key === "_id" || key === "toObject" || key === "save") continue;
+          if (value instanceof Date) {
+            cleanData[key] = value.toISOString();
+          } else if (value !== undefined) {
+            cleanData[key] = value;
+          }
+        }
         await firestoreDb.collection(this.collectionName).doc(id).set(cleanData, { merge: true });
       }
       this.localStore.set(id, docData);
       return this.formatDoc(id, docData);
     }
+
 
     async insertMany(items: any[]) {
       const created = [];
