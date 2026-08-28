@@ -1259,6 +1259,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         });
 
 
+
+
         const text = response.text ? response.text.trim() : "";
         const jsonStr = text.replace(/^```json/, "").replace(/```$/, "").trim();
         
@@ -1365,6 +1367,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             tools: [{ googleSearch: {} }]
           }
         });
+
+
 
 
         const text = response.text ? response.text.trim() : "";
