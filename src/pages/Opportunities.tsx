@@ -264,7 +264,7 @@ export default function Opportunities() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {CATEGORIES_CONFIG.map((cat, idx) => {
             const statMatch = categoryCounts.find((s: any) => s.category === cat.name);
-            const count = statMatch ? statMatch.count : 0;
+            const count = statMatch ? statMatch.count : opportunities.filter((o) => o.category === cat.name).length;
             return (
               <button
                 key={idx}

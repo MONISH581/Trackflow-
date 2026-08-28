@@ -3222,6 +3222,25 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const opportunities = await Opportunity.find({ approved: true });
+      const countsMap: Record<string, number> = {};
+      for (const opp of opportunities) {
+        if (opp.category) {
+          countsMap[opp.category] = (countsMap[opp.category] || 0) + 1;
+        }
+      }
+      const categories = Object.entries(countsMap).map(([category, count]) => ({
+        category,
+        count
+      }));
+      res.json({ categories });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/opportunities/recommendations/:userId", async (req, res) => {
     try {
       const user = await User.findOne({ userId: req.params.userId });
