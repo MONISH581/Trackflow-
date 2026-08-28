@@ -449,8 +449,10 @@ async function startServer() {
     "AR/VR Lab",
     "IoT (Internet of Things) Lab",
     "PCB Lab",
-    "Robotics Lab"
+    "Robotics Lab",
+    "VLSI Lab"
   ];
+
 
   function isValidStudentEmail(email: string): boolean {
     if (!email || typeof email !== "string") return false;

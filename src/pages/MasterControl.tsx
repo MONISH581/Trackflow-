@@ -29,7 +29,8 @@ export default function MasterControl() {
     "AR/VR Lab",
     "IoT (Internet of Things) Lab",
     "PCB Lab",
-    "Robotics Lab"
+    "Robotics Lab",
+    "VLSI Lab"
   ];
 
   const loadData = async () => {
@@ -64,7 +65,7 @@ export default function MasterControl() {
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="flex items-center gap-3 text-slate-600 font-semibold text-sm">
           <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-          Loading Master Control 6-Lab Metrics...
+          Loading Master Control 7-Lab Metrics...
         </div>
       </div>
     );
@@ -78,11 +79,11 @@ export default function MasterControl() {
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-800 text-blue-400 rounded-lg text-xs font-bold uppercase tracking-wider mb-2">
             <Shield className="w-4 h-4" />
-            Master Control Center • Sathish Sir
+            Master Control Center • Sathish
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">TrackFlow AI – 6 Lab Command Center</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">TrackFlow AI – 7 Lab Command Center</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time multi-lab monitoring, project locking, milestone auditing, and student administration.
+            Real-time seven-lab monitoring, project locking, milestone auditing, and student administration.
           </p>
         </div>
 
@@ -101,9 +102,10 @@ export default function MasterControl() {
             <span className="text-xs font-bold uppercase">Labs</span>
             <Building className="w-4 h-4 text-blue-600" />
           </div>
-          <p className="text-2xl font-extrabold text-slate-900">{overview?.totalLabs || 6}</p>
+          <p className="text-2xl font-extrabold text-slate-900">{overview?.totalLabs || 7}</p>
           <span className="text-[10px] text-slate-500 font-medium">Official Labs</span>
         </div>
+
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 mb-2">
