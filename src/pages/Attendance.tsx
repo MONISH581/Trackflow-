@@ -41,7 +41,9 @@ export default function Attendance() {
   const [selectedDate, setSelectedDate] = React.useState(new Date().toISOString().split("T")[0]);
   const [attendanceSheet, setAttendanceSheet] = React.useState<Record<string, "Present" | "Absent">>({});
   const [attendanceSearch, setAttendanceSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<"ALL" | "PRESENT" | "ABSENT">("ALL");
   const [savingAttendance, setSavingAttendance] = React.useState(false);
+
 
   // Lab Access States
   const [activeLabLogs, setActiveLabLogs] = React.useState<any[]>([]);
@@ -327,16 +329,34 @@ export default function Attendance() {
     }
   };
 
-  const filteredAttendanceStudents = students.filter(s =>
-    s.name.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
-    s.email.toLowerCase().includes(attendanceSearch.toLowerCase())
-  );
+  const presentCount = students.filter(s => {
 
+    const identifier = s.userId || s.id || s._id;
+    return (attendanceSheet[identifier] || "Present") === "Present";
+  }).length;
+
+  const absentCount = students.length - presentCount;
+  const attendancePercentage = students.length > 0 ? Math.round((presentCount / students.length) * 100) : 0;
+
+  const filteredAttendanceStudents = students.filter(s => {
+    const identifier = s.userId || s.id || s._id;
+    const status = attendanceSheet[identifier] || "Present";
+
+    const matchesSearch = s.name.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
+      s.email.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
+      (s.registerNumber && s.registerNumber.toLowerCase().includes(attendanceSearch.toLowerCase()));
+
+    if (!matchesSearch) return false;
+    if (statusFilter === "PRESENT" && status !== "Present") return false;
+    if (statusFilter === "ABSENT" && status !== "Absent") return false;
+    return true;
+  });
 
   const filteredLabLogs = activeLabLogs.filter(log =>
     log.studentName.toLowerCase().includes(labSearch.toLowerCase()) ||
     log.studentEmail.toLowerCase().includes(labSearch.toLowerCase())
   );
+
 
   // Filter students who are NOT currently checked into the lab
   const checkedInStudentIds = new Set(activeLabLogs.map(log => log.studentId));
@@ -405,6 +425,43 @@ export default function Attendance() {
       {/* Main Tab Views */}
       {activeTab === "sheet" && (
         <div className="space-y-6">
+          
+          {/* Today's Attendance Overview Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Present Today ({selectedDate})</span>
+                <p className="text-2xl font-black text-emerald-800 mt-1">{presentCount} <span className="text-xs font-bold text-emerald-600">/ {students.length}</span></p>
+                <span className="text-[11px] font-bold text-emerald-700">{attendancePercentage}% Attendance Rate</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-700">Absent Today</span>
+                <p className="text-2xl font-black text-rose-800 mt-1">{absentCount} <span className="text-xs font-bold text-rose-600">Students</span></p>
+                <span className="text-[11px] font-bold text-rose-700">Requires Coordinator Follow-up</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold">
+                <XCircle className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Total Enrolled</span>
+                <p className="text-2xl font-black text-blue-900 mt-1">{students.length} <span className="text-xs font-bold text-blue-600">Students</span></p>
+                <span className="text-[11px] font-bold text-blue-700">Seven Laboratories</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                <ClipboardCheck className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
           {/* Controls Bar */}
           <div className="glass-card p-5 border border-blue-200/40 grid grid-cols-1 md:grid-cols-3 gap-4 items-center shadow-sm">
             {/* Date selector */}
@@ -422,6 +479,7 @@ export default function Attendance() {
                 <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
               </div>
             </div>
+
 
             {/* Search filter */}
             <div className="flex flex-col gap-1">
@@ -483,12 +541,63 @@ export default function Attendance() {
           </div>
 
 
+          {/* Status Filter Tabs (Present Today / Absent / All) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700">Filter View:</span>
+              <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("ALL")}
+                  className={`px-3 py-1.5 rounded-lg transition ${
+                    statusFilter === "ALL"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  All Enrolled ({students.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("PRESENT")}
+                  className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                    statusFilter === "PRESENT"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-emerald-700 hover:bg-emerald-50"
+                  }`}
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Present Today ({presentCount})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("ABSENT")}
+                  className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                    statusFilter === "ABSENT"
+                      ? "bg-rose-600 text-white shadow-sm"
+                      : "text-rose-700 hover:bg-rose-50"
+                  }`}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  Absent Today ({absentCount})
+                </button>
+              </div>
+            </div>
+
+            <span className="text-xs font-bold text-slate-500">
+              Showing {filteredAttendanceStudents.length} {statusFilter === "PRESENT" ? "Present" : (statusFilter === "ABSENT" ? "Absent" : "Total")} Student Records
+            </span>
+          </div>
+
           {/* Student Sheet Grid */}
           {filteredAttendanceStudents.length === 0 ? (
             <div className="glass-card p-12 text-center border border-blue-200/40">
               <Filter className="w-8 h-8 text-slate-400 mx-auto mb-3" />
               <p className="text-sm font-semibold text-slate-500">No students match your filter criteria.</p>
             </div>
+
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAttendanceStudents.map((s: any) => {
