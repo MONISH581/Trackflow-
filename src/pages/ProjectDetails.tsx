@@ -139,30 +139,66 @@ export default function ProjectDetails() {
 
   // Load GitHub Commits dynamically
   React.useEffect(() => {
-    if (project?.githubRepo) {
+    const rawRepo = project?.githubRepo || currentUser?.githubUsername;
+    if (rawRepo && !rawRepo.includes("@")) {
       setLoadingCommits(true);
       const headers: any = {};
       if (currentUser?.githubToken) {
         headers["Authorization"] = `Bearer ${currentUser.githubToken}`;
       }
-      fetch(`https://api.github.com/repos/${project.githubRepo}/commits?per_page=8`, { headers })
+
+      let repoPath = rawRepo.trim();
+      repoPath = repoPath.replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\/$/, "");
+
+      const isFullRepo = repoPath.includes("/");
+      const apiUrl = isFullRepo
+        ? `https://api.github.com/repos/${repoPath}/commits?per_page=8`
+        : `https://api.github.com/users/${repoPath}/events/public`;
+
+      fetch(apiUrl, { headers })
         .then((r) => {
-          if (!r.ok) throw new Error("Failed to load repo commits");
+          if (!r.ok) throw new Error("Failed to load GitHub activity");
           return r.json();
         })
         .then((data) => {
           if (Array.isArray(data)) {
-            setCommits(data);
+            if (isFullRepo) {
+              setCommits(data);
+            } else {
+              const pushCommits: any[] = [];
+              for (const event of data) {
+                if (event.type === "PushEvent" && event.payload?.commits) {
+                  for (const c of event.payload.commits) {
+                    pushCommits.push({
+                      sha: c.sha,
+                      html_url: `https://github.com/${event.repo.name}/commit/${c.sha}`,
+                      commit: {
+                        message: c.message,
+                        author: {
+                          name: event.actor.display_login || event.actor.login,
+                          date: event.created_at,
+                        },
+                      },
+                      author: {
+                        avatar_url: event.actor.avatar_url,
+                      },
+                    });
+                  }
+                }
+              }
+              setCommits(pushCommits.slice(0, 8));
+            }
           }
         })
         .catch((err) => {
           console.error("GitHub API Error:", err);
+          setCommits([]);
         })
         .finally(() => setLoadingCommits(false));
     } else {
       setCommits([]);
     }
-  }, [project?.githubRepo, currentUser?.githubToken]);
+  }, [project?.githubRepo, currentUser?.githubUsername, currentUser?.githubToken]);
 
   if (!currentProjectId || !project) {
     return (

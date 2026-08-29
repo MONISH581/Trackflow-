@@ -5,6 +5,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import jwt from "jsonwebtoken"; // JWT handling
+import bcrypt from "bcryptjs"; // Password hashing
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
@@ -57,18 +58,63 @@ async function startServer() {
     next();
   });
 
+  const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : ["http://localhost:3000", "http://127.0.0.1:3000"];
   app.use(cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || process.env.NODE_ENV !== "production" || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy violation: Access from unauthorized origin blocked."));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   }));
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+  if (process.env.NODE_ENV === "production" && (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === "")) {
+    console.error("FATAL CONFIGURATION ERROR: JWT_SECRET environment variable must be set in production mode!");
+    process.exit(1);
+  }
+
+  const JWT_SECRET = process.env.JWT_SECRET || "trackflow_secure_jwt_secret_local_2026";
+
+  function sanitizeUser(userDoc: any) {
+    if (!userDoc) return null;
+    const userObj = typeof userDoc.toObject === 'function' ? userDoc.toObject() : { ...userDoc };
+    delete userObj.password;
+    delete userObj.passwordHash;
+    return userObj;
+  }
+
+  const authMiddleware = (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Access denied. Authentication token required." });
+    }
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      req.user = decoded;
+      next();
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid or expired authentication token." });
+    }
+  };
+
+  const requireRole = (allowedRoles: string[]) => {
+    return (req: any, res: any, next: any) => {
+      if (!req.user || !allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ error: "Access denied. Insufficient permissions." });
+      }
+      next();
+    };
+  };
 
   app.get('/ping', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
+    res.json({ status: 'ok' });
+  });
 
   // Setup uploads directory and middleware
   const uploadsDir = path.join(process.cwd(), "uploads");
@@ -83,10 +129,14 @@ async function startServer() {
     },
     filename: (req, file, cb) => {
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, uniqueSuffix + "-" + file.originalname);
+      const safeBasename = path.basename(file.originalname).replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      cb(null, uniqueSuffix + "-" + safeBasename);
     }
   });
-  const upload = multer({ storage });
+  const upload = multer({
+    storage,
+    limits: { fileSize: 15 * 1024 * 1024 } // 15MB max file size
+  });
 
   // Firebase Admin Firestore Initialization
   let firestoreDb: Firestore | null = null;
@@ -121,9 +171,50 @@ async function startServer() {
   class FirestoreCollection {
     private collectionName: string;
     private static memoryStore: Map<string, Map<string, any>> = new Map();
+    private static dbFilePath = path.join(process.cwd(), "uploads", "db_store.json");
+    private static isLoaded = false;
+
+    private static loadFromDisk() {
+      if (FirestoreCollection.isLoaded) return;
+      FirestoreCollection.isLoaded = true;
+      try {
+        if (fs.existsSync(FirestoreCollection.dbFilePath)) {
+          const raw = fs.readFileSync(FirestoreCollection.dbFilePath, "utf8");
+          const data = JSON.parse(raw);
+          for (const [colName, docs] of Object.entries(data)) {
+            const colMap = new Map<string, any>();
+            for (const [docId, docVal] of Object.entries(docs as any)) {
+              colMap.set(docId, docVal);
+            }
+            FirestoreCollection.memoryStore.set(colName, colMap);
+          }
+          console.log("Loaded persistent database store from disk:", FirestoreCollection.dbFilePath);
+        }
+      } catch (err) {
+        console.warn("Failed to load local DB store from disk:", err);
+      }
+    }
+
+    private static saveToDisk() {
+      try {
+        const serializable: Record<string, Record<string, any>> = {};
+        for (const [colName, colMap] of FirestoreCollection.memoryStore.entries()) {
+          serializable[colName] = {};
+          for (const [docId, docVal] of colMap.entries()) {
+            serializable[colName][docId] = docVal;
+          }
+        }
+        const uploadsDir = path.dirname(FirestoreCollection.dbFilePath);
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        fs.writeFileSync(FirestoreCollection.dbFilePath, JSON.stringify(serializable, null, 2), "utf8");
+      } catch (err) {
+        console.warn("Failed to save local DB store to disk:", err);
+      }
+    }
 
     constructor(collectionName: string) {
       this.collectionName = collectionName;
+      FirestoreCollection.loadFromDisk();
       if (!FirestoreCollection.memoryStore.has(collectionName)) {
         FirestoreCollection.memoryStore.set(collectionName, new Map());
       }
@@ -302,6 +393,7 @@ async function startServer() {
         await firestoreDb.collection(this.collectionName).doc(id).set(cleanData, { merge: true });
       }
       this.localStore.set(id, docData);
+      FirestoreCollection.saveToDisk();
       return this.formatDoc(id, docData);
     }
 
@@ -381,6 +473,7 @@ async function startServer() {
       }
 
       this.localStore.set(doc._id, updatedData);
+      FirestoreCollection.saveToDisk();
       return this.formatDoc(doc._id, updatedData);
     }
 
@@ -407,6 +500,7 @@ async function startServer() {
         } catch (e) {}
       }
       this.localStore.delete(doc._id);
+      FirestoreCollection.saveToDisk();
       return doc;
     }
 
@@ -564,16 +658,32 @@ async function startServer() {
   }
 
   async function seedDemoData() {
-    // Firestore seed check
+    const defaultPasswordHash = bcrypt.hashSync("password123", 10);
+    const masterPasswordHash = bcrypt.hashSync("master123", 10);
+
+    const masterAdmin = {
+      userId: "master-sathish",
+      name: "Master Sathish",
+      email: "sathish@srishakthi.ac.in",
+      role: "master_admin",
+      passwordHash: masterPasswordHash,
+      avatar: "https://avatar.vercel.sh/sathish",
+      department: "Master Control",
+      status: "approved",
+      accountStatus: "ACTIVE",
+      registrationDate: new Date(),
+    };
 
     const coordinator = {
       userId: "coordinator-demo",
       name: "Dr. Sarah Chen",
       email: "coordinator@trackflow.local",
       role: "coordinator",
+      passwordHash: defaultPasswordHash,
       avatar: "https://avatar.vercel.sh/sarah",
       department: "Artificial Intelligence",
       status: "approved",
+      accountStatus: "ACTIVE",
       year: "1",
       lab: "AI Lab",
       registrationDate: new Date(),
@@ -588,13 +698,21 @@ async function startServer() {
       lab: "AI Lab",
       email: "demo.student@srishakthi.ac.in",
       role: "student",
+      passwordHash: defaultPasswordHash,
       avatar: "https://avatar.vercel.sh/demo-student",
       department: "Computer Science",
       preferredDomain: "Artificial Intelligence",
       status: "approved",
+      accountStatus: "ACTIVE",
       year: "3",
       registrationDate: new Date(),
     };
+
+    await User.findOneAndUpdate(
+      { email: masterAdmin.email },
+      { $set: masterAdmin },
+      { upsert: true, returnDocument: "after" }
+    );
 
     await User.findOneAndUpdate(
       { email: coordinator.email },
@@ -1528,8 +1646,11 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     try {
       await seedDemoData();
       await seedOpportunities();
-      await syncGovernmentHackathons();
-      await syncOpportunities();
+      // Run background API sync asynchronously without blocking HTTP server startup
+      setTimeout(() => {
+        syncGovernmentHackathons().catch(() => {});
+        syncOpportunities().catch(() => {});
+      }, 1000);
       setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
       setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
     } catch (err) {
@@ -1541,7 +1662,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   // Authentication endpoints
   app.post("/api/login", async (req, res) => {
     try {
-      const { email, name, role, avatar, department, year, registerNumber, phone, section, lab, preferredDomain } = req.body;
+      const { email, password, name, role, avatar, department, year, registerNumber, phone, section, lab, preferredDomain, isSignup } = req.body;
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
@@ -1556,13 +1677,28 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       }
 
       let userRole = role || 'student';
-      if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in' || (role === 'master_admin' && !req.body.isPublicSignup)) {
+      if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in') {
         userRole = 'master_admin';
       }
 
+      if (isSignup && (role === 'master_admin' || userRole === 'master_admin')) {
+        return res.status(403).json({ error: "Public Master Admin registration is disabled. Master Admin accounts can only be provisioned by existing administrators." });
+      }
+
       let user = await User.findOne({ email: cleanEmail });
+
+      if (isSignup && user) {
+        return res.status(400).json({ error: "An account with this email address already exists. Please log in instead." });
+      }
+
       if (!user) {
-        // Teacher/Coordinator & Student registrations require approval
+        if (!isSignup) {
+          return res.status(404).json({ error: "Account not registered. Please register first." });
+        }
+        if (!password || password.length < 6) {
+          return res.status(400).json({ error: "Password must be at least 6 characters." });
+        }
+        const passwordHash = await bcrypt.hash(password, 10);
         const initialStatus = (userRole === 'master_admin') ? 'approved' : 'pending';
 
         user = new User({
@@ -1573,6 +1709,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           section: section || "A",
           lab: lab || OFFICIAL_LABS[0],
           email: cleanEmail,
+          passwordHash,
           role: userRole,
           accountStatus: 'ACTIVE',
           avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
@@ -1611,6 +1748,20 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         if (user.accountStatus === 'LOCKED') {
           return res.status(403).json({ error: "Your TrackFlow account is currently locked. Please contact your coordinator for permission." });
         }
+
+        // Verify password
+        if (password) {
+          if (user.passwordHash) {
+            const isMatch = await bcrypt.compare(password, user.passwordHash);
+            if (!isMatch) {
+              return res.status(401).json({ error: "Invalid email or password." });
+            }
+          } else {
+            // First time login for legacy seed account: hash password
+            user.passwordHash = await bcrypt.hash(password, 10);
+          }
+        }
+
         if (name) user.name = name;
         if (avatar) user.avatar = avatar;
         if (department) user.department = department;
@@ -1664,8 +1815,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       }).save();
 
       // Issue JWT
-      const token = jwt.sign({ id: user.userId, role: user.role }, process.env.JWT_SECRET || 'secretKeyTrackflow', { expiresIn: "7d" });
-      res.json({ token, user: { id: user.userId, ...user.toObject() } });
+      const token = jwt.sign({ id: user.userId, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
+      res.json({ token, user: sanitizeUser(user) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -1682,7 +1833,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const { name, email, password, department, year, avatar, githubUsername, githubToken, skills, interestedCategories, college, notificationPreferences, registerNumber, phone, section, lab, preferredDomain } = req.body;
       if (name) existingUser.name = name;
       if (email) existingUser.email = email.toLowerCase().trim();
-      if (password) existingUser.password = password;
+      if (password) {
+        existingUser.passwordHash = await bcrypt.hash(password, 10);
+        delete existingUser.password;
+      }
       if (department) existingUser.department = department;
       if (registerNumber !== undefined) existingUser.registerNumber = registerNumber;
       if (phone !== undefined) existingUser.phone = phone;
@@ -1702,7 +1856,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       }
 
       await existingUser.save();
-      res.json({ user: { id: existingUser.userId, ...existingUser.toObject() } });
+      res.json({ user: sanitizeUser(existingUser) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -1718,16 +1872,16 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   });
 
   // Approvals endpoints
-  app.get("/api/approvals", async (req, res) => {
+  app.get("/api/approvals", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req, res) => {
     try {
       const pendingStudents = await User.find({ role: 'student', status: 'pending' }).sort({ createdAt: -1 });
-      res.json({ requests: pendingStudents.map(s => ({ id: s.userId, ...s.toObject() })) });
+      res.json({ requests: pendingStudents.map(s => ({ id: s.userId, ...sanitizeUser(s) })) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  app.put("/api/approvals/:id", async (req, res) => {
+  app.put("/api/approvals/:id", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req, res) => {
     try {
       const { status } = req.body; // 'approved' or 'rejected'
       const user = await User.findOneAndUpdate({ userId: req.params.id }, { status }, { new: true });
@@ -1746,14 +1900,14 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       });
       await notif.save();
 
-      res.json({ success: true, user });
+      res.json({ success: true, user: sanitizeUser(user) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
   // Master Control User Management Endpoints
-  app.get("/api/master-control/users", async (req, res) => {
+  app.get("/api/master-control/users", authMiddleware, requireRole(['master_admin']), async (req, res) => {
     try {
       const masters = await User.find({ role: 'master_admin' });
       const coordinators = await User.find({ role: 'coordinator', status: 'approved' });
@@ -1761,17 +1915,17 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const students = await User.find({ role: 'student' });
       
       res.json({
-        masters: masters.map(u => ({ id: u.userId, ...u.toObject() })),
-        coordinators: coordinators.map(u => ({ id: u.userId, ...u.toObject() })),
-        pendingCoordinators: pendingCoordinators.map(u => ({ id: u.userId, ...u.toObject() })),
-        students: students.map(u => ({ id: u.userId, ...u.toObject() })),
+        masters: masters.map(u => ({ id: u.userId, ...sanitizeUser(u) })),
+        coordinators: coordinators.map(u => ({ id: u.userId, ...sanitizeUser(u) })),
+        pendingCoordinators: pendingCoordinators.map(u => ({ id: u.userId, ...sanitizeUser(u) })),
+        students: students.map(u => ({ id: u.userId, ...sanitizeUser(u) })),
       });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  app.post("/api/master-control/add-master", async (req, res) => {
+  app.post("/api/master-control/add-master", authMiddleware, requireRole(['master_admin']), async (req, res) => {
     try {
       const { name, email } = req.body;
       if (!email || !name) {
@@ -1805,7 +1959,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
-  app.put("/api/master-control/approve-coordinator/:id", async (req, res) => {
+  app.put("/api/master-control/approve-coordinator/:id", authMiddleware, requireRole(['master_admin']), async (req, res) => {
     try {
       const { approve } = req.body;
       const status = approve ? 'approved' : 'rejected';
@@ -1824,13 +1978,13 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         type: "general"
       }).save();
 
-      res.json({ success: true, user });
+      res.json({ success: true, user: sanitizeUser(user) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete("/api/users/:id", authMiddleware, requireRole(['master_admin']), async (req, res) => {
     try {
       const user = await User.findOneAndDelete({ userId: req.params.id });
       if (!user) {
@@ -2798,7 +2952,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   app.post("/api/projects/:id/upload", upload.single("file"), async (req, res) => {
     try {
-      const project = await Project.findById(req.params.id);
+      const project = (await Project.findById(req.params.id)) || (await Project.findOne({ $or: [{ _id: req.params.id }, { id: req.params.id }] }));
       if (!project) return res.status(404).json({ error: "Project not found" });
 
       if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -2811,25 +2965,31 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         uploadedAt: new Date()
       };
 
+      if (!Array.isArray(project.files)) {
+        project.files = [];
+      }
       project.files.push(fileData);
       await project.save();
 
       const coords = await User.find({ role: 'coordinator' });
-      for (const coord of coords) {
-        const notif = new Notification({
-          userId: coord.userId,
-          title: 'New Project File Uploaded',
-          message: `A new file "${fileData.name}" was uploaded to project: ${project.name}`,
-          read: false,
-          type: 'general',
-          relatedId: project._id
-        });
-        await notif.save();
-        io.emit("notification_received");
+      if (Array.isArray(coords)) {
+        for (const coord of coords) {
+          const notif = new Notification({
+            userId: coord.userId,
+            title: 'New Project File Uploaded',
+            message: `A new file "${fileData.name}" was uploaded to project: ${project.name}`,
+            read: false,
+            type: 'general',
+            relatedId: project._id || project.id
+          });
+          await notif.save();
+          io.emit("notification_received");
+        }
       }
 
       res.json({ success: true, file: fileData });
     } catch (e: any) {
+      console.error("Upload error stack:", e);
       res.status(500).json({ error: e.message });
     }
   });
@@ -3546,18 +3706,14 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     });
   }
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-    
-    // Self-ping to keep Render free tier awake
-    const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || `http://localhost:${PORT}`;
-    console.log(`Setting up keep-alive ping for ${externalUrl}`);
-    setInterval(() => {
-      axios.get(`${externalUrl}/api/health`)
-        .then(() => console.log("Keep-alive ping successful"))
-        .catch((err) => console.log("Keep-alive ping failed:", err.message));
-    }, 14 * 60 * 1000); // ping every 14 minutes
-  });
+  if (!process.env.VERCEL) {
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running locally on http://localhost:${PORT}`);
+    });
+  }
 }
+
+export { app, httpServer };
+export default app;
 
 startServer();

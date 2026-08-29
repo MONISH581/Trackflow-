@@ -4,6 +4,8 @@ import { io, Socket } from "socket.io-client";
 export interface UserInfo {
   userId: string;
   name: string;
+  password?: string;
+  isSignup?: boolean;
   registerNumber?: string;
   phone?: string;
   section?: string;
@@ -366,6 +368,9 @@ interface AppState {
   fetchCategoryCounts: () => Promise<any[]>;
   syncOpportunities: () => Promise<boolean>;
 
+  // File Vault
+  uploadFile: (projectId: string, file: File) => Promise<boolean>;
+
   // Master Control & Account Locking
   fetchMasterControlOverview: () => Promise<any>;
   lockStudentUser: (userId: string, reason?: string) => Promise<boolean>;
@@ -377,8 +382,16 @@ interface AppState {
 }
 
 
-const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-export const API_BASE = isLocalhost ? "" : "https://trackflow-backend-qfbp.onrender.com";
+export const API_BASE = "";
+
+export function getAuthHeaders(extraHeaders: Record<string, string> = {}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("trackflow_token") : null;
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    ...extraHeaders,
+  };
+}
 
 async function safeJson(response: Response, defaultFallback: any = {}) {
   const contentType = response.headers.get("content-type");
@@ -428,7 +441,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(userData),
       });
       const data = await safeJson(response, {});
@@ -440,21 +453,29 @@ export const useStore = create<AppState>((set, get) => ({
       const user = data.user;
       set({ currentUser: user });
       localStorage.setItem("trackflow_user", JSON.stringify(user));
+      if (data.token) {
+        localStorage.setItem("trackflow_token", data.token);
+      }
       
       get().addToast(`Logged in successfully as ${user.name}`, "success");
       
-      // Connect to socket and fetch initial data
+      // Connect to socket and parallelize initial data fetching
       get().connectSocket();
-      get().fetchNotifications();
       
+      const fetchPromises: Promise<any>[] = [get().fetchNotifications()];
       if (user.role === "student" && user.status === "approved") {
-        // Fetch active project for student
-        const projRes = await fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`);
-        const projData = await projRes.json();
-        if (projData.projects && projData.projects.length > 0) {
-          set({ activeProject: projData.projects[0] });
-        }
+        fetchPromises.push(
+          fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`, { headers: getAuthHeaders() })
+            .then(r => r.json())
+            .then(projData => {
+              if (projData.projects && projData.projects.length > 0) {
+                set({ activeProject: projData.projects[0] });
+              }
+            })
+            .catch(() => {})
+        );
       }
+      await Promise.all(fetchPromises);
       return true;
     } catch (e: any) {
       get().addToast(e.message, "error");
@@ -467,6 +488,7 @@ export const useStore = create<AppState>((set, get) => ({
   logout: () => {
     get().disconnectSocket();
     localStorage.removeItem("trackflow_user");
+    localStorage.removeItem("trackflow_token");
     set({ currentUser: null, activeProject: null, projects: [], tasks: [], notifications: [], messages: [] });
     get().addToast("Logged out successfully", "info");
   },
@@ -519,7 +541,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchApprovals: async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/approvals`);
+      const response = await fetch(`${API_BASE}/api/approvals`, { headers: getAuthHeaders() });
       const data = await response.json();
       return data.requests || [];
     } catch (e) {
@@ -531,7 +553,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/approvals/${studentId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: approve ? "approved" : "rejected" }),
       });
       if (!response.ok) throw new Error("Approval update failed");
@@ -546,7 +568,7 @@ export const useStore = create<AppState>((set, get) => ({
   // Mentors Actions
   fetchMentors: async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/mentors`);
+      const response = await fetch(`${API_BASE}/api/mentors`, { headers: getAuthHeaders() });
       const data = await response.json();
       set({ mentors: data.mentors || [] });
     } catch (e) {}
@@ -556,7 +578,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/mentors`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(mentorData),
       });
       const data = await response.json();
@@ -574,7 +596,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/projects/${projectId}/assign-mentor`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ mentorId }),
       });
       const data = await response.json();
@@ -1385,7 +1407,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchMasterControlOverview: async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/master-control/overview`);
+      const response = await fetch(`${API_BASE}/api/master-control/overview`, { headers: getAuthHeaders() });
       const data = await response.json();
       return data;
     } catch (e: any) {
@@ -1398,7 +1420,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/users/${userId}/lock`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ reason })
       });
       const data = await response.json();
@@ -1413,7 +1435,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchMasterUsers: async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/master-control/users`);
+      const response = await fetch(`${API_BASE}/api/master-control/users`, { headers: getAuthHeaders() });
       const data = await response.json();
       return data;
     } catch (e: any) {
@@ -1425,7 +1447,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/master-control/add-master`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ name, email }),
       });
       const data = await response.json();
@@ -1442,7 +1464,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/master-control/approve-coordinator/${userId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ approve }),
       });
       const data = await response.json();
@@ -1459,6 +1481,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/users/${userId}`, {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Delete failed");
@@ -1474,7 +1497,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/users/${userId}/unlock`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" }
+        headers: getAuthHeaders()
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unlock failed");
@@ -1483,6 +1506,46 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (e: any) {
       get().addToast(e.message, "error");
       return false;
+    }
+  },
+
+  uploadFile: async (projectId: string, file: File) => {
+    try {
+      get().setLoading(true);
+      get().addToast(`Uploading "${file.name}" to File Vault...`, "info");
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = typeof window !== "undefined" ? localStorage.getItem("trackflow_token") : null;
+      const headers: any = token ? { "Authorization": `Bearer ${token}` } : {};
+
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}/upload`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      const data = await safeJson(response, {});
+      if (!response.ok) {
+        throw new Error(data.error || "File upload failed");
+      }
+
+      get().addToast(`File "${file.name}" uploaded successfully!`, "success");
+
+      // Refresh active project files in store
+      const projRes = await fetch(`${API_BASE}/api/projects`, { headers: getAuthHeaders() });
+      const projData = await safeJson(projRes, {});
+      if (projData.projects) {
+        set({ projects: projData.projects });
+        const updated = projData.projects.find((p: any) => p._id === projectId || p.id === projectId);
+        if (updated) set({ activeProject: updated });
+      }
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "File upload failed", "error");
+      return false;
+    } finally {
+      get().setLoading(false);
     }
   },
 }));

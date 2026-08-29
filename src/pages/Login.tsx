@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../store.ts";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, GraduationCap, KeyRound, Cpu, ArrowDown, Lock, CheckCircle2, ChevronRight, Layers, Sparkles, X, Info, ExternalLink } from "lucide-react";
+import { Shield, GraduationCap, KeyRound, Cpu, ArrowDown, Lock, CheckCircle2, ChevronRight, Layers, Sparkles, X, Info, ExternalLink, Eye, EyeOff } from "lucide-react";
 import { AppleVisionScroll } from "../components/AppleVisionScroll.tsx";
 
 export default function Login() {
@@ -13,7 +13,7 @@ export default function Login() {
   const [email, setEmail] = React.useState("");
   const [name, setName] = React.useState("");
   const [registerNumber, setRegisterNumber] = React.useState("");
-  const [rememberMe, setRememberMe] = React.useState(true);
+  const [rememberMe, setRememberMe] = React.useState(false);
   const [section, setSection] = React.useState("A");
   const [lab, setLab] = React.useState("Artificial Intelligence and Research Lab");
   const [preferredDomain, setPreferredDomain] = React.useState("Artificial Intelligence");
@@ -27,6 +27,8 @@ export default function Login() {
   const [mode, setMode] = React.useState<"signin" | "signup">("signin");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [activeLabModal, setActiveLabModal] = React.useState<string | null>(null);
 
   const OFFICIAL_LABS = [
@@ -181,8 +183,10 @@ export default function Login() {
 
     const success = await login({
       email,
-      name,
+      password,
+      name: mode === "signup" ? name : undefined,
       role,
+      isSignup: mode === "signup",
       department: role === "master_admin" ? "Master Control" : department,
       registerNumber: role === "student" ? registerNumber : undefined,
       section: role === "student" ? section : undefined,
@@ -407,7 +411,14 @@ export default function Login() {
             <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
               <button
                 type="button"
-                onClick={() => setRole("student")}
+                onClick={() => {
+                  setRole("student");
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setName("");
+                  setRegisterNumber("");
+                }}
                 className={`py-2 rounded-xl transition ${
                   role === "student"
                     ? "bg-blue-600 text-white font-black shadow-md shadow-blue-500/20"
@@ -418,7 +429,14 @@ export default function Login() {
               </button>
               <button
                 type="button"
-                onClick={() => setRole("coordinator")}
+                onClick={() => {
+                  setRole("coordinator");
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setName("");
+                  setRegisterNumber("");
+                }}
                 className={`py-2 rounded-xl transition ${
                   role === "coordinator"
                     ? "bg-blue-600 text-white font-black shadow-md shadow-blue-500/20"
@@ -431,6 +449,11 @@ export default function Login() {
                 type="button"
                 onClick={() => {
                   setRole("master_admin");
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setName("");
+                  setRegisterNumber("");
                   if (mode === "signup") {
                     setMode("signin");
                     addToast("Master Admins cannot self-register. Existing Master Admins add new Masters inside Master Control.", "info");
@@ -448,35 +471,52 @@ export default function Login() {
           </div>
 
           {/* Login / Register Mode Tabs */}
-          <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => setMode("signin")}
-              className={`py-2.5 rounded-xl transition ${
-                mode === "signin"
-                  ? "bg-slate-900 text-white font-black shadow-md"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                if (role === "master_admin") {
-                  setRole("student");
-                }
-              }}
-              className={`py-2.5 rounded-xl transition ${
-                mode === "signup"
-                  ? "bg-slate-900 text-white font-black shadow-md"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-            >
-              Register
-            </button>
-          </div>
+          {role !== "master_admin" ? (
+            <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signin");
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setName("");
+                  setRegisterNumber("");
+                }}
+                className={`py-2.5 rounded-xl transition ${
+                  mode === "signin"
+                    ? "bg-slate-900 text-white font-black shadow-md"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setName("");
+                  setRegisterNumber("");
+                }}
+                className={`py-2.5 rounded-xl transition ${
+                  mode === "signup"
+                    ? "bg-slate-900 text-white font-black shadow-md"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Register
+              </button>
+            </div>
+          ) : (
+            <div className="bg-purple-50 border border-purple-200/60 p-3 rounded-2xl text-center">
+              <span className="text-[11px] font-black uppercase tracking-wider text-purple-700">
+                Master Admin Portal — Authorized Login Only
+              </span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Address Field */}
@@ -491,6 +531,7 @@ export default function Login() {
               <input
                 type="email"
                 required
+                autoComplete="off"
                 placeholder={
                   role === "student"
                     ? "e.g. student@srishakthi.ac.in"
@@ -510,14 +551,25 @@ export default function Login() {
                 <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
                   Password *
                 </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white transition"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete="new-password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 pr-11 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition p-1 cursor-pointer"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -531,6 +583,7 @@ export default function Login() {
                   <input
                     type="text"
                     required
+                    autoComplete="off"
                     placeholder={role === "master_admin" ? "Master Admin Name" : "Full Name"}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -543,27 +596,49 @@ export default function Login() {
                     <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
                       Password *
                     </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        autoComplete="new-password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-4 py-3 pr-11 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition p-1 cursor-pointer"
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
                       Confirm Password *
                     </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="Confirm Password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        required
+                        autoComplete="new-password"
+                        placeholder="Confirm Password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-3 pr-11 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition p-1 cursor-pointer"
+                        title={showConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </>

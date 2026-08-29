@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "../store.ts";
-import { User, Mail, Building, GraduationCap, Github, Save, Copy, Check, Camera, Image, Upload, Lock, KeyRound, Phone, Layers, Sparkles } from "lucide-react";
+import { User, Mail, Building, GraduationCap, Github, Save, Copy, Check, Camera, Image, Upload, Lock, KeyRound, Phone, Layers, Sparkles, Eye, EyeOff } from "lucide-react";
 
 export default function Profile() {
   const { currentUser, updateProfile, addToast } = useStore();
@@ -8,6 +8,7 @@ export default function Profile() {
   const [name, setName] = React.useState(currentUser?.name || "");
   const [email, setEmail] = React.useState(currentUser?.email || "");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [department, setDepartment] = React.useState(currentUser?.department || "");
   const [phone, setPhone] = React.useState(currentUser?.phone || "");
   const [registerNumber, setRegisterNumber] = React.useState(currentUser?.registerNumber || "");
@@ -42,7 +43,8 @@ export default function Profile() {
       setLab(currentUser.lab || OFFICIAL_LABS[0]);
       setPreferredDomain(currentUser.preferredDomain || "Artificial Intelligence");
       setAvatar(currentUser.avatar || "https://avatar.vercel.sh/user");
-      setGithubUsername(currentUser.githubUsername || "");
+      const cleanGithub = (currentUser.githubUsername || "").includes("@") ? "" : (currentUser.githubUsername || "");
+      setGithubUsername(cleanGithub);
       setGithubToken(currentUser.githubToken || "");
     }
   }, [currentUser]);
@@ -72,14 +74,20 @@ export default function Profile() {
     e.preventDefault();
     setSaving(true);
 
+    if (githubUsername && githubUsername.trim().includes("@")) {
+      addToast("Please enter a valid GitHub username (e.g. octocat) or repository URL (e.g. https://github.com/owner/repo). Email addresses are not valid GitHub URLs.", "error");
+      setSaving(false);
+      return;
+    }
+
     const updateData: any = {
       name,
       email,
       department,
       phone,
       avatar,
-      githubUsername,
-      githubToken,
+      githubUsername: githubUsername.trim(),
+      githubToken: githubToken.trim(),
     };
 
     if (password) {
@@ -101,8 +109,8 @@ export default function Profile() {
   };
 
   const handleCopyGithub = () => {
-    if (!githubUsername) {
-      addToast("No GitHub username or repository URL configured.", "info");
+    if (!githubUsername || githubUsername.includes("@")) {
+      addToast("No valid GitHub username or repository URL configured.", "info");
       return;
     }
     const repoUrl = githubUsername.startsWith("http")
@@ -197,12 +205,21 @@ export default function Profile() {
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Enter new password to change"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                    className="w-full pl-10 pr-11 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition p-1 cursor-pointer"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             </div>
@@ -358,6 +375,8 @@ export default function Profile() {
                 </label>
                 <input
                   type="text"
+                  autoComplete="off"
+                  spellCheck={false}
                   placeholder="https://github.com/username/project-repo"
                   value={githubUsername}
                   onChange={(e) => setGithubUsername(e.target.value)}
@@ -371,6 +390,7 @@ export default function Profile() {
                 </label>
                 <input
                   type="password"
+                  autoComplete="off"
                   placeholder="ghp_********************************"
                   value={githubToken}
                   onChange={(e) => setGithubToken(e.target.value)}
