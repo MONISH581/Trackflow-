@@ -25,14 +25,14 @@ const socketOptions = {
 
 dotenv.config();
 
-const ai = new GoogleGenAI({
+const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
     }
   }
-});
+}) : null;
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000");
