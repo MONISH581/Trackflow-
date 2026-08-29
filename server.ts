@@ -1581,34 +1581,51 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       }
 
       if (!user) {
-        if (!isSignup) {
+        if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in') {
+          // Auto-provision Master Admin on demand if serverless cold-start
+          const passwordHash = await bcrypt.hash(password || "password123", 10);
+          user = new User({
+            userId: "master-sathish",
+            name: name || "Master Sathish",
+            email: cleanEmail,
+            passwordHash,
+            role: "master_admin",
+            status: "approved",
+            accountStatus: "ACTIVE",
+            department: "Master Control",
+            avatar: "https://avatar.vercel.sh/sathish",
+            registrationDate: new Date()
+          });
+          await user.save();
+        } else if (!isSignup) {
           return res.status(404).json({ error: "Account not registered. Please register first." });
-        }
-        if (!password || password.length < 6) {
-          return res.status(400).json({ error: "Password must be at least 6 characters." });
-        }
-        const passwordHash = await bcrypt.hash(password, 10);
-        const initialStatus = (userRole === 'master_admin') ? 'approved' : 'pending';
+        } else {
+          if (!password || password.length < 6) {
+            return res.status(400).json({ error: "Password must be at least 6 characters." });
+          }
+          const passwordHash = await bcrypt.hash(password, 10);
+          const initialStatus = (userRole === 'master_admin') ? 'approved' : 'pending';
 
-        user = new User({
-          userId: userRole === 'master_admin' ? `master-${Date.now()}` : (userRole === 'coordinator' ? `coord-${Date.now()}` : `student-${Date.now()}`),
-          name: name || (userRole === 'master_admin' ? 'Master Sathish' : (userRole === 'coordinator' ? 'Teacher / Coordinator' : 'New Student')),
-          registerNumber: registerNumber || "",
-          phone: phone || "",
-          section: section || "A",
-          lab: lab || OFFICIAL_LABS[0],
-          email: cleanEmail,
-          passwordHash,
-          role: userRole,
-          accountStatus: 'ACTIVE',
-          avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
-          department: department || (userRole === 'master_admin' ? 'Master Control' : (userRole === 'coordinator' ? 'Engineering' : 'Computer Science')),
-          preferredDomain: preferredDomain || "Artificial Intelligence",
-          year: year || "3",
-          status: initialStatus,
-          registrationDate: new Date()
-        });
-        await user.save();
+          user = new User({
+            userId: userRole === 'master_admin' ? `master-${Date.now()}` : (userRole === 'coordinator' ? `coord-${Date.now()}` : `student-${Date.now()}`),
+            name: name || (userRole === 'master_admin' ? 'Master Sathish' : (userRole === 'coordinator' ? 'Teacher / Coordinator' : 'New Student')),
+            registerNumber: registerNumber || "",
+            phone: phone || "",
+            section: section || "A",
+            lab: lab || OFFICIAL_LABS[0],
+            email: cleanEmail,
+            passwordHash,
+            role: userRole,
+            accountStatus: 'ACTIVE',
+            avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
+            department: department || (userRole === 'master_admin' ? 'Master Control' : (userRole === 'coordinator' ? 'Engineering' : 'Computer Science')),
+            preferredDomain: preferredDomain || "Artificial Intelligence",
+            year: year || "3",
+            status: initialStatus,
+            registrationDate: new Date()
+          });
+          await user.save();
+        }
         
         if (userRole === 'student') {
           const coordinators = await User.find({ role: 'coordinator', status: 'approved' });
