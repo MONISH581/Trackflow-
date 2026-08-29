@@ -447,7 +447,7 @@ export const useStore = create<AppState>((set, get) => ({
       const data = await safeJson(response, {});
 
       if (!response.ok) {
-        throw new Error(data.error || (response.status === 404 ? "Backend server is currently offline or unreachable." : "Login failed"));
+        throw new Error(data.error || `Server Error (${response.status}): Could not process login.`);
       }
       
       const user = data.user;
