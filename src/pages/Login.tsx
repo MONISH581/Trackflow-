@@ -148,12 +148,7 @@ export default function Login() {
 
   const validateStudentEmail = (emailStr: string) => {
     const lower = emailStr.trim().toLowerCase();
-    if (!lower.endsWith("@srishakthi.ac.in")) return false;
-    if (lower === "demo.student@srishakthi.ac.in") return true;
-
-    const username = lower.split("@")[0];
-    const regex = /^[a-z0-9._]+(23|24|25|26)[a-z]{2,5}$/;
-    return regex.test(username);
+    return lower.endsWith("@srishakthi.ac.in") && lower.split("@")[0].length >= 3;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

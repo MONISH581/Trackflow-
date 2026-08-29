@@ -656,8 +656,7 @@ async function startServer() {
   }
 
   async function seedDemoData() {
-    const defaultPasswordHash = bcrypt.hashSync("password123", 10);
-    const masterPasswordHash = bcrypt.hashSync("master123", 10);
+    const masterPasswordHash = bcrypt.hashSync("password123", 10);
 
     const masterAdmin = {
       userId: "master-sathish",
@@ -672,119 +671,12 @@ async function startServer() {
       registrationDate: new Date(),
     };
 
-    const coordinator = {
-      userId: "coordinator-demo",
-      name: "Dr. Sarah Chen",
-      email: "coordinator@trackflow.local",
-      role: "coordinator",
-      passwordHash: defaultPasswordHash,
-      avatar: "https://avatar.vercel.sh/sarah",
-      department: "Artificial Intelligence",
-      status: "approved",
-      accountStatus: "ACTIVE",
-      year: "1",
-      lab: "AI Lab",
-      registrationDate: new Date(),
-    };
-
-    const student = {
-      userId: "student-demo",
-      name: "Demo Student",
-      registerNumber: "732721CS001",
-      phone: "+91 9876543210",
-      section: "A",
-      lab: "AI Lab",
-      email: "demo.student@srishakthi.ac.in",
-      role: "student",
-      passwordHash: defaultPasswordHash,
-      avatar: "https://avatar.vercel.sh/demo-student",
-      department: "Computer Science",
-      preferredDomain: "Artificial Intelligence",
-      status: "approved",
-      accountStatus: "ACTIVE",
-      year: "3",
-      registrationDate: new Date(),
-    };
-
     await User.findOneAndUpdate(
       { email: masterAdmin.email },
       { $set: masterAdmin },
       { upsert: true, returnDocument: "after" }
     );
-
-    await User.findOneAndUpdate(
-      { email: coordinator.email },
-      { $set: coordinator },
-      { upsert: true, returnDocument: "after" }
-    );
-
-    await User.findOneAndUpdate(
-      { email: student.email },
-      { $set: student },
-      { upsert: true, returnDocument: "after" }
-    );
-
-    // Seed Demo Mentor
-    const demoMentor = await Mentor.findOneAndUpdate(
-      { email: "prof.alan@srishakthi.ac.in" },
-      {
-        $set: {
-          mentorId: "mentor-demo-1",
-          name: "Prof. Alan Turing",
-          email: "prof.alan@srishakthi.ac.in",
-          phone: "+91 9123456789",
-          expertise: "Artificial Intelligence & Deep Learning",
-          status: "Active"
-        }
-      },
-      { upsert: true, returnDocument: "after" }
-    );
-
-    // Seed Demo Hackathon
-    await Hackathon.findOneAndUpdate(
-      { hackathonId: "hack-demo-1" },
-      {
-        $set: {
-          hackathonId: "hack-demo-1",
-          name: "Smart India Hackathon 2026",
-          organizer: "Ministry of Education & AICTE",
-          description: "Nationwide initiative to provide students a platform to solve pressing problems of daily lives.",
-          domain: "Artificial Intelligence",
-          startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-          endDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://sih.gov.in",
-          status: "Active"
-        }
-      },
-      { upsert: true }
-    );
-
-    const existingDemoProject = await Project.findOne({ name: "TrackFlow AI Workspace" });
-    if (!existingDemoProject) {
-      await new Project({
-        name: "TrackFlow AI Workspace",
-        department: "Computer Science",
-        domain: "Artificial Intelligence",
-        mentorId: demoMentor.mentorId,
-        mentorName: demoMentor.name,
-        startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-        deadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-        abstract: "A comprehensive AI-driven project management and progress tracking portal.",
-        description: "Demo project seeded with mentor alignment and daily reports for testing.",
-        objectives: "Enable continuous student activity tracking, GitHub commit association, and hackathon verifications.",
-        methodology: "Express REST endpoints, MongoDB, React dashboard, Vite, and Gemini API integration.",
-        techStack: ["React", "Express", "MongoDB", "TypeScript", "Tailwind CSS"],
-        modules: "Dashboard, Projects, Daily Reports, GitHub Sync, Hackathons, Opportunities",
-        references: "TrackFlow Lab Architecture",
-        futureEnhancements: "Multi-lab support and automated AI commit auditing.",
-        teamMembers: [student.userId],
-        teamLeader: student.userId,
-        progress: 45,
-        status: "Active",
-        githubRepo: "https://github.com/demo-student/trackflow-ai",
-      }).save();
-    }
+    console.log("Initialized Production Master Admin Account: sathish@srishakthi.ac.in");
   }
 
   async function seedOpportunities() {
