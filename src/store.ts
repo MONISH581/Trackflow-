@@ -1233,12 +1233,28 @@ export const useStore = create<AppState>((set, get) => ({
     });
 
     socket.on("receive_message", (msg) => {
-      set((state) => ({ messages: [...state.messages, msg] }));
+      set((state) => {
+        // Prevent duplicate messages if already present
+        const exists = state.messages.some(m => (m._id && m._id === msg._id) || (m.id && m.id === msg.id));
+        return exists ? state : { messages: [...state.messages, msg] };
+      });
+      const user = get().currentUser;
+      if (user && msg.userId !== user.userId) {
+        get().addToast(`💬 New Message from ${msg.user}: "${msg.text?.length > 40 ? msg.text.substring(0, 37) + '...' : msg.text}"`, "info");
+        get().fetchNotifications();
+      }
     });
 
     socket.on("receive_message_global", (msg) => {
-      // Add global messages only if not in team chat
-      set((state) => ({ messages: [...state.messages, msg] }));
+      set((state) => {
+        const exists = state.messages.some(m => (m._id && m._id === msg._id) || (m.id && m.id === msg.id));
+        return exists ? state : { messages: [...state.messages, msg] };
+      });
+      const user = get().currentUser;
+      if (user && msg.userId !== user.userId) {
+        get().addToast(`💬 New Message from ${msg.user}: "${msg.text?.length > 40 ? msg.text.substring(0, 37) + '...' : msg.text}"`, "info");
+        get().fetchNotifications();
+      }
     });
 
     socket.on("project_updated", ({ projectId, project }) => {

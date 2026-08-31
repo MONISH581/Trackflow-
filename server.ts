@@ -3101,6 +3101,44 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  async function notifyMessageRecipients(senderUserId: string, senderName: string, text: string, projectId?: string) {
+    try {
+      let recipientUserIds: string[] = [];
+
+      if (projectId) {
+        const proj = await Project.findById(projectId);
+        if (proj) {
+          const members = (proj.teamMembers || []).slice();
+          if (proj.teamLeader) members.push(proj.teamLeader);
+          if (proj.studentId) members.push(proj.studentId);
+          recipientUserIds.push(...members);
+        }
+      }
+
+      // Always include active coordinators & master admins for staff visibility
+      const staff = await User.find({ role: { $in: ['coordinator', 'master_admin'] } });
+      recipientUserIds.push(...staff.map(u => u.userId));
+
+      const uniqueRecipients = [...new Set(recipientUserIds)].filter(id => id && id !== senderUserId);
+
+      for (const recId of uniqueRecipients) {
+        const notif = new Notification({
+          userId: recId,
+          title: `New Message from ${senderName}`,
+          message: `${senderName}: "${text.length > 60 ? text.substring(0, 57) + '...' : text}"`,
+          type: "chat",
+          relatedId: projectId || "",
+          read: false
+        });
+        await notif.save();
+      }
+
+      io.emit("notification_received");
+    } catch (e: any) {
+      console.warn("Failed sending message notification:", e.message);
+    }
+  }
+
   app.post("/api/messages", async (req, res) => {
     try {
       const { user: sender, userId, text, projectId } = req.body;
@@ -3117,6 +3155,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       } else {
         io.emit("receive_message_global", msg);
       }
+
+      // Automatically dispatch notifications to recipients
+      await notifyMessageRecipients(userId, sender, text, projectId);
+
       res.json({ message: { id: msg._id, ...msg.toObject() } });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -3581,6 +3623,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         } else {
           io.emit("receive_message_global", msg);
         }
+
+        await notifyMessageRecipients(data.userId, data.user, data.text, data.projectId);
       } catch (err) {}
     });
 
