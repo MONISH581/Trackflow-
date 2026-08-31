@@ -157,7 +157,7 @@ async function startServer() {
   });
   const upload = multer({
     storage,
-    limits: { fileSize: 15 * 1024 * 1024 } // 15MB max file size
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB max file size for ZIP archives
   });
 
   // Database Initialization (MongoDB Atlas & Firebase Firestore Support)
@@ -1533,6 +1533,18 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   });
 
 
+  app.get("/api/users/students", async (req, res) => {
+    try {
+      const students = await User.find({
+        role: { $in: ['student', 'STUDENT'] },
+        status: { $ne: 'rejected' }
+      }).sort({ name: 1 });
+      res.json({ students: students.map(s => ({ id: s.userId, ...(typeof s.toObject === 'function' ? s.toObject() : s) })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await User.findOne({ $or: [{ userId: req.params.id }, { _id: req.params.id }] });
@@ -1540,54 +1552,6 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         return res.status(404).json({ error: "User not found" });
       }
       res.json({ user: sanitizeUser(user) });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  app.put("/api/users/:id", async (req, res) => {
-    try {
-      const existingUser = await User.findOne({ userId: req.params.id });
-      if (!existingUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const { name, email, password, department, year, avatar, githubUsername, githubToken, skills, interestedCategories, college, notificationPreferences, registerNumber, phone, section, lab, preferredDomain } = req.body;
-      if (name) existingUser.name = name;
-      if (email) existingUser.email = email.toLowerCase().trim();
-      if (password) {
-        existingUser.passwordHash = await bcrypt.hash(password, 10);
-        delete existingUser.password;
-      }
-      if (department) existingUser.department = department;
-      if (registerNumber !== undefined) existingUser.registerNumber = registerNumber;
-      if (phone !== undefined) existingUser.phone = phone;
-      if (section !== undefined) existingUser.section = section;
-      if (lab !== undefined) existingUser.lab = lab;
-      if (preferredDomain !== undefined) existingUser.preferredDomain = preferredDomain;
-      if (githubUsername !== undefined) existingUser.githubUsername = githubUsername;
-      if (githubToken !== undefined) existingUser.githubToken = githubToken;
-      if (skills !== undefined) existingUser.skills = skills;
-      if (interestedCategories !== undefined) existingUser.interestedCategories = interestedCategories;
-      if (college !== undefined) existingUser.college = college;
-      if (notificationPreferences !== undefined) existingUser.notificationPreferences = notificationPreferences;
-
-      if (existingUser.role === 'student') {
-        if (year) existingUser.year = year;
-        if (avatar) existingUser.avatar = avatar;
-      }
-
-      await existingUser.save();
-      res.json({ user: sanitizeUser(existingUser) });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  app.get("/api/users/students", async (req, res) => {
-    try {
-      const students = await User.find({ role: 'student', status: 'approved' });
-      res.json({ students: students.map(s => ({ id: s.userId, ...s.toObject() })) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -1775,46 +1739,61 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   // Student Records API
   app.get("/api/student-records", async (req, res) => {
     try {
-      const students = await User.find({ role: 'student', status: 'approved' });
+      const students = await User.find({
+        role: { $in: ['student', 'STUDENT'] },
+        status: { $ne: 'rejected' }
+      }).sort({ name: 1 });
       const records = [];
       for (const student of students) {
-        const project = await Project.findOne({ teamMembers: student.userId });
-        const lastReport = await DailyReport.findOne({ studentId: student.userId }).sort({ date: -1 });
-        
-        const attendanceRecords = await Attendance.find({ studentId: student.userId, status: "Present" }).sort({ date: -1 });
+        try {
+          const sId = student.userId || student._id || student.id;
+          const project = await Project.findOne({ teamMembers: sId });
+          const reports = await DailyReport.find({ studentId: sId }).sort({ date: -1 });
+          const lastReport = reports.length > 0 ? reports[0] : null;
+          const attendanceRecords = await Attendance.find({ studentId: sId, status: { $in: ["Present", "PRESENT"] } }).sort({ date: -1 });
 
-        records.push({
-          student: {
-            id: student.userId,
-            name: student.name,
-            email: student.email,
-            department: student.department,
-            year: student.year
-          },
-          project: project ? {
-            id: project._id,
-            name: project.name,
-            teamLeader: project.teamLeader,
-            teamMembers: project.teamMembers,
-            progress: project.progress,
-            abstract: project.abstract,
-            description: project.description,
-            objectives: project.objectives,
-            methodology: project.methodology,
-            techStack: project.techStack,
-            modules: project.modules,
-            references: project.references,
-            futureEnhancements: project.futureEnhancements,
-            files: project.files,
-            status: project.status
-          } : null,
-          lastReportDate: lastReport ? lastReport.date : 'None',
-          dailyReports: await DailyReport.find({ studentId: student.userId }).sort({ date: -1 }),
-          attendanceLogs: attendanceRecords.map(r => ({ date: r.date, status: r.status }))
-        });
+          records.push({
+            student: {
+              id: sId,
+              name: student.name || "Student",
+              email: student.email || "",
+              department: student.department || "Computer Science",
+              year: student.year || "3"
+            },
+            project: project ? {
+              id: project._id || project.id,
+              name: project.name,
+              teamLeader: project.teamLeader || "",
+              teamMembers: project.teamMembers || [],
+              progress: project.progress || 0,
+              abstract: project.abstract || "",
+              description: project.description || "",
+              objectives: project.objectives || "",
+              methodology: project.methodology || "",
+              techStack: project.techStack || [],
+              modules: project.modules || "",
+              references: project.references || "",
+              futureEnhancements: project.futureEnhancements || "",
+              files: project.files || [],
+              status: project.status || "Active"
+            } : null,
+            lastReportDate: lastReport ? (lastReport.date || 'None') : 'None',
+            dailyReports: reports.map(r => ({
+              date: r.date || "",
+              workDone: r.workDone || "",
+              challenges: r.challenges || "",
+              nextDayPlan: r.nextDayPlan || "",
+              progress: r.progress || 0
+            })),
+            attendanceLogs: attendanceRecords.map(r => ({ date: r.date || "", status: r.status || "PRESENT" }))
+          });
+        } catch (sErr) {
+          console.warn("Failed mapping student record for user:", student.userId, sErr);
+        }
       }
       res.json({ records });
     } catch (e: any) {
+      console.error("Uncaught exception in /api/student-records:", e);
       res.status(500).json({ error: e.message });
     }
   });
@@ -2375,6 +2354,80 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
       io.emit("project_updated", { projectId: newProj._id, project: newProj });
       res.json({ project: { id: newProj._id, ...newProj.toObject() } });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Project Update Endpoint (Supports Team Members, Documentation, Progress, Status)
+  app.put("/api/projects/:id", async (req, res) => {
+    try {
+      const {
+        name, department, domain, mentorId, mentorName, abstract, description,
+        objectives, methodology, techStack, modules, references, futureEnhancements,
+        teamMembers, teamLeader, progress, status, githubRepo
+      } = req.body;
+
+      const project = await Project.findOne({ $or: [{ _id: req.params.id }, { id: req.params.id }] });
+      if (!project) return res.status(404).json({ error: "Project workspace not found" });
+
+      if (name !== undefined) project.name = name;
+      if (department !== undefined) project.department = department;
+      if (domain !== undefined) project.domain = domain;
+      if (mentorId !== undefined) project.mentorId = mentorId;
+      if (mentorName !== undefined) project.mentorName = mentorName;
+      if (abstract !== undefined) project.abstract = abstract;
+      if (description !== undefined) project.description = description;
+      if (objectives !== undefined) project.objectives = objectives;
+      if (methodology !== undefined) project.methodology = methodology;
+      if (techStack !== undefined) project.techStack = Array.isArray(techStack) ? techStack : (typeof techStack === 'string' ? techStack.split(',').map(s => s.trim()) : []);
+      if (modules !== undefined) project.modules = modules;
+      if (references !== undefined) project.references = references;
+      if (futureEnhancements !== undefined) project.futureEnhancements = futureEnhancements;
+      if (teamMembers !== undefined) project.teamMembers = Array.isArray(teamMembers) ? teamMembers : (typeof teamMembers === 'string' ? teamMembers.split(',').map(s => s.trim()) : []);
+      if (teamLeader !== undefined) project.teamLeader = teamLeader;
+      if (progress !== undefined) project.progress = Number(progress);
+      if (status !== undefined) project.status = status;
+      if (githubRepo !== undefined) project.githubRepo = githubRepo;
+
+      await project.save();
+      io.emit("project_updated", { projectId: project._id, project });
+      res.json({ success: true, project: { id: project._id, ...project.toObject() } });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Project ZIP Archive & File Upload Endpoint
+  app.post("/api/projects/:id/upload", upload.single("file"), async (req, res) => {
+    try {
+      const project = await Project.findOne({ $or: [{ _id: req.params.id }, { id: req.params.id }] });
+      if (!project) return res.status(404).json({ error: "Project workspace not found" });
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file attached. Please select a .zip or project document to upload." });
+      }
+
+      const fileUrl = `/uploads/${req.file.filename}`;
+      const newFile = {
+        name: req.file.originalname,
+        url: fileUrl,
+        fileType: path.extname(req.file.originalname).replace('.', '').toLowerCase() || 'zip',
+        size: req.file.size,
+        uploadedAt: new Date().toISOString()
+      };
+
+      if (!project.files) project.files = [];
+      project.files.push(newFile);
+      await project.save();
+
+      io.emit("project_updated", { projectId: project._id, project });
+      res.json({
+        success: true,
+        message: `File "${req.file.originalname}" uploaded successfully!`,
+        file: newFile,
+        project: { id: project._id, ...project.toObject() }
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

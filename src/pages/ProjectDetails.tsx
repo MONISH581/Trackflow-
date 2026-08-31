@@ -123,7 +123,7 @@ export default function ProjectDetails() {
 
   // Fetch approved students and abstract history
   React.useEffect(() => {
-    if (currentUser?.role === "coordinator") {
+    if (currentUser?.role === "coordinator" || currentUser?.role === "master_admin") {
       fetch(`${API_BASE}/api/users/students`)
         .then((r) => r.json())
         .then((data) => {
