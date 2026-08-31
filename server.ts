@@ -3295,21 +3295,27 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   const handleSyncOpportunities = async (req: any, res: any) => {
     try {
       const authHeader = req.headers.authorization;
-      const cronHeader = req.headers["x-vercel-cron"];
-      const isVercelCron = cronHeader === "1" || (authHeader && authHeader === `Bearer ${process.env.CRON_SECRET}`);
+      const expectedCronSecret = process.env.CRON_SECRET;
+      
+      let isAuthorizedCron = false;
+      if (expectedCronSecret && authHeader && authHeader === `Bearer ${expectedCronSecret}`) {
+        isAuthorizedCron = true;
+      }
 
       let isAdmin = false;
       if (authHeader && authHeader.startsWith("Bearer ")) {
         try {
-          const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as any;
+          const token = authHeader.split(" ")[1];
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
           if (decoded && (decoded.role === "master_admin" || decoded.role === "coordinator")) {
             isAdmin = true;
           }
         } catch (e) {}
       }
 
-      if (!isVercelCron && !isAdmin && process.env.NODE_ENV === "production" && process.env.VERCEL) {
-        return res.status(401).json({ error: "Access denied. Sync endpoint is protected and reserved for scheduled Vercel Cron jobs or authenticated administrators." });
+      // In production mode, require valid CRON_SECRET or Admin Bearer token
+      if (!isAuthorizedCron && !isAdmin && (process.env.NODE_ENV === "production" || process.env.VERCEL)) {
+        return res.status(401).json({ error: "Access denied. Sync endpoint requires valid Authorization: Bearer <CRON_SECRET> or Admin Token." });
       }
 
       console.log("Triggering 6-Hour Opportunities Live Data Sync...");
