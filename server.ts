@@ -3637,6 +3637,17 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     });
   });
 
+  // 24/7 Anti-Sleep Keep-Alive Health Check Endpoints
+  app.get(["/api/health", "/api/ping"], (req, res) => {
+    res.json({
+      status: "ok",
+      service: "Trackflow Production Web Service",
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.floor(process.uptime()),
+      memoryUsageMB: Math.round(process.memoryUsage().rss / 1024 / 1024)
+    });
+  });
+
   // Vite middleware for development or Static File Serving for Production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -3660,6 +3671,27 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   if (!process.env.VERCEL) {
     httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running locally on http://localhost:${PORT}`);
+
+      // Automatic 5-Minute Anti-Sleep Self-Pinging Keep-Alive Job
+      const FIVE_MINUTES_MS = 5 * 60 * 1000;
+      setInterval(() => {
+        try {
+          const renderUrl = process.env.RENDER_EXTERNAL_URL || `http://127.0.0.1:${PORT}`;
+          const pingTarget = `${renderUrl.replace(/\/$/, '')}/api/health`;
+          
+          const reqModule = pingTarget.startsWith('https') ? require('https') : require('http');
+          const pingReq = reqModule.get(pingTarget, (res: any) => {
+            console.log(`[KEEP-ALIVE 5-MIN PING]: Pinged ${pingTarget} -> Status ${res.statusCode}`);
+          });
+          pingReq.on('error', (err: any) => {
+            console.warn(`[KEEP-ALIVE 5-MIN PING]: Self-ping notice (${err.message})`);
+          });
+          pingReq.setTimeout(5000, () => pingReq.destroy());
+        } catch (e: any) {
+          console.warn("[KEEP-ALIVE 5-MIN PING]: Task exception:", e.message);
+        }
+      }, FIVE_MINUTES_MS);
+      console.log("Registered 5-Minute Render Anti-Sleep Keep-Alive Engine.");
     });
   }
 }

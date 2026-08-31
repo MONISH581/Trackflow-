@@ -3,6 +3,7 @@ services:
     name: trackflow
     env: node
     plan: free
+    healthCheckPath: /api/health
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
@@ -16,3 +17,10 @@ services:
         generateValue: true
       - key: CRON_SECRET
         generateValue: true
+
+  - type: cron
+    name: trackflow-keepalive-cron
+    env: node
+    schedule: "*/5 * * * *"
+    buildCommand: echo "Keep-alive cron initialized"
+    startCommand: curl -s https://trackflow.onrender.com/api/health || true

@@ -32,6 +32,14 @@ export default function App() {
     checkSession();
   }, [checkSession]);
 
+  // 4-Minute Frontend Keep-Alive Heartbeat for Render Server Warmup
+  React.useEffect(() => {
+    const keepAliveInterval = setInterval(() => {
+      fetch('/api/ping').catch(() => {});
+    }, 4 * 60 * 1000);
+    return () => clearInterval(keepAliveInterval);
+  }, []);
+
 
 
   // If not logged in, render the login page
