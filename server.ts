@@ -112,6 +112,18 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
+  app.get('/api/auth/me', authMiddleware, async (req: any, res: any) => {
+    try {
+      const user = await User.findOne({ $or: [{ userId: req.user.id }, { _id: req.user.id }, { email: req.user.email }] });
+      if (!user) {
+        return res.status(404).json({ error: "Authenticated user profile not found" });
+      }
+      res.json({ user: sanitizeUser(user) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Setup uploads directory and middleware
   const uploadsDir = path.join(process.cwd(), "uploads");
   if (!fs.existsSync(uploadsDir)) {
@@ -155,6 +167,16 @@ async function startServer() {
         console.log("Connected to Google Cloud Firestore via environment variables!");
       } else {
         console.log("No active Firebase credentials found in environment. Operating with in-memory Firestore document adapter.");
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+          console.warn("===============================================================================");
+          console.warn("[PRODUCTION DATABASE WARNING] Google Cloud Firestore credentials missing!");
+          console.warn("To enable persistent database storage in production on Vercel, please set:");
+          console.warn("  - FIREBASE_PROJECT_ID");
+          console.warn("  - FIREBASE_CLIENT_EMAIL");
+          console.warn("  - FIREBASE_PRIVATE_KEY");
+          console.warn("in your Vercel Environment Variables panel.");
+          console.warn("===============================================================================");
+        }
       }
     } else {
       firestoreDb = getFirestore();
@@ -1533,15 +1555,22 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   const runStartupJobs = async () => {
     try {
-      await seedDemoData();
-      await seedOpportunities();
-      // Run background API sync asynchronously without blocking HTTP server startup
-      setTimeout(() => {
-        syncGovernmentHackathons().catch(() => {});
-        syncOpportunities().catch(() => {});
-      }, 1000);
-      setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
-      setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
+      const oppCount = await Opportunity.countDocuments();
+      if (oppCount === 0) {
+        console.log("Database empty. Running initial demo data and opportunities seed...");
+        await seedDemoData();
+        await seedOpportunities();
+        setTimeout(() => {
+          syncGovernmentHackathons().catch(() => {});
+          syncOpportunities().catch(() => {});
+        }, 1000);
+      } else {
+        console.log(`Database already populated with ${oppCount} opportunities. Skipping redundant cold-start seeding.`);
+      }
+      if (!process.env.VERCEL) {
+        setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
+        setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
+      }
     } catch (err) {
       console.error("Failed running startup data seed/sync jobs:", err);
     }
@@ -3265,6 +3294,24 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   const handleSyncOpportunities = async (req: any, res: any) => {
     try {
+      const authHeader = req.headers.authorization;
+      const cronHeader = req.headers["x-vercel-cron"];
+      const isVercelCron = cronHeader === "1" || (authHeader && authHeader === `Bearer ${process.env.CRON_SECRET}`);
+
+      let isAdmin = false;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        try {
+          const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as any;
+          if (decoded && (decoded.role === "master_admin" || decoded.role === "coordinator")) {
+            isAdmin = true;
+          }
+        } catch (e) {}
+      }
+
+      if (!isVercelCron && !isAdmin && process.env.NODE_ENV === "production" && process.env.VERCEL) {
+        return res.status(401).json({ error: "Access denied. Sync endpoint is protected and reserved for scheduled Vercel Cron jobs or authenticated administrators." });
+      }
+
       console.log("Triggering 6-Hour Opportunities Live Data Sync...");
       await Promise.allSettled([
         syncGovernmentHackathons(),

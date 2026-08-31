@@ -520,16 +520,26 @@ export const useStore = create<AppState>((set, get) => ({
         get().connectSocket();
         get().fetchNotifications();
 
-        // Fetch fresh user profile from API to sync verification/approval status changes
-        if (user && user.userId) {
+        // Fetch fresh user profile from authenticated endpoint to sync approval status changes
+        if (user) {
           try {
-            const res = await fetch(`${API_BASE}/api/users/${user.userId}`, { headers: getAuthHeaders() });
+            const res = await fetch(`${API_BASE}/api/auth/me`, { headers: getAuthHeaders() });
             if (res.ok) {
               const data = await res.json();
               if (data.user) {
                 user = data.user;
                 set({ currentUser: user });
                 localStorage.setItem("trackflow_user", JSON.stringify(user));
+              }
+            } else if (user.userId) {
+              const res2 = await fetch(`${API_BASE}/api/users/${user.userId}`, { headers: getAuthHeaders() });
+              if (res2.ok) {
+                const data2 = await res2.json();
+                if (data2.user) {
+                  user = data2.user;
+                  set({ currentUser: user });
+                  localStorage.setItem("trackflow_user", JSON.stringify(user));
+                }
               }
             }
           } catch (syncErr) {}
