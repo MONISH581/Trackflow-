@@ -368,9 +368,6 @@ interface AppState {
   fetchCategoryCounts: () => Promise<any[]>;
   syncOpportunities: () => Promise<boolean>;
 
-  // File Vault
-  uploadFile: (projectId: string, file: File) => Promise<boolean>;
-
   // Master Control & Account Locking
   fetchMasterControlOverview: () => Promise<any>;
   lockStudentUser: (userId: string, reason?: string) => Promise<boolean>;
@@ -514,18 +511,33 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  checkSession: () => {
+  checkSession: async () => {
     const saved = localStorage.getItem("trackflow_user");
     if (saved) {
       try {
-        const user = JSON.parse(saved);
+        let user = JSON.parse(saved);
         set({ currentUser: user });
         get().connectSocket();
         get().fetchNotifications();
+
+        // Fetch fresh user profile from API to sync verification/approval status changes
+        if (user && user.userId) {
+          try {
+            const res = await fetch(`${API_BASE}/api/users/${user.userId}`, { headers: getAuthHeaders() });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.user) {
+                user = data.user;
+                set({ currentUser: user });
+                localStorage.setItem("trackflow_user", JSON.stringify(user));
+              }
+            }
+          } catch (syncErr) {}
+        }
         
         if (user.role === "student" && user.status === "approved") {
           // Fetch student project
-          fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`)
+          fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`, { headers: getAuthHeaders() })
             .then(r => r.json())
             .then(data => {
               if (data.projects && data.projects.length > 0) {
@@ -535,6 +547,7 @@ export const useStore = create<AppState>((set, get) => ({
         }
       } catch (e) {
         localStorage.removeItem("trackflow_user");
+        localStorage.removeItem("trackflow_token");
       }
     }
   },
@@ -927,32 +940,6 @@ export const useStore = create<AppState>((set, get) => ({
       get().addToast("Project updated successfully", "success");
       if (get().activeProject?.id === projectId || get().activeProject?._id === projectId) {
         set({ activeProject: data.project });
-      }
-      get().fetchProjects();
-      return true;
-    } catch (e: any) {
-      get().addToast(e.message, "error");
-      return false;
-    }
-  },
-
-  uploadFile: async (projectId, file) => {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch(`${API_BASE}/api/projects/${projectId}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Upload failed");
-      get().addToast("File uploaded successfully", "success");
-      if (get().activeProject?.id === projectId || get().activeProject?._id === projectId) {
-        set((state) => ({
-          activeProject: state.activeProject
-            ? { ...state.activeProject, files: data.files }
-            : null,
-        }));
       }
       get().fetchProjects();
       return true;

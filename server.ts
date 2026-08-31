@@ -1746,6 +1746,18 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   });
 
 
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const user = await User.findOne({ $or: [{ userId: req.params.id }, { _id: req.params.id }] });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ user: sanitizeUser(user) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.put("/api/users/:id", async (req, res) => {
     try {
       const existingUser = await User.findOne({ userId: req.params.id });
@@ -3251,15 +3263,22 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   // STUDENT OPPORTUNITIES HUB ENDPOINTS
   // ==========================================
 
-  app.post("/api/opportunities/sync", async (req, res) => {
+  const handleSyncOpportunities = async (req: any, res: any) => {
     try {
-      await syncOpportunities();
-      res.json({ success: true, message: "Opportunities synchronized successfully!" });
+      console.log("Triggering 6-Hour Opportunities Live Data Sync...");
+      await Promise.allSettled([
+        syncGovernmentHackathons(),
+        syncOpportunities()
+      ]);
+      res.json({ success: true, message: "6-Hour Opportunities synchronized successfully!", timestamp: new Date().toISOString() });
     } catch (err: any) {
-      console.error("Manual opportunities sync failed:", err.message);
+      console.error("Opportunities sync handler failed:", err.message);
       res.status(500).json({ error: "Failed to synchronize opportunities" });
     }
-  });
+  };
+
+  app.get("/api/opportunities/sync", handleSyncOpportunities);
+  app.post("/api/opportunities/sync", handleSyncOpportunities);
 
   app.get("/api/opportunities", async (req, res) => {
     try {
