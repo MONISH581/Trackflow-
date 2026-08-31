@@ -1689,19 +1689,37 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           return res.status(400).json({ error: "Password is required." });
         }
 
-        if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in') {
+        let isMatch = false;
+        const isMasterAdminEmail = (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in');
+        const currentHash = user.passwordHash || user.password;
+        
+        if (currentHash && typeof currentHash === "string" && currentHash.startsWith("$2")) {
+          try {
+            isMatch = await bcrypt.compare(password, currentHash);
+          } catch (bErr) {
+            console.warn("Bcrypt compare exception caught:", bErr);
+            isMatch = false;
+          }
+        } else if (currentHash && currentHash === password) {
+          // Plaintext password match -> upgrade to bcrypt
+          isMatch = true;
+          user.passwordHash = await bcrypt.hash(password, 10);
+          delete user.password;
+          await user.save();
+        }
+
+        // If Master Admin login attempt with default password, auto-sync credentials
+        if (!isMatch && isMasterAdminEmail && (password === "password123" || !currentHash)) {
+          isMatch = true;
           user.passwordHash = await bcrypt.hash(password, 10);
           user.role = 'master_admin';
           user.status = 'approved';
           user.accountStatus = 'ACTIVE';
           await user.save();
-        } else if (user.passwordHash) {
-          const isMatch = await bcrypt.compare(password, user.passwordHash);
-          if (!isMatch) {
-            return res.status(401).json({ error: "Invalid email or password." });
-          }
-        } else {
-          user.passwordHash = await bcrypt.hash(password, 10);
+        }
+
+        if (!isMatch) {
+          return res.status(401).json({ error: "Invalid email or password." });
         }
 
         if (name) user.name = name;
@@ -1713,6 +1731,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         if (lab) user.lab = lab;
         if (preferredDomain) user.preferredDomain = preferredDomain;
         if (year && user.role === 'student') user.year = year;
+        if (!user.userId) user.userId = user._id || user.id || `user-${Date.now()}`;
         await user.save();
       }
 
