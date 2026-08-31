@@ -78,10 +78,23 @@ async function startServer() {
 
   function sanitizeUser(userDoc: any) {
     if (!userDoc) return null;
-    const userObj = typeof userDoc.toObject === 'function' ? userDoc.toObject() : { ...userDoc };
-    delete userObj.password;
-    delete userObj.passwordHash;
-    return userObj;
+    try {
+      const userObj = typeof userDoc.toObject === 'function' ? userDoc.toObject() : { ...userDoc };
+      delete userObj.password;
+      delete userObj.passwordHash;
+      return userObj;
+    } catch (e) {
+      return {
+        userId: userDoc.userId || userDoc._id || userDoc.id,
+        name: userDoc.name,
+        email: userDoc.email,
+        role: userDoc.role,
+        status: userDoc.status,
+        accountStatus: userDoc.accountStatus,
+        avatar: userDoc.avatar,
+        department: userDoc.department
+      };
+    }
   }
 
   const authMiddleware = (req: any, res: any, next: any) => {
@@ -196,8 +209,11 @@ async function startServer() {
       if (FirestoreCollection.isLoaded) return;
       FirestoreCollection.isLoaded = true;
       try {
-        if (fs.existsSync(FirestoreCollection.dbFilePath)) {
-          const raw = fs.readFileSync(FirestoreCollection.dbFilePath, "utf8");
+        const targetFile = process.env.VERCEL
+          ? (fs.existsSync(path.join("/tmp", "db_store.json")) ? path.join("/tmp", "db_store.json") : FirestoreCollection.dbFilePath)
+          : FirestoreCollection.dbFilePath;
+        if (fs.existsSync(targetFile)) {
+          const raw = fs.readFileSync(targetFile, "utf8");
           const data = JSON.parse(raw);
           for (const [colName, docs] of Object.entries(data)) {
             const colMap = new Map<string, any>();
@@ -206,7 +222,7 @@ async function startServer() {
             }
             FirestoreCollection.memoryStore.set(colName, colMap);
           }
-          console.log("Loaded persistent database store from disk:", FirestoreCollection.dbFilePath);
+          console.log("Loaded persistent database store from disk:", targetFile);
         }
       } catch (err) {
         console.warn("Failed to load local DB store from disk:", err);
