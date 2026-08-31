@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useStore } from "../store.ts";
-import { Activity, AlertTriangle, CheckCircle, Clock, ShieldAlert, TrendingUp, Users } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle, Clock, ShieldAlert, TrendingUp, Users, FolderCheck, ChevronRight, BarChart2 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 export default function ActivityAnalytics() {
@@ -15,14 +16,34 @@ export default function ActivityAnalytics() {
   const warningCount = activityAnalytics.filter(a => a.activityStatus === "Warning").length;
   const followUpCount = activityAnalytics.filter(a => a.activityStatus === "Needs Follow-up").length;
 
-  // Prepare chart data from active projects
+  // Prepare chart data with full project names and burtdown metrics
   const chartData = projects.map(p => ({
-    name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
-    progress: p.progress,
+    name: p.name.length > 20 ? p.name.substring(0, 18) + '...' : p.name,
+    fullName: p.name,
+    progress: p.progress || 0,
+    burtdownRemaining: Math.max(0, 100 - (p.progress || 0)),
+    department: p.department,
   }));
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-slate-900 text-white p-3.5 rounded-xl text-xs space-y-1.5 shadow-2xl border border-slate-700 max-w-xs text-left">
+          <p className="font-bold text-sm text-blue-400 leading-snug">{data.fullName}</p>
+          <p className="text-slate-300 font-medium">Dept: <span className="text-white font-bold">{data.department}</span></p>
+          <div className="flex justify-between gap-4 pt-1 border-t border-slate-800">
+            <span className="text-emerald-400 font-bold">Progress: {data.progress}%</span>
+            <span className="text-rose-400 font-bold">Remaining: {data.burtdownRemaining}%</span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-8 animate-fade-in pb-12 text-left">
       {/* Header Banner */}
       <div className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -31,7 +52,7 @@ export default function ActivityAnalytics() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-800">Project Activity & Workload Analytics</h1>
-            <p className="text-sm text-slate-500">Track student daily report frequency, identify inactive projects & evaluate progress velocity</p>
+            <p className="text-sm text-slate-500">Track student daily report frequency, evaluate project burtdown velocity & monitor milestones</p>
           </div>
         </div>
       </div>
@@ -78,9 +99,9 @@ export default function ActivityAnalytics() {
           <div>
             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-blue-600" />
-              <span>Project Progress Trajectory Graph</span>
+              <span>Overall Project Velocity Trajectory</span>
             </h2>
-            <p className="text-xs text-slate-500">Live progress completion percentage across active lab projects</p>
+            <p className="text-xs text-slate-500">Live completion progress percentage across all active engineering projects</p>
           </div>
         </div>
 
@@ -96,10 +117,91 @@ export default function ActivityAnalytics() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
               <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-              <Tooltip formatter={(value: any) => [`${value}%`, 'Progress']} />
+              <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="progress" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorProgress)" />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* SEPARATE PER-PROJECT BURTDOWN & PROGRESS TRACKERS */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <BarChart2 className="w-5 h-5 text-indigo-600" />
+              <span>Individual Project Burtdown Trackers</span>
+            </h2>
+            <p className="text-xs text-slate-500">Dedicated progress completion & remaining workload metrics for each individual project</p>
+          </div>
+          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            {projects.length} Active Workspaces
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {projects.map((proj) => {
+            const pId = proj.id || proj._id;
+            const progressVal = proj.progress || 0;
+            const remainingVal = Math.max(0, 100 - progressVal);
+
+            return (
+              <div key={pId} className="glass-card p-5 border border-slate-200 flex flex-col justify-between space-y-4 hover:shadow-lg transition">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2 py-0.5 rounded">
+                      {proj.department}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      progressVal >= 75 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                      progressVal >= 25 ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                      'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}>
+                      {proj.status || 'Active'}
+                    </span>
+                  </div>
+
+                  <h3 className="font-bold text-slate-800 text-sm leading-snug line-clamp-2">{proj.name}</h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Domain: {proj.domain || 'Engineering'}</p>
+                </div>
+
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  {/* Completion vs Burtdown progress bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-emerald-600 flex items-center gap-1">
+                        <FolderCheck className="w-3.5 h-3.5" />
+                        Completed: {progressVal}%
+                      </span>
+                      <span className="text-rose-500 font-bold">
+                        Remaining: {remainingVal}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-rose-100 h-2.5 rounded-full overflow-hidden flex">
+                      <div
+                        className="bg-emerald-500 h-full transition-all duration-500"
+                        style={{ width: `${progressVal}%` }}
+                      />
+                      <div
+                        className="bg-rose-400/60 h-full transition-all duration-500"
+                        style={{ width: `${remainingVal}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-[11px] text-slate-500 font-medium">
+                    <span>Mentor: <strong className="text-slate-700">{proj.mentorName || 'Unassigned'}</strong></span>
+                    <Link
+                      to={`/projects/${pId}`}
+                      className="text-blue-600 font-bold hover:underline flex items-center gap-0.5"
+                    >
+                      Workspace <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

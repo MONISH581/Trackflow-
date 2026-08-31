@@ -483,11 +483,19 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   logout: () => {
+    const user = get().currentUser;
+    if (user?.userId) {
+      fetch(`${API_BASE}/api/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.userId })
+      }).catch(() => {});
+    }
     get().disconnectSocket();
     localStorage.removeItem("trackflow_user");
     localStorage.removeItem("trackflow_token");
     set({ currentUser: null, activeProject: null, projects: [], tasks: [], notifications: [], messages: [] });
-    get().addToast("Logged out successfully", "info");
+    get().addToast("Logged out & checked out of lab successfully", "info");
   },
 
   updateProfile: async (userId, data) => {

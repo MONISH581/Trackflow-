@@ -1532,6 +1532,39 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  // Automatic Check-Out & Logout Endpoint
+  app.post("/api/logout", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (userId) {
+        // Auto check-out of Lab Access
+        await LabAccess.findOneAndUpdate(
+          { studentId: userId, status: "Checked-In" },
+          { status: "Checked-Out", checkOutTime: new Date() }
+        );
+        // Update Attendance lastLogoutTime
+        const todayStr = new Date().toISOString().split('T')[0];
+        const att = await Attendance.findOne({ studentId: userId, date: todayStr });
+        if (att) {
+          att.lastLogoutTime = new Date();
+          await att.save();
+        }
+
+        await new ActivityLog({
+          userId,
+          userName: "Student",
+          action: "LOGOUT",
+          entity: "USER",
+          entityId: userId,
+          timestamp: new Date()
+        }).save();
+      }
+      res.json({ success: true, message: "Logged out and checked out of lab successfully." });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 
   app.get("/api/users/students", async (req, res) => {
     try {
