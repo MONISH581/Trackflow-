@@ -6,6 +6,7 @@ import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import jwt from "jsonwebtoken"; // JWT handling
 import bcrypt from "bcryptjs"; // Password hashing
+import mongoose from "mongoose"; // MongoDB ORM
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
@@ -159,7 +160,18 @@ async function startServer() {
     limits: { fileSize: 15 * 1024 * 1024 } // 15MB max file size
   });
 
-  // Firebase Admin Firestore Initialization
+  // Database Initialization (MongoDB Atlas & Firebase Firestore Support)
+  if (process.env.MONGODB_URI) {
+    try {
+      if (mongoose.connection.readyState === 0) {
+        await mongoose.connect(process.env.MONGODB_URI);
+        console.log("Connected to MongoDB Database via MONGODB_URI!");
+      }
+    } catch (mErr: any) {
+      console.warn("MongoDB connection warning:", mErr.message);
+    }
+  }
+
   let firestoreDb: Firestore | null = null;
   try {
     if (getApps().length === 0) {
@@ -178,18 +190,8 @@ async function startServer() {
         });
         firestoreDb = getFirestore();
         console.log("Connected to Google Cloud Firestore via environment variables!");
-      } else {
-        console.log("No active Firebase credentials found in environment. Operating with in-memory Firestore document adapter.");
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-          console.warn("===============================================================================");
-          console.warn("[PRODUCTION DATABASE WARNING] Google Cloud Firestore credentials missing!");
-          console.warn("To enable persistent database storage in production on Vercel, please set:");
-          console.warn("  - FIREBASE_PROJECT_ID");
-          console.warn("  - FIREBASE_CLIENT_EMAIL");
-          console.warn("  - FIREBASE_PRIVATE_KEY");
-          console.warn("in your Vercel Environment Variables panel.");
-          console.warn("===============================================================================");
-        }
+      } else if (!process.env.MONGODB_URI) {
+        console.log("No active MONGODB_URI or Firebase credentials found. Operating with in-memory document adapter.");
       }
     } else {
       firestoreDb = getFirestore();
