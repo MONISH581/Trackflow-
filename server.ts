@@ -3428,7 +3428,23 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
-  // Vite middleware for development
+  // Gemma generation endpoint
+  app.post("/api/gemma/generate", async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
+    const scriptPath = path.join(process.cwd(), "run_gemma.py");
+    execFile("python", [scriptPath, prompt], (err, stdout, stderr) => {
+      if (err) {
+        console.error("Gemma generation error:", err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ response: stdout.trim() });
+    });
+  });
+
+  // Vite middleware for development or Static File Serving for Production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -3438,24 +3454,13 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-
-    // Gemma generation endpoint
-    app.post("/api/gemma/generate", async (req, res) => {
-      const { prompt } = req.body;
-      if (!prompt) {
-        return res.status(400).json({ error: "Prompt is required" });
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) return next();
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
       }
-      const scriptPath = path.join(process.cwd(), "run_gemma.py");
-      execFile("python", [scriptPath, prompt], (err, stdout, stderr) => {
-        if (err) {
-          console.error("Gemma generation error:", err);
-          return res.status(500).json({ error: err.message });
-        }
-        res.json({ response: stdout.trim() });
-      });
+      return res.status(404).send("Not Found");
     });
   }
 
