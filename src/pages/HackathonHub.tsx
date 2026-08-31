@@ -1,15 +1,29 @@
 import React, { useState, useEffect } from "react";
 import { useStore, HackathonInfo, HackathonRegistrationInfo } from "../store.ts";
-import { Sparkles, Calendar, Upload, CheckCircle2, Clock, XCircle, ExternalLink, ShieldCheck, Plus, X, Image as ImageIcon } from "lucide-react";
+import { Sparkles, Calendar, Upload, CheckCircle2, Clock, XCircle, ExternalLink, ShieldCheck, Plus, X, Image as ImageIcon, Star, Heart, UserCheck, Search, Trophy } from "lucide-react";
 
 export default function HackathonHub() {
-  const { currentUser, hackathons, hackathonRegistrations, fetchHackathons, createHackathon, registerHackathonWithProof, fetchHackathonRegistrations, verifyHackathonRegistration } = useStore();
+  const {
+    currentUser,
+    hackathons,
+    hackathonRegistrations,
+    hackathonInterests,
+    fetchHackathons,
+    createHackathon,
+    registerHackathonWithProof,
+    fetchHackathonRegistrations,
+    verifyHackathonRegistration,
+    expressHackathonInterest,
+    fetchHackathonInterests
+  } = useStore();
 
-  const [activeTab, setActiveTab] = useState<"available" | "registrations" | "verification">("available");
+  const [activeTab, setActiveTab] = useState<"available" | "registrations" | "interests" | "verification">("available");
+  const [domainFilter, setDomainFilter] = useState<string>("ALL");
   const [selectedHackathon, setSelectedHackathon] = useState<HackathonInfo | null>(null);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Coordinator Add Hackathon state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -17,7 +31,7 @@ export default function HackathonHub() {
     name: "",
     organizer: "",
     description: "",
-    domain: "Artificial Intelligence",
+    domain: "Kaggle / Machine Learning",
     registrationLink: "",
   });
 
@@ -27,12 +41,14 @@ export default function HackathonHub() {
 
   useEffect(() => {
     fetchHackathons();
-    if (currentUser?.role === "coordinator") {
+    fetchHackathonInterests();
+    if (currentUser?.role === "coordinator" || currentUser?.role === "master_admin") {
       fetchHackathonRegistrations();
     } else if (currentUser?.role === "student") {
       fetchHackathonRegistrations(currentUser.userId);
+      fetchHackathonInterests(currentUser.userId);
     }
-  }, [currentUser, fetchHackathons, fetchHackathonRegistrations]);
+  }, [currentUser, fetchHackathons, fetchHackathonRegistrations, fetchHackathonInterests]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -69,8 +85,13 @@ export default function HackathonHub() {
     const ok = await createHackathon(newHackathon);
     if (ok) {
       setShowAddModal(false);
-      setNewHackathon({ name: "", organizer: "", description: "", domain: "Artificial Intelligence", registrationLink: "" });
+      setNewHackathon({ name: "", organizer: "", description: "", domain: "Kaggle / Machine Learning", registrationLink: "" });
     }
+  };
+
+  const handleExpressInterest = async (hackathonId: string) => {
+    if (!currentUser) return;
+    await expressHackathonInterest(hackathonId, currentUser.userId);
   };
 
   const handleVerify = async (registrationId: string, status: "Verified" | "Rejected") => {
@@ -79,17 +100,28 @@ export default function HackathonHub() {
     setRejectionReason("");
   };
 
+  const isTeacher = currentUser?.role === "coordinator" || currentUser?.role === "master_admin";
+
+  const filteredHackathons = hackathons.filter(h => {
+    const matchesDomain = domainFilter === "ALL" ||
+      (domainFilter === "KAGGLE" && h.domain?.toLowerCase().includes("kaggle")) ||
+      (domainFilter === "GOVT" && (h.domain?.toLowerCase().includes("govt") || h.domain?.toLowerCase().includes("government"))) ||
+      (domainFilter === "AI" && h.domain?.toLowerCase().includes("ai"));
+    const matchesSearch = !searchQuery || h.name.toLowerCase().includes(searchQuery.toLowerCase()) || h.organizer.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesDomain && matchesSearch;
+  });
+
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-8 animate-fade-in pb-12 text-left">
       {/* Header Banner */}
       <div className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center">
-            <Sparkles className="w-6 h-6" />
+            <Trophy className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Hackathons & Competitions</h1>
-            <p className="text-sm text-slate-500">Register for tech hackathons, upload mandatory proof screenshots & track coordinator verification</p>
+            <h1 className="text-xl font-bold text-slate-800">Hackathons, Kaggle & ML Competitions</h1>
+            <p className="text-sm text-slate-500">Explore hackathons & Kaggle ML challenges, express interest, upload registration proofs & monitor verification</p>
           </div>
         </div>
 
@@ -98,24 +130,34 @@ export default function HackathonHub() {
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               onClick={() => setActiveTab("available")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-3 py-2 text-xs font-bold rounded-lg transition-all ${
                 activeTab === "available" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Active Hackathons ({hackathons.length})
+              All Events ({hackathons.length})
             </button>
             <button
               onClick={() => setActiveTab("registrations")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-3 py-2 text-xs font-bold rounded-lg transition-all ${
                 activeTab === "registrations" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              My Registrations ({hackathonRegistrations.length})
+              My Proofs ({hackathonRegistrations.length})
             </button>
-            {currentUser?.role === "coordinator" && (
+
+            <button
+              onClick={() => setActiveTab("interests")}
+              className={`px-3 py-2 text-xs font-bold rounded-lg transition-all relative ${
+                activeTab === "interests" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {isTeacher ? "Student Interests Console" : "My Interests"} ({hackathonInterests.length})
+            </button>
+
+            {isTeacher && (
               <button
                 onClick={() => setActiveTab("verification")}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all relative ${
+                className={`px-3 py-2 text-xs font-bold rounded-lg transition-all relative ${
                   activeTab === "verification" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -129,84 +171,206 @@ export default function HackathonHub() {
             )}
           </div>
 
-          {currentUser?.role === "coordinator" && (
+          {isTeacher && (
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Hackathon</span>
+              <span>Add Event / Kaggle</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Available Hackathons Tab */}
+      {/* Available Hackathons & Kaggle Competitions Tab */}
       {activeTab === "available" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {hackathons.map((h) => {
-            const userRegistration = hackathonRegistrations.find(r => r.hackathonId === (h._id || h.id));
+        <div className="space-y-6">
+          {/* Category Filters & Search */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-4 border border-slate-200">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <button
+                onClick={() => setDomainFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "ALL" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              >
+                All Platforms
+              </button>
+              <button
+                onClick={() => setDomainFilter("KAGGLE")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${domainFilter === "KAGGLE" ? "bg-cyan-600 text-white" : "bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100"}`}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                Kaggle ML Competitions
+              </button>
+              <button
+                onClick={() => setDomainFilter("GOVT")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "GOVT" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"}`}
+              >
+                Government Hackathons
+              </button>
+              <button
+                onClick={() => setDomainFilter("AI")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "AI" ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"}`}
+              >
+                AI & Deep Learning
+              </button>
+            </div>
 
-            return (
-              <div key={h.id || h._id} className="glass-card p-6 border border-slate-200 flex flex-col justify-between hover:shadow-xl transition-all">
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200/60 rounded-full text-xs font-bold">
-                      {h.domain}
-                    </span>
-                    {userRegistration && (
+            <div className="relative max-w-xs w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search Kaggle, Hackathons..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredHackathons.map((h) => {
+              const hId = h._id || h.id || "";
+              const userRegistration = hackathonRegistrations.find(r => r.hackathonId === hId);
+              const userInterested = hackathonInterests.some(i => i.hackathonId === hId && i.studentId === currentUser?.userId);
+              const isKaggle = h.domain?.toLowerCase().includes("kaggle") || h.organizer?.toLowerCase().includes("kaggle");
+
+              return (
+                <div key={hId} className="glass-card p-6 border border-slate-200 flex flex-col justify-between hover:shadow-xl transition-all">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                        userRegistration.verificationStatus === 'Verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        userRegistration.verificationStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                        'bg-amber-50 text-amber-700 border-amber-200'
+                        isKaggle ? 'bg-cyan-50 text-cyan-700 border-cyan-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       }`}>
-                        {userRegistration.verificationStatus}
+                        {h.domain}
                       </span>
+                      {userRegistration && (
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                          userRegistration.verificationStatus === 'Verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          userRegistration.verificationStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                          'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {userRegistration.verificationStatus}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="font-bold text-slate-800 text-base mt-3 leading-snug">{h.name}</h3>
+                    <p className="text-xs text-indigo-600 font-bold mt-1 mb-2">Organizer: {h.organizer}</p>
+                    <p className="text-xs text-slate-600 line-clamp-3 mb-4">{h.description}</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <a
+                        href={h.registrationLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-indigo-600 hover:underline font-bold flex items-center gap-1"
+                      >
+                        <span>Official Link</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+
+                    {currentUser?.role === "student" && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleExpressInterest(hId)}
+                          disabled={userInterested}
+                          className={`py-2 px-3 text-xs font-bold rounded-xl border transition flex items-center justify-center gap-1.5 ${
+                            userInterested
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default"
+                              : "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200"
+                          }`}
+                        >
+                          <Star className={`w-3.5 h-3.5 ${userInterested ? "fill-emerald-600 text-emerald-600" : "text-amber-600"}`} />
+                          <span>{userInterested ? "Interested ✓" : "Express Interest"}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setSelectedHackathon(h)}
+                          className="py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{userRegistration ? "Re-proof" : "Upload Proof"}</span>
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  <h3 className="font-bold text-slate-800 text-lg mt-3">{h.name}</h3>
-                  <p className="text-xs text-slate-500 font-semibold mb-2">Organizer: {h.organizer}</p>
-                  <p className="text-xs text-slate-600 line-clamp-3 mb-4">{h.description}</p>
                 </div>
-
-                <div className="pt-4 border-t border-slate-100 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <a
-                      href={h.registrationLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-indigo-600 hover:underline font-bold flex items-center gap-1"
-                    >
-                      <span>Official Link</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-
-                  {currentUser?.role === "student" && (
-                    <button
-                      onClick={() => setSelectedHackathon(h)}
-                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition flex items-center justify-center gap-2"
-                    >
-                      <Upload className="w-4 h-4" />
-                      <span>{userRegistration ? "Re-upload Proof Screenshot" : "Register & Upload Proof"}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Student Registrations History Tab */}
+      {/* STUDENT INTERESTS TAB (Visible to Teachers and Students) */}
+      {activeTab === "interests" && (
+        <div className="space-y-4">
+          <div className="glass-card p-6 border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-800">
+              {isTeacher ? "Student Hackathon & Kaggle Expressed Interests" : "My Expressed Interests"}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {isTeacher
+                ? "Live view of all students who clicked interest on Kaggle competitions or hackathons"
+                : "Hackathons and Kaggle challenges you expressed interest in"}
+            </p>
+          </div>
+
+          {hackathonInterests.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+              <Star className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-slate-700">No Expressed Interests Yet</h3>
+              <p className="text-xs text-slate-400 mt-1">Students can click "Express Interest" on any Kaggle ML challenge or hackathon to list here.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto glass-card border border-slate-200">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 font-bold uppercase tracking-wider">
+                    <th className="p-3">Student Name</th>
+                    <th className="p-3">Reg No</th>
+                    <th className="p-3">Department & Year</th>
+                    <th className="p-3">Event / Kaggle Title</th>
+                    <th className="p-3">Organizer</th>
+                    <th className="p-3">Expressed Date</th>
+                    <th className="p-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {hackathonInterests.map((interest) => (
+                    <tr key={interest.id || interest._id} className="hover:bg-slate-50/60 transition">
+                      <td className="p-3 font-bold text-slate-800">{interest.studentName}</td>
+                      <td className="p-3 font-mono text-slate-500">{interest.registerNumber}</td>
+                      <td className="p-3 font-medium text-slate-700">{interest.department} (Year {interest.year})</td>
+                      <td className="p-3 font-semibold text-indigo-700">{interest.hackathonName}</td>
+                      <td className="p-3 text-slate-600">{interest.organizer}</td>
+                      <td className="p-3 text-slate-500">{new Date(interest.expressedAt).toLocaleDateString()}</td>
+                      <td className="p-3">
+                        <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                          <Star className="w-3 h-3 text-amber-600 fill-amber-500" />
+                          Interested
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Student Registrations Proof History Tab */}
       {activeTab === "registrations" && (
         <div className="space-y-4">
           {hackathonRegistrations.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
               <Sparkles className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-700">No Registrations Yet</h3>
-              <p className="text-xs text-slate-400 mt-1">Select an active hackathon to register and upload mandatory screenshot proof.</p>
+              <h3 className="text-sm font-bold text-slate-700">No Proof Screenshots Uploaded Yet</h3>
+              <p className="text-xs text-slate-400 mt-1">Select an active hackathon or Kaggle competition to upload mandatory registration screenshot proof.</p>
             </div>
           ) : (
             hackathonRegistrations.map((reg) => (
@@ -246,10 +410,10 @@ export default function HackathonHub() {
       )}
 
       {/* Coordinator Verification Panel Tab */}
-      {activeTab === "verification" && currentUser?.role === "coordinator" && (
+      {activeTab === "verification" && isTeacher && (
         <div className="space-y-4">
           <div className="glass-card p-6 border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-800">Hackathon Screenshot Proof Verification</h2>
+            <h2 className="text-lg font-bold text-slate-800">Hackathon & Kaggle Proof Verification Console</h2>
             <p className="text-xs text-slate-500">Review student uploaded proof screenshots and approve or decline registrations</p>
           </div>
 
@@ -282,9 +446,10 @@ export default function HackathonHub() {
                       href={reg.screenshotUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100 transition"
+                      className="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100 transition flex items-center gap-1.5"
                     >
-                      Inspect Proof Image 🔍
+                      <ImageIcon className="w-4 h-4" />
+                      <span>Inspect Proof Screenshot 🔍</span>
                     </a>
 
                     {reg.verificationStatus === "Pending" && (
@@ -299,7 +464,7 @@ export default function HackathonHub() {
                           onClick={() => setVerifyingId(reg._id || reg.id || "")}
                           className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition"
                         >
-                          Reject ✗
+                          Decline ✕
                         </button>
                       </div>
                     )}
@@ -308,24 +473,24 @@ export default function HackathonHub() {
 
                 {verifyingId === (reg._id || reg.id) && (
                   <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-3">
-                    <label className="block text-xs font-bold text-rose-800">Specify Rejection Reason for Student *</label>
+                    <p className="text-xs font-bold text-rose-800">Specify Rejection Reason for Student:</p>
                     <input
                       type="text"
-                      placeholder="e.g. Screenshot unreadable / invalid hackathon registration proof"
+                      placeholder="e.g. Invalid screenshot proof / missing registration ID"
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
-                      className="w-full px-4 py-2 bg-white border border-rose-300 rounded-lg text-xs"
+                      className="w-full p-2 text-xs border border-rose-300 rounded-lg focus:outline-none"
                     />
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setVerifyingId(null)}
-                        className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 rounded-lg font-semibold"
+                        className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => handleVerify(reg._id || reg.id || "", "Rejected")}
-                        className="px-4 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-lg"
+                        className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 rounded-lg"
                       >
                         Confirm Rejection
                       </button>
@@ -338,56 +503,54 @@ export default function HackathonHub() {
         </div>
       )}
 
-      {/* Mandatory Screenshot Proof Registration Modal */}
+      {/* Upload Proof Screenshot Modal */}
       {selectedHackathon && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-800">Hackathon Registration</h3>
-                <p className="text-xs text-indigo-600 font-semibold">{selectedHackathon.name}</p>
-              </div>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 border border-slate-200 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 text-base">Upload Registration Screenshot Proof</h3>
               <button onClick={() => setSelectedHackathon(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
-              ⚠️ <span className="font-bold">MANDATORY RULE:</span> You must upload a screenshot proof of your official registration. Registrations without screenshots will be automatically rejected.
-            </div>
-
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Upload Registration Screenshot Proof *</label>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <p className="text-xs font-bold text-indigo-600">{selectedHackathon.name}</p>
+                <p className="text-[11px] text-slate-500">Organizer: {selectedHackathon.organizer}</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700">Select Registration Confirmation Screenshot (PNG/JPG):</label>
                 <input
                   type="file"
                   accept="image/*"
-                  required
                   onChange={handleFileChange}
-                  className="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  required
+                  className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
               </div>
 
               {screenshotPreview && (
                 <div className="relative rounded-xl overflow-hidden border border-slate-200 max-h-48">
-                  <img src={screenshotPreview} alt="Screenshot Preview" className="w-full h-full object-cover" />
+                  <img src={screenshotPreview} alt="Proof Preview" className="w-full h-full object-cover" />
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="pt-3 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setSelectedHackathon(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isUploading || !screenshotFile}
-                  className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-500/20 transition disabled:opacity-50"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition flex items-center gap-2"
                 >
-                  {isUploading ? "Uploading Proof..." : "Submit Registration Proof"}
+                  {isUploading ? "Uploading Proof..." : "Submit Proof Screenshot"}
                 </button>
               </div>
             </form>
@@ -395,77 +558,94 @@ export default function HackathonHub() {
         </div>
       )}
 
-      {/* Add Hackathon Modal for Coordinator */}
+      {/* Add Hackathon Modal for Coordinators */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-lg font-bold text-slate-800">Add New Hackathon</h3>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 border border-slate-200 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 text-base">Add New Hackathon / Kaggle Challenge</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateHackathon} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Hackathon Name *</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Event Title:</label>
                 <input
                   type="text"
-                  required
-                  placeholder="Smart India Hackathon 2026"
+                  placeholder="e.g. Kaggle ML Grand Prix 2026"
                   value={newHackathon.name}
                   onChange={(e) => setNewHackathon({ ...newHackathon, name: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                  required
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Organizer</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Organizer / Platform:</label>
                 <input
                   type="text"
-                  placeholder="AICTE & Ministry of Education"
+                  placeholder="e.g. Kaggle / Google AI / Ministry of Education"
                   value={newHackathon.organizer}
                   onChange={(e) => setNewHackathon({ ...newHackathon, organizer: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                  required
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Official Registration Link *</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Category / Domain:</label>
+                <select
+                  value={newHackathon.domain}
+                  onChange={(e) => setNewHackathon({ ...newHackathon, domain: e.target.value })}
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="Kaggle / Machine Learning">Kaggle / Machine Learning</option>
+                  <option value="Kaggle / Generative AI">Kaggle / Generative AI</option>
+                  <option value="Government Hackathon">Government Hackathon</option>
+                  <option value="Artificial Intelligence">Artificial Intelligence</option>
+                  <option value="Cyber Security">Cyber Security</option>
+                  <option value="Web & Mobile Dev">Web & Mobile Dev</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Official Link:</label>
                 <input
                   type="url"
-                  required
-                  placeholder="https://sih.gov.in"
+                  placeholder="https://..."
                   value={newHackathon.registrationLink}
                   onChange={(e) => setNewHackathon({ ...newHackathon, registrationLink: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                  required
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Description</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Description:</label>
                 <textarea
-                  rows={2}
-                  placeholder="Short overview of the hackathon event..."
+                  placeholder="Event details..."
                   value={newHackathon.description}
                   onChange={(e) => setNewHackathon({ ...newHackathon, description: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                  rows={3}
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="pt-3 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition"
                 >
-                  Create Hackathon
+                  Publish Event
                 </button>
               </div>
             </form>

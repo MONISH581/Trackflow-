@@ -655,6 +655,7 @@ async function startServer() {
   const DailyReport = createModelWrapper("daily_reports");
   const Hackathon = createModelWrapper("hackathons");
   const HackathonRegistration = createModelWrapper("hackathon_registrations");
+  const HackathonInterest = createModelWrapper("hackathon_interests");
   const AbstractHistory = createModelWrapper("abstract_histories");
   const Attendance = createModelWrapper("attendances");
   const LabAccess = createModelWrapper("lab_accesses");
@@ -2049,8 +2050,114 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   // Hackathons & Proof Verification Endpoints
   app.get("/api/hackathons", async (req, res) => {
     try {
-      const hackathons = await Hackathon.find().sort({ startDate: 1 });
+      let hackathons = await Hackathon.find().sort({ startDate: 1 });
+      if (hackathons.length === 0) {
+        // Seed default hackathons & Kaggle ML competitions
+        const defaultEvents = [
+          {
+            hackathonId: "kaggle-grand-prix-2026",
+            name: "Kaggle Machine Learning Grand Prix 2026",
+            organizer: "Kaggle & Google AI",
+            description: "Build state-of-the-art predictive models, NLP classifiers, and computer vision pipelines in this flagship Kaggle ML challenge.",
+            domain: "Kaggle / Machine Learning",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+            registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+            registrationLink: "https://www.kaggle.com/competitions",
+            status: "Active"
+          },
+          {
+            hackathonId: "kaggle-llm-challenge-2026",
+            name: "Kaggle LLM Science Exam Challenge",
+            organizer: "Kaggle Community",
+            description: "Fine-tune open-weights Large Language Models to answer complex STEM questions and benchmark AI reasoning capability.",
+            domain: "Kaggle / Generative AI",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
+            registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            registrationLink: "https://www.kaggle.com/competitions",
+            status: "Active"
+          },
+          {
+            hackathonId: "sih-2026-hackathon",
+            name: "Smart India Hackathon 2026 (SIH)",
+            organizer: "Ministry of Education & AICTE",
+            description: "Solve pressing problem statements submitted by Central Ministries, State Departments, PSUs, and Industry leaders.",
+            domain: "Government Hackathon",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            registrationLink: "https://sih.gov.in",
+            status: "Active"
+          }
+        ];
+        await Hackathon.insertMany(defaultEvents);
+        hackathons = await Hackathon.find().sort({ startDate: 1 });
+      }
       res.json({ hackathons: hackathons.map(h => ({ id: h._id, ...h.toObject() })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Student Hackathon / Kaggle Express Interest Endpoint
+  app.post("/api/hackathons/:id/interest", async (req, res) => {
+    try {
+      const { studentId } = req.body;
+      const hackathon = await Hackathon.findById(req.params.id);
+      if (!hackathon) return res.status(404).json({ error: "Hackathon / Competition not found" });
+
+      const user = await User.findOne({ userId: studentId });
+      if (!user) return res.status(404).json({ error: "Student user not found" });
+
+      const existing = await HackathonInterest.findOne({ hackathonId: hackathon._id, studentId: user.userId });
+      if (existing) {
+        return res.json({ success: true, message: "Interest already registered!", interest: existing });
+      }
+
+      const interest = new HackathonInterest({
+        interestId: `int-${Date.now()}`,
+        hackathonId: hackathon._id,
+        hackathonName: hackathon.name,
+        organizer: hackathon.organizer,
+        domain: hackathon.domain,
+        studentId: user.userId,
+        studentName: user.name,
+        studentEmail: user.email,
+        registerNumber: user.registerNumber || "N/A",
+        department: user.department || "Computer Science",
+        year: user.year || "3",
+        expressedAt: new Date(),
+        status: "Interested"
+      });
+      await interest.save();
+
+      // Notify Coordinators & Master Admins
+      const coordinators = await User.find({ role: { $in: ['coordinator', 'master_admin'] } });
+      for (const coord of coordinators) {
+        await new Notification({
+          userId: coord.userId,
+          title: "New Student Hackathon Interest",
+          message: `${user.name} (${user.department}) expressed interest in "${hackathon.name}".`,
+          relatedId: interest._id,
+          type: "general"
+        }).save();
+      }
+
+      res.json({ success: true, message: "Expressed interest successfully! Shown in Teacher Console.", interest });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/hackathons/interests", async (req, res) => {
+    try {
+      const { studentId } = req.query;
+      let query: any = {};
+      if (studentId) query.studentId = String(studentId);
+
+      const interests = await HackathonInterest.find(query).sort({ expressedAt: -1 });
+      res.json({ interests: interests.map(i => ({ id: i._id, ...i.toObject() })) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

@@ -151,6 +151,24 @@ export interface HackathonRegistrationInfo {
   rejectionReason?: string;
 }
 
+export interface HackathonInterestInfo {
+  id?: string;
+  _id?: string;
+  interestId: string;
+  hackathonId: string;
+  hackathonName: string;
+  organizer: string;
+  domain: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  registerNumber: string;
+  department: string;
+  year: string;
+  expressedAt: string;
+  status: string;
+}
+
 export interface ActivityAnalyticsInfo {
   studentId: string;
   studentName: string;
@@ -264,6 +282,7 @@ interface AppState {
   mentors: MentorInfo[];
   hackathons: HackathonInfo[];
   hackathonRegistrations: HackathonRegistrationInfo[];
+  hackathonInterests: HackathonInterestInfo[];
   activityAnalytics: ActivityAnalyticsInfo[];
   tasks: TaskInfo[];
   notifications: NotificationInfo[];
@@ -329,6 +348,8 @@ interface AppState {
   registerHackathonWithProof: (hackathonId: string, studentId: string, screenshotFile: File) => Promise<boolean>;
   fetchHackathonRegistrations: (studentId?: string) => Promise<void>;
   verifyHackathonRegistration: (registrationId: string, status: "Verified" | "Rejected", reason?: string) => Promise<boolean>;
+  expressHackathonInterest: (hackathonId: string, studentId: studentId) => Promise<boolean>;
+  fetchHackathonInterests: (studentId?: string) => Promise<void>;
 
   // Student Submitted Opportunities
   submitStudentOpportunity: (oppData: any) => Promise<boolean>;
@@ -408,6 +429,7 @@ export const useStore = create<AppState>((set, get) => ({
   mentors: [],
   hackathons: [],
   hackathonRegistrations: [],
+  hackathonInterests: [],
   activityAnalytics: [],
   tasks: [],
   notifications: [],
@@ -751,6 +773,33 @@ export const useStore = create<AppState>((set, get) => ({
       get().addToast(e.message, "error");
       return false;
     }
+  },
+
+  expressHackathonInterest: async (hackathonId, studentId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/hackathons/${hackathonId}/interest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to express interest");
+      get().addToast(data.message || "Expressed interest successfully! Shown in Teacher Console.", "success");
+      get().fetchHackathonInterests();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  fetchHackathonInterests: async (studentId) => {
+    try {
+      const query = studentId ? `?studentId=${studentId}` : "";
+      const response = await fetch(`${API_BASE}/api/hackathons/interests${query}`);
+      const data = await response.json();
+      set({ hackathonInterests: data.interests || [] });
+    } catch (e) {}
   },
 
   // Student Opportunities Actions
