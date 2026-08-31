@@ -419,13 +419,19 @@ async function startServer() {
 
 
 
-
     async create(data: any) {
       const id = data._id || data.id || this.generateId();
       const now = new Date();
       const docData = { ...data, _id: id, id, createdAt: data.createdAt || now, updatedAt: now };
 
-      if (firestoreDb) {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        try {
+          const cleanData = this.sanitizeForFirestore(docData);
+          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: id }, { $set: cleanData }, { upsert: true });
+        } catch (mErr) {
+          console.warn(`MongoDB write warning on ${this.collectionName}:`, mErr);
+        }
+      } else if (firestoreDb) {
         const cleanData = this.sanitizeForFirestore(docData);
         await firestoreDb.collection(this.collectionName).doc(id).set(cleanData, { merge: true });
       }
@@ -433,8 +439,6 @@ async function startServer() {
       FirestoreCollection.saveToDisk();
       return this.formatDoc(id, docData);
     }
-
-
 
     async insertMany(items: any[]) {
       const created = [];
@@ -448,7 +452,17 @@ async function startServer() {
     find(filter: Record<string, any> = {}) {
       return this.createQueryRunner(async () => {
         let results: any[] = [];
-        if (firestoreDb) {
+        if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+          try {
+            const mongoDocs = await mongoose.connection.db.collection(this.collectionName).find(filter || {}).toArray();
+            for (const doc of mongoDocs) {
+              results.push(this.formatDoc(doc._id, doc));
+            }
+            return results;
+          } catch (mErr) {
+            console.warn(`MongoDB read warning on ${this.collectionName}:`, mErr);
+          }
+        } else if (firestoreDb) {
           try {
             const snapshot = await firestoreDb.collection(this.collectionName).get();
             snapshot.forEach(doc => {
@@ -473,13 +487,24 @@ async function startServer() {
     }
 
     async findOne(filter: Record<string, any> = {}) {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        try {
+          const doc = await mongoose.connection.db.collection(this.collectionName).findOne(filter || {});
+          if (doc) return this.formatDoc(doc._id, doc);
+        } catch (e) {}
+      }
       const results = await this.find(filter);
       return results.length > 0 ? results[0] : null;
     }
 
     async findById(id: string) {
       if (!id) return null;
-      if (firestoreDb) {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        try {
+          const doc = await mongoose.connection.db.collection(this.collectionName).findOne({ _id: id });
+          if (doc) return this.formatDoc(doc._id, doc);
+        } catch (e) {}
+      } else if (firestoreDb) {
         try {
           const doc = await firestoreDb.collection(this.collectionName).doc(id).get();
           if (doc.exists) {
@@ -504,7 +529,12 @@ async function startServer() {
 
       updatedData.updatedAt = new Date();
 
-      if (firestoreDb) {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        try {
+          const cleanData = this.sanitizeForFirestore(updatedData);
+          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: doc._id }, { $set: cleanData }, { upsert: true });
+        } catch (e) {}
+      } else if (firestoreDb) {
         const cleanData = this.sanitizeForFirestore(updatedData);
         await firestoreDb.collection(this.collectionName).doc(doc._id).set(cleanData, { merge: true });
       }
@@ -531,7 +561,11 @@ async function startServer() {
     async findOneAndDelete(filter: Record<string, any>) {
       const doc = await this.findOne(filter);
       if (!doc) return null;
-      if (firestoreDb) {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        try {
+          await mongoose.connection.db.collection(this.collectionName).deleteOne({ _id: doc._id });
+        } catch (e) {}
+      } else if (firestoreDb) {
         try {
           await firestoreDb.collection(this.collectionName).doc(doc._id).delete();
         } catch (e) {}
@@ -549,7 +583,11 @@ async function startServer() {
       const docs = await this.find(filter);
       let deletedCount = 0;
       for (const doc of docs) {
-        if (firestoreDb) {
+        if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+          try {
+            await mongoose.connection.db.collection(this.collectionName).deleteOne({ _id: doc._id });
+          } catch (e) {}
+        } else if (firestoreDb) {
           try {
             await firestoreDb.collection(this.collectionName).doc(doc._id).delete();
           } catch (e) {}
@@ -561,6 +599,11 @@ async function startServer() {
     }
 
     async countDocuments(filter: Record<string, any> = {}) {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        try {
+          return await mongoose.connection.db.collection(this.collectionName).countDocuments(filter || {});
+        } catch (e) {}
+      }
       const docs = await this.find(filter);
       return docs.length;
     }
