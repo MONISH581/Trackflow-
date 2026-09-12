@@ -106,7 +106,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                 className="fixed inset-0 z-40"
                 onClick={() => setShowNotifs(false)}
               />
-              <div className="absolute right-0 mt-3 z-50 w-[88vw] max-w-[22rem] rounded-2xl bg-white border border-slate-200/90 p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+              <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto mt-2 sm:mt-3 z-50 w-auto sm:w-[340px] rounded-2xl bg-white border border-slate-200/90 p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <h3 className="font-extrabold text-sm text-slate-900">Notifications</h3>

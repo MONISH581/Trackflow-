@@ -34,7 +34,7 @@ export default function ActivityAnalytics() {
           <p className="text-slate-300 font-medium">Dept: <span className="text-white font-bold">{data.department}</span></p>
           <div className="flex justify-between gap-4 pt-1 border-t border-slate-800">
             <span className="text-emerald-400 font-bold">Progress: {data.progress}%</span>
-            <span className="text-rose-400 font-bold">Remaining: {data.burtdownRemaining}%</span>
+            <span className="text-red-600 font-bold">Remaining: {data.burtdownRemaining}%</span>
           </div>
         </div>
       );
@@ -173,7 +173,7 @@ export default function ActivityAnalytics() {
                         <FolderCheck className="w-3.5 h-3.5" />
                         Completed: {progressVal}%
                       </span>
-                      <span className="text-rose-500 font-bold">
+                      <span className="text-red-600 font-bold">
                         Remaining: {remainingVal}%
                       </span>
                     </div>
@@ -183,7 +183,7 @@ export default function ActivityAnalytics() {
                         style={{ width: `${progressVal}%` }}
                       />
                       <div
-                        className="bg-rose-400/60 h-full transition-all duration-500"
+                        className="bg-red-600 h-full transition-all duration-500"
                         style={{ width: `${remainingVal}%` }}
                       />
                     </div>
