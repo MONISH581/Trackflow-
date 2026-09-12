@@ -41,9 +41,9 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   });
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 h-20 bg-white/90 backdrop-blur-md border-b border-slate-200/70 shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
+    <header className="sticky top-0 z-30 flex items-center justify-between px-3 sm:px-6 lg:px-8 h-20 bg-white/90 backdrop-blur-md border-b border-slate-200/70 shadow-[0_2px_15px_rgba(0,0,0,0.02)] gap-2 sm:gap-4">
       {/* Title & Mobile Hamburger */}
-      <div className="flex items-center gap-3 sm:gap-6">
+      <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0">
         <button
           onClick={onMenuToggle}
           className="p-2 text-slate-500 hover:text-slate-800 rounded-xl md:hidden hover:bg-slate-100 min-w-[min(100%,_40px)] min-h-[40px] flex items-center justify-center cursor-pointer transition"
@@ -51,8 +51,8 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <div className="text-left">
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight truncate max-w-[min(100%,_180px)] sm:max-w-none">
+        <div className="text-left min-w-0">
+          <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 tracking-tight leading-tight truncate">
             {getPageTitle()}
           </h2>
           <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
@@ -82,7 +82,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       </div>
 
       {/* Notifications Alert Bell & User profile */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="relative">
           <button
             onClick={() => setShowNotifs(!showNotifs)}

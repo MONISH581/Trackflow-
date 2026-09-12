@@ -33,7 +33,7 @@ export default function ActivityAnalytics() {
           <p className="font-bold text-sm text-blue-400 leading-snug">{data.fullName}</p>
           <p className="text-slate-300 font-medium">Dept: <span className="text-white font-bold">{data.department}</span></p>
           <div className="flex justify-between gap-4 pt-1 border-t border-slate-800">
-            <span className="text-emerald-400 font-bold">Progress: {data.progress}%</span>
+            <span className="text-emerald-600 font-bold">Progress: {data.progress}%</span>
             <span className="text-red-600 font-bold">Remaining: {data.burtdownRemaining}%</span>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function ActivityAnalytics() {
                     </div>
                     <div className="w-full bg-rose-100 h-2.5 rounded-full overflow-hidden flex">
                       <div
-                        className="bg-emerald-500 h-full transition-all duration-500"
+                        className="bg-emerald-600 h-full transition-all duration-500"
                         style={{ width: `${progressVal}%` }}
                       />
                       <div
