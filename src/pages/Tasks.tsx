@@ -94,7 +94,7 @@ export default function Tasks() {
       >
         <div className="flex justify-between items-start">
           <span
-            className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase ${
               task.priority === "high"
                 ? "bg-rose-50 text-rose-700 border border-rose-200/65"
                 : task.priority === "medium"
@@ -104,17 +104,17 @@ export default function Tasks() {
           >
             {task.priority} Priority
           </span>
-          <span className="text-[10px] text-slate-500 font-bold truncate max-w-[100px]">
+          <span className="text-xs text-slate-500 font-bold truncate max-w-[min(100%,_100px)]">
             {task.projectName}
           </span>
         </div>
 
         <div className="space-y-1">
           <h4 className="font-bold text-slate-800 text-sm leading-snug">{task.title}</h4>
-          <p className="text-[11px] text-slate-500 font-semibold">Assignee: {task.assigneeName}</p>
+          <p className="text-xs text-slate-500 font-semibold">Assignee: {task.assigneeName}</p>
         </div>
 
-        <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold pt-2 border-t border-slate-200/60">
+        <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pt-2 border-t border-slate-200/60">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <span>{task.date}</span>

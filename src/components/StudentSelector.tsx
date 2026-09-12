@@ -134,7 +134,7 @@ export function StudentSelector({
             <Users className="w-3.5 h-3.5 text-blue-600" />
             Select Team Members ({selectedMemberIds.length} / {MAX_MEMBERS} Max)
           </label>
-          <span className="text-[11px] font-semibold text-slate-400">
+          <span className="text-xs font-semibold text-slate-400">
             Strict Limit: Max 5 Students
           </span>
         </div>
@@ -167,13 +167,13 @@ export function StudentSelector({
                       : "bg-blue-50 text-blue-800 border border-blue-200/80 hover:bg-blue-100"
                   }`}
                 >
-                  <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[10px] font-extrabold text-blue-600 border border-blue-200/60 shadow-2xs">
+                  <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-xs font-extrabold text-blue-600 border border-blue-200/60 shadow-2xs">
                     {name.substring(0, 2).toUpperCase()}
                   </span>
                   <span>{name}</span>
-                  {dept && <span className="text-[10px] opacity-75 font-normal">{dept}</span>}
+                  {dept && <span className="text-xs opacity-75 font-normal">{dept}</span>}
                   {isLeader && (
-                    <span className="bg-amber-200/80 text-amber-900 text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5">
+                    <span className="bg-amber-200/80 text-amber-900 text-xs px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5">
                       <Crown className="w-2.5 h-2.5 text-amber-700" /> LEADER
                     </span>
                   )}
@@ -207,7 +207,7 @@ export function StudentSelector({
                   ? "Hide Student Record Directory"
                   : "+ Add / Remove Students from Record Directory"}
               </span>
-              <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200/50 font-extrabold">
+              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200/50 font-extrabold">
                 {students.length} Records Available
               </span>
             </button>
@@ -274,21 +274,21 @@ export function StudentSelector({
                             <div className="text-left">
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-xs text-slate-800">{s.name}</span>
-                                <span className="text-[10px] text-blue-600 font-bold bg-blue-50 border border-blue-200/60 px-1.5 py-0.5 rounded">
+                                <span className="text-xs text-blue-600 font-bold bg-blue-50 border border-blue-200/60 px-1.5 py-0.5 rounded">
                                   {s.registerNumber || (s as any).rollNo || sId}
                                 </span>
                                 {isLeader && (
-                                  <span className="bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5 border border-amber-300">
+                                  <span className="bg-amber-100 text-amber-800 text-xs px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5 border border-amber-300">
                                     <Crown className="w-2.5 h-2.5 text-amber-700" /> LEADER
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2 mt-0.5">
+                              <div className="text-xs text-slate-500 font-medium flex items-center gap-2 mt-0.5">
                                 <span>{s.department || "Computer Science"}</span>
                                 <span>&bull;</span>
                                 <span>Year {s.year || "3"}</span>
                                 <span>&bull;</span>
-                                <span className="truncate max-w-[140px] text-slate-400">{s.email || sId}</span>
+                                <span className="truncate max-w-[min(100%,_140px)] text-slate-400">{s.email || sId}</span>
                               </div>
                             </div>
                           </div>

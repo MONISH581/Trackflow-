@@ -65,7 +65,7 @@ export default function App() {
               <AlertCircle className="w-8 h-8 animate-pulse text-blue-600" />
             </div>
             <div className="space-y-2">
-              <span className="inline-block text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200/60 px-3 py-1 rounded-full">
+              <span className="inline-block text-xs font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200/60 px-3 py-1 rounded-full">
                 {currentUser.status === "pending" ? "Teacher Approval Required" : "Access Declined"}
               </span>
               <h2 className="text-2xl font-black text-slate-900">

@@ -163,7 +163,7 @@ export default function HackathonHub() {
               >
                 Verification Panel
                 {hackathonRegistrations.filter(r => r.verificationStatus === 'Pending').length > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-[10px] bg-rose-500 text-white rounded-full font-bold">
+                  <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-rose-500 text-white rounded-full font-bold">
                     {hackathonRegistrations.filter(r => r.verificationStatus === 'Pending').length}
                   </span>
                 )}
@@ -349,7 +349,7 @@ export default function HackathonHub() {
                       <td className="p-3 text-slate-600">{interest.organizer}</td>
                       <td className="p-3 text-slate-500">{new Date(interest.expressedAt).toLocaleDateString()}</td>
                       <td className="p-3">
-                        <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                        <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full font-bold text-xs inline-flex items-center gap-1">
                           <Star className="w-3 h-3 text-amber-600 fill-amber-500" />
                           Interested
                         </span>
@@ -517,7 +517,7 @@ export default function HackathonHub() {
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                 <p className="text-xs font-bold text-indigo-600">{selectedHackathon.name}</p>
-                <p className="text-[11px] text-slate-500">Organizer: {selectedHackathon.organizer}</p>
+                <p className="text-xs text-slate-500">Organizer: {selectedHackathon.organizer}</p>
               </div>
 
               <div className="space-y-2">

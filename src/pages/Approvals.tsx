@@ -69,17 +69,17 @@ export default function Approvals() {
                 />
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200/40">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200/40">
                       Year {request.year} - Sec {request.section || 'A'}
                     </span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/40">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/40">
                       {request.preferredDomain || 'AI'}
                     </span>
                   </div>
                   <h3 className="font-bold text-slate-800 text-base">{request.name}</h3>
                   <p className="text-xs text-slate-500 font-semibold">{request.email}</p>
                   <p className="text-xs font-mono text-slate-600">Reg: {request.registerNumber || "Pending"}</p>
-                  <div className="text-[11px] text-slate-500 space-y-0.5 pt-1">
+                  <div className="text-xs text-slate-500 space-y-0.5 pt-1">
                     <p><span className="font-semibold text-slate-700">Department:</span> {request.department}</p>
                     <p><span className="font-semibold text-slate-700">Lab:</span> {request.lab || 'AI Lab'}</p>
                     {request.phone && <p><span className="font-semibold text-slate-700">Phone:</span> {request.phone}</p>}

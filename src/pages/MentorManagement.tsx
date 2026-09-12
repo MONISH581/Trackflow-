@@ -93,7 +93,7 @@ export default function MentorManagement() {
                   setSelectedProject(p);
                   setShowAssignModal(true);
                 }}
-                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition shadow-sm truncate max-w-[200px]"
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition shadow-sm truncate max-w-[min(100%,_200px)]"
                 title={`Assign Mentor to ${p.name}`}
               >
                 Assign: {p.name}
@@ -153,8 +153,8 @@ export default function MentorManagement() {
                     <div className="space-y-1.5">
                       {assignedProjectsList.map((p) => (
                         <div key={p.id || p._id} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/60 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-700 truncate max-w-[170px]">{p.name}</span>
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded font-semibold text-[10px]">{p.progress}%</span>
+                          <span className="font-semibold text-slate-700 truncate max-w-[min(100%,_170px)]">{p.name}</span>
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded font-semibold text-xs">{p.progress}%</span>
                         </div>
                       ))}
                     </div>

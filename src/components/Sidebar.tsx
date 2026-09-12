@@ -119,7 +119,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               <h1 className="text-lg font-black tracking-tight text-slate-900 leading-none">
                 TrackFlow <span className="text-indigo-600">AI</span>
               </h1>
-              <span className="inline-block mt-1 text-[9px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="inline-block mt-1 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Education Platform
               </span>
             </div>
@@ -127,7 +127,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
           {/* Navigation Links */}
           <nav className="flex-1 px-3 py-5 space-y-1.5 overflow-y-auto no-scrollbar">
-            <div className="px-3 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="px-3 pb-1.5 pt-1 text-xs font-bold uppercase tracking-wider text-slate-400">
               Menu Navigation
             </div>
             {menuItems.map((item) => {
@@ -153,7 +153,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     <span>{item.name}</span>
                   </div>
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="flex items-center justify-center px-2 py-0.5 text-[10px] font-extrabold text-white bg-rose-500 rounded-full shadow-sm">
+                    <span className="flex items-center justify-center px-2 py-0.5 text-xs font-extrabold text-white bg-rose-500 rounded-full shadow-sm">
                       {item.badge}
                     </span>
                   )}
@@ -175,7 +175,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</p>
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider truncate">{currentUser.role}</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">{currentUser.role}</p>
               </div>
             </div>
             <button

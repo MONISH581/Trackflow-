@@ -119,7 +119,7 @@ export default function Chat() {
                     }`}
                   >
                     <FolderDot className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate text-left max-w-[140px] md:max-w-none">{proj.name}</span>
+                    <span className="truncate text-left max-w-[min(100%,_140px)] md:max-w-none">{proj.name}</span>
                   </button>
                 );
               })
@@ -155,7 +155,7 @@ export default function Chat() {
               <h4 className="text-sm font-bold text-slate-800 leading-tight">
                 {roomInfo.title}
               </h4>
-              <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+              <p className="text-xs text-slate-500 font-semibold mt-0.5">
                 {roomInfo.description}
               </p>
             </div>
@@ -185,12 +185,12 @@ export default function Chat() {
                     }`}
                   >
                     {!isOwnMessage && (
-                      <span className="font-bold text-blue-600 block mb-1 text-[10px]">
+                      <span className="font-bold text-blue-600 block mb-1 text-xs">
                         {msg.user}
                       </span>
                     )}
                     <p className="leading-relaxed whitespace-pre-wrap font-sans">{msg.text}</p>
-                    <span className={`text-[9px] block text-right mt-1.5 leading-none ${isOwnMessage ? 'text-blue-200' : 'text-slate-400'}`}>
+                    <span className={`text-xs block text-right mt-1.5 leading-none ${isOwnMessage ? 'text-blue-200' : 'text-slate-400'}`}>
                       {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>

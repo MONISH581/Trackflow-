@@ -232,7 +232,7 @@ export default function Dashboard() {
         {/* Nixtio Hero Banner for Coordinator */}
         <div className="nixtio-hero-banner p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl z-10">
-            <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider text-indigo-200 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
+            <span className="inline-block text-xs font-extrabold uppercase tracking-wider text-indigo-200 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
               Coordinator Dashboard &bull; Academic Management
             </span>
             <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight leading-tight">
@@ -279,7 +279,7 @@ export default function Dashboard() {
                   <div className={`p-3 rounded-2xl ${card.iconBg} border ${card.color} shadow-xs group-hover:scale-105 transition-transform`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${card.badgeColor}`}>
+                  <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full border ${card.badgeColor}`}>
                     {card.badge}
                   </span>
                 </div>
@@ -401,7 +401,7 @@ export default function Dashboard() {
                       {/* Card Header */}
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2 py-0.5 rounded uppercase">
+                          <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2 py-0.5 rounded uppercase">
                             {p.department}
                           </span>
                           <h4 className="font-bold text-slate-800 text-sm truncate mt-1.5" title={p.name}>
@@ -409,7 +409,7 @@ export default function Dashboard() {
                           </h4>
                         </div>
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
                             isAtRisk
                               ? "bg-rose-100 text-rose-700 border border-rose-200"
                               : "bg-blue-50 text-blue-700 border border-blue-200"
@@ -424,7 +424,7 @@ export default function Dashboard() {
                         <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                           <span className="text-slate-500 font-semibold">Today&apos;s Daily Log:</span>
                           <span
-                            className={`px-2 py-0.5 rounded-[6px] text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-[6px] text-xs font-bold ${
                               p.hasReportToday
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                 : "bg-rose-50 text-rose-700 border border-rose-200 animate-pulse"
@@ -457,7 +457,7 @@ export default function Dashboard() {
                           </div>
                           
                           {p.githubRepo && (
-                            <div className="text-[10px] mt-1 border-t border-slate-200/60 pt-1 text-slate-500">
+                            <div className="text-xs mt-1 border-t border-slate-200/60 pt-1 text-slate-500">
                               {commitsLoading ? (
                                 <span className="italic text-slate-400">Verifying commits...</span>
                               ) : commitsInfo?.error ? (
@@ -476,7 +476,7 @@ export default function Dashboard() {
 
                       {/* Progress bar */}
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] text-slate-500 font-bold">
+                        <div className="flex justify-between text-xs text-slate-500 font-bold">
                           <span>Sprint Progress</span>
                           <span className="text-slate-800">{p.progress}%</span>
                         </div>
@@ -531,7 +531,7 @@ export default function Dashboard() {
 
               <div className="space-y-4">
                 <div>
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2 py-0.5 rounded">
+                  <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2 py-0.5 rounded">
                     {auditModalProject.department}
                   </span>
                   <h4 className="text-sm font-bold text-slate-800 mt-2">{auditModalProject.name}</h4>
@@ -606,7 +606,7 @@ export default function Dashboard() {
               <Briefcase className="w-8 h-8 text-blue-600" />
             </div>
             <div className="space-y-2">
-              <span className="inline-block text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200/60 px-3 py-1 rounded-full">
+              <span className="inline-block text-xs font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200/60 px-3 py-1 rounded-full">
                 Account Approved &bull; Pending Project Assignment
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900">
@@ -644,10 +644,10 @@ export default function Dashboard() {
         <div className="nixtio-hero-banner p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl z-10">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-200 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-200 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
                 Learner Workspace &bull; {currentUser.department || "Lab Core"}
               </span>
-              <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full border ${
+              <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
                 dailyReportStatus === "Submitted"
                   ? "bg-emerald-500/20 text-emerald-200 border-emerald-400/30"
                   : "bg-rose-500/20 text-rose-200 border-rose-400/30 animate-pulse"
@@ -705,7 +705,7 @@ export default function Dashboard() {
               </div>
 
               <div className="bg-slate-50 border border-slate-200/70 p-4 rounded-2xl space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Project Abstract</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Project Abstract</span>
                 <p className="text-xs text-slate-700 font-medium leading-relaxed">
                   {project.abstract || "Project documentation is actively being configured by your lab coordinator."}
                 </p>
@@ -745,7 +745,7 @@ export default function Dashboard() {
                   <CheckSquare className="w-4.5 h-4.5 text-indigo-600" />
                   Sprint Deliverables
                 </h3>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                   Top 5 Tasks
                 </span>
               </div>
@@ -763,10 +763,10 @@ export default function Dashboard() {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-slate-900 truncate">{t.title}</p>
-                        <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Due: {t.date}</p>
+                        <p className="text-xs text-slate-500 font-semibold mt-0.5">Due: {t.date}</p>
                       </div>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase shrink-0 ${
+                        className={`px-2 py-0.5 rounded-full text-xs font-extrabold uppercase shrink-0 ${
                           t.priority === "high"
                             ? "bg-rose-50 text-rose-700 border border-rose-200"
                             : t.priority === "medium"

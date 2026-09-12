@@ -154,11 +154,11 @@ export default function Projects() {
             >
               <div>
                 <div className="flex justify-between items-start mb-3">
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/40 px-2 py-0.5 rounded">
+                  <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200/40 px-2 py-0.5 rounded">
                     {project.department}
                   </span>
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
                       (project.status as string) === "Active"
                         ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
                         : (project.status as string) === "At Risk" || (project.status as string) === "On Hold" || (project.status as string) === "MILESTONE_REVIEW_REQUIRED"
@@ -184,15 +184,15 @@ export default function Projects() {
                   {/* Leader */}
                   <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
                     <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <span className="text-slate-400 text-[11px]">Leader:</span>
-                    <span className="font-bold text-slate-800 text-[11px] truncate">
+                    <span className="text-slate-400 text-xs">Leader:</span>
+                    <span className="font-bold text-slate-800 text-xs truncate">
                       {project.teamLeader ? findStudentDetails(project.teamLeader) : "Unassigned"}
                     </span>
                   </div>
 
                   {/* Members */}
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
                       <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span>Members ({project.teamMembers ? project.teamMembers.length : 0}/5):</span>
                     </div>
@@ -201,14 +201,14 @@ export default function Projects() {
                         {project.teamMembers.map((mId, idx) => (
                           <span
                             key={idx}
-                            className="inline-block bg-slate-100 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-200/60"
+                            className="inline-block bg-slate-100 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded border border-slate-200/60"
                           >
                             {findStudentDetails(mId)}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-[10px] text-slate-400 italic">No members assigned</span>
+                      <span className="text-xs text-slate-400 italic">No members assigned</span>
                     )}
                   </div>
                 </div>
@@ -218,7 +218,7 @@ export default function Projects() {
                 {/* Progress bar (coordinator / admin) */}
                 {(currentUser?.role === "coordinator" || currentUser?.role === "master_admin") && (
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[11px] text-slate-500 font-bold">
+                    <div className="flex justify-between text-xs text-slate-500 font-bold">
                       <span>Progress</span>
                       <span className="font-bold text-slate-800">{project.progress}%</span>
                     </div>
@@ -237,14 +237,14 @@ export default function Projects() {
                     {/* Time Extension Approval Banner */}
                     {(project as any).extensionStatus === "PENDING" && (
                       <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl space-y-2 text-xs">
-                        <div className="flex items-center justify-between text-amber-900 font-bold text-[11px]">
+                        <div className="flex items-center justify-between text-amber-900 font-bold text-xs">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5 text-amber-600" />
                             Extension Request: +{(project as any).requestedExtensionDays || 14} Days
                           </span>
                         </div>
                         {(project as any).extensionReason && (
-                          <p className="text-[10px] text-amber-700 italic">
+                          <p className="text-xs text-amber-700 italic">
                             &quot;{(project as any).extensionReason}&quot;
                           </p>
                         )}
@@ -255,7 +255,7 @@ export default function Projects() {
                               e.stopPropagation();
                               await respondProjectExtension(project.id || project._id!, true);
                             }}
-                            className="flex-1 py-1 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 transition shadow-sm"
+                            className="flex-1 py-1 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition shadow-sm"
                           >
                             <CheckCircle2 className="w-3 h-3" /> Approve
                           </button>
@@ -265,7 +265,7 @@ export default function Projects() {
                               e.stopPropagation();
                               await respondProjectExtension(project.id || project._id!, false);
                             }}
-                            className="py-1 px-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 transition"
+                            className="py-1 px-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition"
                           >
                             <XCircle className="w-3 h-3" /> Reject
                           </button>
@@ -277,13 +277,13 @@ export default function Projects() {
                     {(project.status === "MILESTONE_REVIEW_REQUIRED" ||
                       (project.progress >= (project.maxAllowedProgress || 25) && (project.maxAllowedProgress || 25) < 100)) && (
                       <div className="bg-blue-50/90 border border-blue-200 p-2.5 rounded-xl space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between font-bold text-blue-900 text-[11px]">
+                        <div className="flex items-center justify-between font-bold text-blue-900 text-xs">
                           <span className="flex items-center gap-1">
                             <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
                             Milestone Approval ({project.maxAllowedProgress || 25}% Review)
                           </span>
                         </div>
-                        <p className="text-[10px] text-blue-700 leading-tight">
+                        <p className="text-xs text-blue-700 leading-tight">
                           Progress locked at {project.maxAllowedProgress || 25}%. Review student presentation and approve.
                         </p>
                         <button
@@ -298,7 +298,7 @@ export default function Projects() {
                                 : 100;
                             await approveProjectMilestone(project.id || project._id!, nextMilestone);
                           }}
-                          className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-[10px] flex items-center justify-center gap-1.5 shadow-sm transition"
+                          className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           Approve {project.maxAllowedProgress || 25}% Review &amp; Unlock {
@@ -311,7 +311,7 @@ export default function Projects() {
                 )}
 
                 <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-                  <span className="text-[10px] text-slate-400 font-semibold">
+                  <span className="text-xs text-slate-400 font-semibold">
                     Workspace #{project.id ? project.id.slice(-6) : "NEW"}
                   </span>
                   <Link

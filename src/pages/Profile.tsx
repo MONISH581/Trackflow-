@@ -151,7 +151,7 @@ export default function Profile() {
           <div className="space-y-1.5 text-center sm:text-left flex-1">
             <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
               <h2 className="text-2xl font-black text-slate-900">{name}</h2>
-              <span className="px-3 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-200/60">
+              <span className="px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-200/60">
                 {currentUser.role.replace("_", " ")}
               </span>
             </div>
@@ -160,10 +160,10 @@ export default function Profile() {
             </p>
             {isStudent && (
               <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                <span className="text-[10px] font-extrabold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
+                <span className="text-xs font-extrabold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
                   Reg: {registerNumber || "Pending"}
                 </span>
-                <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-200/50">
+                <span className="text-xs font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-200/50">
                   Year {year}
                 </span>
               </div>
@@ -183,7 +183,7 @@ export default function Profile() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   Official Email Address *
                 </label>
                 <div className="relative">
@@ -199,7 +199,7 @@ export default function Profile() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   Update Account Password (Optional)
                 </label>
                 <div className="relative">
@@ -234,7 +234,7 @@ export default function Profile() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   Full Name *
                 </label>
                 <input
@@ -247,7 +247,7 @@ export default function Profile() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   Department *
                 </label>
                 <input
@@ -260,7 +260,7 @@ export default function Profile() {
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   Contact Phone Number
                 </label>
                 <div className="relative">
@@ -287,7 +287,7 @@ export default function Profile() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                     Register Number *
                   </label>
                   <input
@@ -300,7 +300,7 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                     Academic Year *
                   </label>
                   <select
@@ -316,7 +316,7 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                     Assigned Research Lab *
                   </label>
                   <select
@@ -333,7 +333,7 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                     Preferred Specialization Domain
                   </label>
                   <input
@@ -370,7 +370,7 @@ export default function Profile() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   GitHub Repository / Username URL *
                 </label>
                 <input
@@ -385,7 +385,7 @@ export default function Profile() {
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   GitHub Personal Access Token (Optional for Private Repos)
                 </label>
                 <input

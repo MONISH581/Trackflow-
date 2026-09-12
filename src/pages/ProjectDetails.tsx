@@ -358,14 +358,14 @@ export default function ProjectDetails() {
       <div className="flex flex-col lg:flex-row gap-6 justify-between lg:items-center">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2.5 py-0.5 rounded">
+            <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200/50 px-2.5 py-0.5 rounded">
               {project.department}
             </span>
 
             {/* Deadline Countdown Badge */}
             {daysRemaining !== null && (
               <span
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded ${
+                className={`text-xs font-bold px-2.5 py-0.5 rounded ${
                   daysRemaining < 0
                     ? "bg-rose-600 text-white"
                     : daysRemaining <= 3
@@ -425,7 +425,7 @@ export default function ProjectDetails() {
                       navigator.clipboard.writeText(cleanUrl || "");
                       addToast("Student GitHub Repository URL copied to clipboard!", "success");
                     }}
-                    className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-[10px] font-bold border border-blue-200"
+                    className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-bold border border-blue-200"
                   >
                     Copy URL
                   </button>
@@ -559,7 +559,7 @@ export default function ProjectDetails() {
                                 Project Completion Percentage ({progress}%)
                               </label>
                               {currentUser?.role === "student" && (
-                                <span className="text-[10px] font-extrabold px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                                <span className="text-xs font-extrabold px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded">
                                   Unlocked Up To: {maxLimit}%
                                 </span>
                               )}
@@ -594,7 +594,7 @@ export default function ProjectDetails() {
                           <TrendingUp className="w-4 h-4 text-blue-600" />
                           Quarterly Milestone Review & Access Control (Every 25%)
                         </h4>
-                        <p className="text-[11px] text-slate-500 font-medium">
+                        <p className="text-xs text-slate-500 font-medium">
                           Reviews occur at 25%, 50%, 75%, and 100%. Access to each next phase requires coordinator approval.
                         </p>
                       </div>
@@ -618,7 +618,7 @@ export default function ProjectDetails() {
                             }`}
                           >
                             <span className="text-xs font-black block">Phase {m / 25} ({m}%)</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full inline-block ${
                               isUnlocked ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
                             }`}>
                               {isUnlocked ? "✓ Unlocked" : "🔒 Review Locked"}
@@ -628,7 +628,7 @@ export default function ProjectDetails() {
                               <button
                                 type="button"
                                 onClick={() => approveProjectMilestone(currentProjectId, m - 25)}
-                                className="w-full py-1.5 px-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-bold transition shadow-xs mt-1"
+                                className="w-full py-1.5 px-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow-xs mt-1"
                               >
                                 Approve {m - 25}% & Unlock {m}%
                               </button>
@@ -665,7 +665,7 @@ export default function ProjectDetails() {
                             <Calendar className="w-4 h-4 text-amber-600" />
                             Project Time Extension Management
                           </h4>
-                          <p className="text-[11px] text-amber-700 font-medium mt-0.5">
+                          <p className="text-xs text-amber-700 font-medium mt-0.5">
                             {progress >= 100
                               ? "Project completed 100%. Submit an extension request if further development time or deliverables are required."
                               : "Deadline extension request workflow for post-completion or further development."}
@@ -689,7 +689,7 @@ export default function ProjectDetails() {
                             <span className="font-extrabold text-amber-800">
                               ⏳ Requested Extension: +{project.requestedExtensionDays || 7} Days
                             </span>
-                            <span className="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md font-extrabold border border-amber-200">
+                            <span className="text-xs bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md font-extrabold border border-amber-200">
                               Pending Coordinator Review
                             </span>
                           </div>
@@ -888,7 +888,7 @@ export default function ProjectDetails() {
                 <Github className="w-4 h-4 text-blue-600" />
                 GitHub Work Commits
               </span>
-              <span className="text-[10px] text-slate-500 font-bold uppercase">
+              <span className="text-xs text-slate-500 font-bold uppercase">
                 {commits.length} Logs
               </span>
             </h3>
@@ -919,7 +919,7 @@ export default function ProjectDetails() {
                         className="w-7 h-7 rounded-full flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200/60 flex items-center justify-center text-[10px] font-bold text-blue-600 flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200/60 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">
                         GH
                       </div>
                     )}
@@ -927,7 +927,7 @@ export default function ProjectDetails() {
                       <p className="font-semibold text-slate-800 truncate leading-snug">
                         {c.commit.message}
                       </p>
-                      <div className="flex justify-between items-center text-[10px] text-slate-500 font-medium">
+                      <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
                         <span>{c.commit.author.name}</span>
                         <span>{new Date(c.commit.author.date).toLocaleDateString()}</span>
                       </div>
@@ -970,7 +970,7 @@ export default function ProjectDetails() {
                   >
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-800 truncate">{file.name}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5">
                         {(file.size / 1024 / 1024).toFixed(2)} MB &bull;{" "}
                         {new Date(file.uploadedAt).toLocaleDateString()}
                       </p>
@@ -1015,7 +1015,7 @@ export default function ProjectDetails() {
                     <div className="absolute -left-[5.5px] top-1 w-2.5 h-2.5 rounded-full bg-blue-600" />
                     <div className="flex flex-wrap items-center justify-between gap-1 text-slate-500">
                       <span className="font-bold text-slate-800 text-xs">Version {hist.version}</span>
-                      <span className="text-[10px] font-semibold text-slate-500">
+                      <span className="text-xs font-semibold text-slate-500">
                         {new Date(hist.updatedAt).toLocaleDateString()}
                       </span>
                     </div>
@@ -1039,7 +1039,7 @@ export default function ProjectDetails() {
                 <Calendar className="w-4.5 h-4.5 text-emerald-600" />
                 Submit Daily Work Report
               </h3>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
+              <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
                 {new Date().toISOString().split("T")[0]}
               </span>
             </div>

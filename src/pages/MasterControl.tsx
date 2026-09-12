@@ -158,7 +158,7 @@ export default function MasterControl() {
                   <div className="min-w-0">
                     <h4 className="font-extrabold text-sm text-slate-900 truncate">{teacher.name}</h4>
                     <p className="text-xs text-slate-500 truncate">{teacher.email}</p>
-                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
                       {teacher.department || "Teacher"}
                     </span>
                   </div>
@@ -290,7 +290,7 @@ export default function MasterControl() {
                     <img src={user.avatar} className="w-10 h-10 rounded-xl object-cover" />
                     <div className="min-w-0">
                       <h4 className="font-extrabold text-xs text-slate-900 truncate">{user.name}</h4>
-                      <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -316,8 +316,8 @@ export default function MasterControl() {
                     <img src={user.avatar} className="w-10 h-10 rounded-xl object-cover" />
                     <div className="min-w-0">
                       <h4 className="font-extrabold text-xs text-slate-900 truncate">{user.name}</h4>
-                      <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Admin Teacher</span>
+                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Admin Teacher</span>
                     </div>
                   </div>
                   <button
@@ -338,8 +338,8 @@ export default function MasterControl() {
                   <img src={user.avatar} className="w-10 h-10 rounded-xl object-cover" />
                   <div className="min-w-0">
                     <h4 className="font-extrabold text-xs text-slate-900 truncate">{user.name}</h4>
-                    <p className="text-[11px] text-purple-700 truncate">{user.email}</p>
-                    <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded">Master Controller</span>
+                    <p className="text-xs text-purple-700 truncate">{user.email}</p>
+                    <span className="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded">Master Controller</span>
                   </div>
                 </div>
               </div>
@@ -356,8 +356,8 @@ export default function MasterControl() {
                     <img src={user.avatar} className="w-10 h-10 rounded-xl object-cover" />
                     <div className="min-w-0">
                       <h4 className="font-extrabold text-xs text-slate-900 truncate">{user.name}</h4>
-                      <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
-                      <span className="text-[10px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded">Reg: {user.registerNumber || "Pending"}</span>
+                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      <span className="text-xs font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded">Reg: {user.registerNumber || "Pending"}</span>
                     </div>
                   </div>
                   <button
@@ -381,7 +381,7 @@ export default function MasterControl() {
             <Building className="w-4 h-4 text-blue-600" />
           </div>
           <p className="text-2xl font-extrabold text-slate-900">{overview?.totalLabs || 7}</p>
-          <span className="text-[10px] text-slate-500 font-medium">Official Labs</span>
+          <span className="text-xs text-slate-500 font-medium">Official Labs</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -390,7 +390,7 @@ export default function MasterControl() {
             <Users className="w-4 h-4 text-indigo-600" />
           </div>
           <p className="text-2xl font-extrabold text-slate-900">{studentsList.length}</p>
-          <span className="text-[10px] text-slate-500 font-medium">Enrolled Students</span>
+          <span className="text-xs text-slate-500 font-medium">Enrolled Students</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -399,7 +399,7 @@ export default function MasterControl() {
             <Users className="w-4 h-4 text-purple-600" />
           </div>
           <p className="text-2xl font-extrabold text-slate-900">{approvedTeachers.length}</p>
-          <span className="text-[10px] text-purple-600 font-bold">{pendingTeachers.length} Pending</span>
+          <span className="text-xs text-purple-600 font-bold">{pendingTeachers.length} Pending</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -408,7 +408,7 @@ export default function MasterControl() {
             <Briefcase className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-2xl font-extrabold text-slate-900">{overview?.totalProjects || 0}</p>
-          <span className="text-[10px] text-emerald-600 font-bold">{overview?.activeProjects || 0} Active</span>
+          <span className="text-xs text-emerald-600 font-bold">{overview?.activeProjects || 0} Active</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -417,7 +417,7 @@ export default function MasterControl() {
             <AlertTriangle className="w-4 h-4 text-rose-600" />
           </div>
           <p className="text-2xl font-extrabold text-rose-600">{overview?.lockedStudents || 0}</p>
-          <span className="text-[10px] text-rose-600 font-bold">Access Restricted</span>
+          <span className="text-xs text-rose-600 font-bold">Access Restricted</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -426,7 +426,7 @@ export default function MasterControl() {
             <FileText className="w-4 h-4 text-cyan-600" />
           </div>
           <p className="text-2xl font-extrabold text-slate-900">{overview?.totalDailyReports || 0}</p>
-          <span className="text-[10px] text-slate-500 font-medium">Total Daily Reports</span>
+          <span className="text-xs text-slate-500 font-medium">Total Daily Reports</span>
         </div>
       </div>
     </div>

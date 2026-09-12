@@ -229,8 +229,8 @@ export default function Login() {
         </button>
 
         {/* Ambient Blur Blobs */}
-        <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-blue-400/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
-        <div className="absolute bottom-1/3 right-1/4 w-[500px] h-[500px] bg-purple-400/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute top-1/3 left-1/4 w-[min(100%,_500px)] h-[500px] bg-blue-400/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute bottom-1/3 right-1/4 w-[min(100%,_500px)] h-[500px] bg-purple-400/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
         <AnimatePresence mode="wait">
           {splashStage === "siet" && (
@@ -312,7 +312,7 @@ export default function Login() {
           </div>
           <div>
             <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">SIET TrackFlow AI</h1>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Student Innovation Platform</span>
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Student Innovation Platform</span>
           </div>
         </div>
 
@@ -421,7 +421,7 @@ export default function Login() {
           </div>
           {/* Role Selection Tabs */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+            <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
               Select Role *
             </label>
             <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
@@ -435,7 +435,7 @@ export default function Login() {
                   setName("");
                   setRegisterNumber("");
                 }}
-                className={`py-2 px-1 rounded-xl transition text-[11px] sm:text-xs text-center truncate ${
+                className={`py-2 px-1 rounded-xl transition text-xs sm:text-xs text-center truncate ${
                   role === "student"
                     ? "bg-blue-600 text-white font-black shadow-md shadow-blue-500/20"
                     : "text-slate-500 hover:text-slate-900"
@@ -453,7 +453,7 @@ export default function Login() {
                   setName("");
                   setRegisterNumber("");
                 }}
-                className={`py-2 px-1 rounded-xl transition text-[11px] sm:text-xs text-center truncate ${
+                className={`py-2 px-1 rounded-xl transition text-xs sm:text-xs text-center truncate ${
                   role === "coordinator"
                     ? "bg-blue-600 text-white font-black shadow-md shadow-blue-500/20"
                     : "text-slate-500 hover:text-slate-900"
@@ -476,7 +476,7 @@ export default function Login() {
                     addToast("Master Admins cannot self-register. Existing Master Admins add new Masters inside Master Control.", "info");
                   }
                 }}
-                className={`py-2 px-1 rounded-xl transition text-[11px] sm:text-xs text-center truncate ${
+                className={`py-2 px-1 rounded-xl transition text-xs sm:text-xs text-center truncate ${
                   role === "master_admin"
                     ? "bg-purple-600 text-white font-black shadow-md shadow-purple-500/20"
                     : "text-slate-500 hover:text-slate-900"
@@ -529,7 +529,7 @@ export default function Login() {
             </div>
           ) : (
             <div className="bg-purple-50 border border-purple-200/60 p-3 rounded-2xl text-center">
-              <span className="text-[11px] font-black uppercase tracking-wider text-purple-700">
+              <span className="text-xs font-black uppercase tracking-wider text-purple-700">
                 Master Admin Portal — Authorized Login Only
               </span>
             </div>
@@ -538,7 +538,7 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Address Field */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+              <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                 {role === "student"
                   ? "College Email (Format: name24cs@srishakthi.ac.in) *"
                   : role === "coordinator"
@@ -565,7 +565,7 @@ export default function Login() {
             {/* Password Field for Login mode */}
             {mode === "signin" && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+                <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                   Password *
                 </label>
                 <div className="relative">
@@ -594,7 +594,7 @@ export default function Login() {
             {mode === "signup" && (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+                  <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                     Full Name *
                   </label>
                   <input
@@ -610,7 +610,7 @@ export default function Login() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                       Password *
                     </label>
                     <div className="relative">
@@ -634,7 +634,7 @@ export default function Login() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                       Confirm Password *
                     </label>
                     <div className="relative">
@@ -666,7 +666,7 @@ export default function Login() {
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                       Register No *
                     </label>
                     <input
@@ -679,13 +679,13 @@ export default function Login() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 block">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                       Assigned Lab *
                     </label>
                     <select
                       value={lab}
                       onChange={(e) => setLab(e.target.value)}
-                      className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-[11px] cursor-pointer focus:outline-none focus:border-blue-600 focus:bg-white"
+                      className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs cursor-pointer focus:outline-none focus:border-blue-600 focus:bg-white"
                     >
                       {OFFICIAL_LABS.map((l) => (
                         <option key={l} value={l} className="bg-white text-slate-900">

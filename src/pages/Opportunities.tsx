@@ -373,7 +373,7 @@ export default function Opportunities() {
                   setStatus("");
                   setSelectedCategory("");
                 }}
-                className="text-[10px] font-bold text-slate-400 hover:text-blue-600 transition uppercase tracking-wider"
+                className="text-xs font-bold text-slate-400 hover:text-blue-600 transition uppercase tracking-wider"
               >
                 Clear All
               </button>
@@ -493,12 +493,12 @@ export default function Opportunities() {
                 </h4>
                 <button
                   onClick={() => setActiveTab("recommendations")}
-                  className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition"
+                  className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition"
                 >
                   View All
                 </button>
               </div>
-              <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+              <p className="text-xs text-slate-500 font-semibold leading-normal">
                 Curated based on your interests and tech skills matching opportunity tags.
               </p>
               
@@ -513,11 +513,11 @@ export default function Opportunities() {
                       <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate flex-1 block">
                         {opp.title}
                       </span>
-                      <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded font-bold uppercase shrink-0">
+                      <span className="text-xs px-1.5 py-0.5 bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded font-bold uppercase shrink-0">
                         {opp.category}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">
                       <span>{opp.organizer}</span>
                       <span className="text-indigo-600 dark:text-blue-400 font-bold">
                         {opp.government_level ? opp.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{opp.mode}
@@ -761,12 +761,12 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
         {/* Featured / New / Trending Badge overlays */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
           {opp.featured && (
-            <span className="px-2 py-0.5 bg-blue-600 text-white rounded text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center gap-0.5">
+            <span className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs font-bold uppercase tracking-wider shadow-sm flex items-center gap-0.5">
               <Sparkles className="w-2.5 h-2.5 fill-white" /> Featured
             </span>
           )}
           {opp.trending && (
-            <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center gap-0.5">
+            <span className="px-2 py-0.5 bg-amber-500 text-white rounded text-xs font-bold uppercase tracking-wider shadow-sm flex items-center gap-0.5">
               <Zap className="w-2.5 h-2.5 fill-white" /> Trending
             </span>
           )}
@@ -774,7 +774,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
 
         {/* Floating Category Badge Overlay */}
         <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-white">
-          <span className="text-[10px] font-bold tracking-tight uppercase">
+          <span className="text-xs font-bold tracking-tight uppercase">
             {opp.category}
           </span>
         </div>
@@ -821,7 +821,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
             </span>
             <span className="flex items-center gap-1">
               <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span className="truncate max-w-[130px]">{opp.prizePool}</span>
+              <span className="truncate max-w-[min(100%,_130px)]">{opp.prizePool}</span>
             </span>
           </div>
 
@@ -835,7 +835,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
             {opp.tags.slice(0, 3).map((tag, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-blue-100/80 text-[10px] text-blue-900 font-extrabold rounded-md border border-blue-200/60"
+                className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-blue-100/80 text-xs text-blue-900 font-extrabold rounded-md border border-blue-200/60"
               >
                 #{tag}
               </span>
@@ -855,7 +855,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
               </div>
             ) : (
               <div className="space-y-0.5">
-                <span className="text-[10px] text-slate-700 uppercase tracking-wider block font-extrabold">Ends In</span>
+                <span className="text-xs text-slate-700 uppercase tracking-wider block font-extrabold">Ends In</span>
                 <div className="flex items-center gap-1 text-xs text-blue-800 font-black">
                   <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   <span>{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m</span>

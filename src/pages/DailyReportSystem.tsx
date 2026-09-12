@@ -251,7 +251,7 @@ export default function DailyReportSystem() {
                     onChange={(e) => setFormData({ ...formData, progress: Number(e.target.value) })}
                     className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                   />
-                  <span className="px-3 py-1.5 bg-blue-50 text-blue-700 font-bold text-sm rounded-lg border border-blue-200/60 min-w-[55px] text-center">
+                  <span className="px-3 py-1.5 bg-blue-50 text-blue-700 font-bold text-sm rounded-lg border border-blue-200/60 min-w-[min(100%,_55px)] text-center">
                     {formData.progress}%
                   </span>
                 </div>

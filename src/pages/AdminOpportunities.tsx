@@ -239,7 +239,7 @@ export default function AdminOpportunities() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="glass-card p-5 border border-slate-200/50 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Listings</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Listings</span>
             <span className="text-2xl font-black text-slate-800 dark:text-slate-100 block">{opportunities.length}</span>
           </div>
           <div className="p-3 bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-xl">
@@ -249,7 +249,7 @@ export default function AdminOpportunities() {
 
         <div className="glass-card p-5 border border-slate-200/50 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cumulative Views</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cumulative Views</span>
             <span className="text-2xl font-black text-slate-800 dark:text-slate-100 block">{totalViews}</span>
           </div>
           <div className="p-3 bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl">
@@ -259,7 +259,7 @@ export default function AdminOpportunities() {
 
         <div className="glass-card p-5 border border-slate-200/50 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Saves</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Saves</span>
             <span className="text-2xl font-black text-slate-800 dark:text-slate-100 block">{totalBookmarks}</span>
           </div>
           <div className="p-3 bg-rose-50 dark:bg-slate-800 text-rose-600 dark:text-rose-400 rounded-xl">
@@ -269,7 +269,7 @@ export default function AdminOpportunities() {
 
         <div className="glass-card p-5 border border-slate-200/50 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Featured Items</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Featured Items</span>
             <span className="text-2xl font-black text-slate-800 dark:text-slate-100 block">{featuredCount}</span>
           </div>
           <div className="p-3 bg-yellow-50 dark:bg-slate-800 text-yellow-600 dark:text-yellow-400 rounded-xl">
@@ -298,7 +298,7 @@ export default function AdminOpportunities() {
               <div key={opp.id || opp._id} className="p-4 bg-white rounded-xl border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded">
+                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-xs rounded">
                       {opp.category}
                     </span>
                     <span className="text-xs text-slate-500 font-medium">Submitted by: {opp.submittedByName || "Student"}</span>
@@ -376,10 +376,10 @@ export default function AdminOpportunities() {
               {opportunities.map((opp) => (
                 <tr key={opp.id || opp._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                   <td className="p-4">
-                    <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm truncate max-w-[200px]">
+                    <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm truncate max-w-[min(100%,_200px)]">
                       {opp.title}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-semibold mt-1">
+                    <div className="text-xs text-slate-400 font-semibold mt-1">
                       by {opp.organizer}
                     </div>
                   </td>
@@ -389,7 +389,7 @@ export default function AdminOpportunities() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <div className="flex flex-col gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                    <div className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">
                       <span className="flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-slate-400" /> {opp.government_level ? opp.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{opp.mode} ({opp.location})
                       </span>
@@ -488,7 +488,7 @@ export default function AdminOpportunities() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Opportunity Title *</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Opportunity Title *</label>
                   <input
                     type="text"
                     required
@@ -500,7 +500,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Organizer Name *</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Organizer Name *</label>
                   <input
                     type="text"
                     required
@@ -512,7 +512,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Category *</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Category *</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
@@ -535,7 +535,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Event Mode</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Event Mode</label>
                   <select
                     value={mode}
                     onChange={(e) => setMode(e.target.value as any)}
@@ -548,7 +548,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Location (Venue/City)</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Location (Venue/City)</label>
                   <input
                     type="text"
                     value={location}
@@ -559,7 +559,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Official Website URL</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Official Website URL</label>
                   <input
                     type="url"
                     value={website}
@@ -570,7 +570,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prize Pool / Stipend Info</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Prize Pool / Stipend Info</label>
                   <input
                     type="text"
                     value={prizePool}
@@ -581,7 +581,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Target Audience Scope</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Target Audience Scope</label>
                   <select
                     value={targetAudience}
                     onChange={(e) => setTargetAudience(e.target.value as any)}
@@ -594,7 +594,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Difficulty Rating</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Difficulty Rating</label>
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value as any)}
@@ -607,7 +607,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Entry Fee Parameter</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Entry Fee Parameter</label>
                   <select
                     value={freeOrPaid}
                     onChange={(e) => setFreeOrPaid(e.target.value as any)}
@@ -619,7 +619,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Reg Deadline Date *</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Reg Deadline Date *</label>
                   <input
                     type="date"
                     required
@@ -630,7 +630,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Event Start Date *</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Event Start Date *</label>
                   <input
                     type="date"
                     required
@@ -641,7 +641,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Event End Date *</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Event End Date *</label>
                   <input
                     type="date"
                     required
@@ -652,7 +652,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Skills / Focus Tags (comma-separated)</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Skills / Focus Tags (comma-separated)</label>
                   <input
                     type="text"
                     value={tagsStr}
@@ -667,7 +667,7 @@ export default function AdminOpportunities() {
               {/* Text areas */}
               <div className="space-y-4 pt-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Summary Description *</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Summary Description *</label>
                   <textarea
                     required
                     rows={3}
@@ -679,7 +679,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Eligibility Specifications</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Eligibility Specifications</label>
                   <textarea
                     rows={2}
                     value={eligibility}
@@ -690,7 +690,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Contest Timeline details</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Contest Timeline details</label>
                   <textarea
                     rows={2}
                     value={timeline}
@@ -701,7 +701,7 @@ export default function AdminOpportunities() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rules & Evaluation Criteria</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Rules & Evaluation Criteria</label>
                   <textarea
                     rows={2}
                     value={rules}

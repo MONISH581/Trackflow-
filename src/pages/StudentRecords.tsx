@@ -132,7 +132,7 @@ export default function StudentRecords() {
                     <div className="text-left min-w-0 flex-1">
                       <h3 className="font-bold text-slate-800 text-sm sm:text-base leading-snug truncate">{student.name}</h3>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 mt-0.5 font-medium">
-                        <span className="truncate max-w-[180px] sm:max-w-none">{student.email}</span>
+                        <span className="truncate max-w-[min(100%,_180px)] sm:max-w-none">{student.email}</span>
                         <span className="text-slate-300 hidden sm:inline">&bull;</span>
                         <span className="text-blue-600 font-bold">{student.department}</span>
                         <span className="text-slate-300 hidden sm:inline">&bull;</span>
@@ -143,11 +143,11 @@ export default function StudentRecords() {
 
                   <div className="flex flex-wrap sm:flex-nowrap items-center justify-between md:justify-end gap-3 sm:gap-6 border-t md:border-t-0 border-slate-200 pt-3 md:pt-0">
                     <div className="text-left md:text-right space-y-1 min-w-0">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
+                      <span className="text-xs uppercase font-bold tracking-wider text-slate-500 block">
                         Linked Project
                       </span>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-slate-700 truncate max-w-[130px] sm:max-w-[160px]">
+                        <p className="text-xs font-bold text-slate-700 truncate max-w-[min(100%,_130px)] sm:max-w-[min(100%,_160px)]">
                           {project ? project.name : "Unassigned"}
                         </p>
                         {(currentUser?.role === "coordinator" || currentUser?.role === "master_admin") && (
@@ -158,7 +158,7 @@ export default function StudentRecords() {
                               setAssigningStudent(student);
                               if (project) setSelectedProjectId(project.id);
                             }}
-                            className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-200 flex items-center gap-1 transition shrink-0"
+                            className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 flex items-center gap-1 transition shrink-0"
                             title="Assign or reassign project"
                           >
                             <FolderPlus className="w-3 h-3 text-blue-600" />
@@ -169,7 +169,7 @@ export default function StudentRecords() {
                     </div>
 
                     <div className="text-left md:text-right space-y-1 shrink-0">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
+                      <span className="text-xs uppercase font-bold tracking-wider text-slate-500 block">
                         Last Activity
                       </span>
                       <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
@@ -200,7 +200,7 @@ export default function StudentRecords() {
                         </div>
                         <div className="glass-card p-4 border border-blue-200/40 flex flex-col justify-between text-left">
                           <div className="space-y-1">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                               Project Health
                             </span>
                             <div className="flex items-center gap-2 mt-1">
@@ -321,7 +321,7 @@ export default function StudentRecords() {
                                 href={`https://github.com/${project.githubRepo}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] text-blue-600 hover:underline inline-flex items-center gap-0.5 lowercase font-bold"
+                                className="text-xs text-blue-600 hover:underline inline-flex items-center gap-0.5 lowercase font-bold"
                               >
                                 {project.githubRepo}
                                 <Link2 className="w-3 h-3" />
@@ -331,7 +331,7 @@ export default function StudentRecords() {
                                   navigator.clipboard.writeText(`https://github.com/${project.githubRepo}`);
                                   alert("Student GitHub Repository URL copied to clipboard!");
                                 }}
-                                className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200"
+                                className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded border border-blue-200"
                               >
                                 Copy URL
                               </button>
@@ -477,7 +477,7 @@ function StudentCommitsViewer({ githubRepo }: { githubRepo: string }) {
             <span className="font-semibold text-slate-800 truncate block leading-tight">
               {c.commit.message}
             </span>
-            <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+            <span className="text-xs text-slate-500 font-medium block mt-0.5">
               By {c.commit.author.name} &bull; {new Date(c.commit.author.date).toLocaleDateString()}
             </span>
           </div>

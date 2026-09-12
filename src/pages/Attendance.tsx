@@ -430,9 +430,9 @@ export default function Attendance() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between shadow-sm">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Present Today ({selectedDate})</span>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">Present Today ({selectedDate})</span>
                 <p className="text-2xl font-black text-emerald-800 mt-1">{presentCount} <span className="text-xs font-bold text-emerald-600">/ {students.length}</span></p>
-                <span className="text-[11px] font-bold text-emerald-700">{attendancePercentage}% Attendance Rate</span>
+                <span className="text-xs font-bold text-emerald-700">{attendancePercentage}% Attendance Rate</span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
                 <CheckCircle className="w-6 h-6" />
@@ -441,9 +441,9 @@ export default function Attendance() {
 
             <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl flex items-center justify-between shadow-sm">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-700">Absent Today</span>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-rose-700">Absent Today</span>
                 <p className="text-2xl font-black text-rose-800 mt-1">{absentCount} <span className="text-xs font-bold text-rose-600">Students</span></p>
-                <span className="text-[11px] font-bold text-rose-700">Requires Coordinator Follow-up</span>
+                <span className="text-xs font-bold text-rose-700">Requires Coordinator Follow-up</span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold">
                 <XCircle className="w-6 h-6" />
@@ -452,9 +452,9 @@ export default function Attendance() {
 
             <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-center justify-between shadow-sm">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Total Enrolled</span>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Total Enrolled</span>
                 <p className="text-2xl font-black text-blue-900 mt-1">{students.length} <span className="text-xs font-bold text-blue-600">Students</span></p>
-                <span className="text-[11px] font-bold text-blue-700">Seven Laboratories</span>
+                <span className="text-xs font-bold text-blue-700">Seven Laboratories</span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
                 <ClipboardCheck className="w-6 h-6" />
@@ -466,7 +466,7 @@ export default function Attendance() {
           <div className="glass-card p-5 border border-blue-200/40 grid grid-cols-1 md:grid-cols-3 gap-4 items-center shadow-sm">
             {/* Date selector */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Select Date
               </label>
               <div className="relative">
@@ -483,7 +483,7 @@ export default function Attendance() {
 
             {/* Search filter */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Search Students
               </label>
               <div className="relative">
@@ -620,8 +620,8 @@ export default function Attendance() {
                       />
                       <div className="min-w-0 text-left">
                         <h4 className="font-bold text-slate-800 text-sm truncate">{s.name}</h4>
-                        <p className="text-[10px] text-slate-500 font-semibold truncate">{s.email}</p>
-                        <p className="text-[10px] text-blue-600 font-bold mt-0.5">
+                        <p className="text-xs text-slate-500 font-semibold truncate">{s.email}</p>
+                        <p className="text-xs text-blue-600 font-bold mt-0.5">
                           {s.department} &bull; Yr {s.year}
                         </p>
                       </div>
@@ -631,7 +631,7 @@ export default function Attendance() {
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); handleToggleAttendance(identifier, "Present"); }}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 ${
+                        className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold uppercase transition flex items-center justify-center gap-1 ${
                           status === "Present"
                             ? "bg-emerald-600 text-white shadow-sm"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -643,7 +643,7 @@ export default function Attendance() {
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); handleToggleAttendance(identifier, "Absent"); }}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 ${
+                        className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold uppercase transition flex items-center justify-center gap-1 ${
                           status === "Absent"
                             ? "bg-rose-600 text-white shadow-sm"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -675,7 +675,7 @@ export default function Attendance() {
 
             <form onSubmit={handleLabCheckIn} className="space-y-4 pt-2">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                   Select Student Profile
                 </label>
                 <select
@@ -749,8 +749,8 @@ export default function Attendance() {
                       </div>
                       <div className="min-w-0 text-left">
                         <h4 className="font-bold text-slate-800 text-sm truncate">{log.studentName}</h4>
-                        <p className="text-[10px] text-slate-500 font-semibold truncate">{log.studentEmail}</p>
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200/50 mt-2">
+                        <p className="text-xs text-slate-500 font-semibold truncate">{log.studentEmail}</p>
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200/50 mt-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
                           Checked-In at {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -760,7 +760,7 @@ export default function Attendance() {
                     <div className="flex justify-end mt-4 pt-3 border-t border-slate-100">
                       <button
                         onClick={() => handleLabCheckOut(log.studentId)}
-                        className="px-3.5 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-[10px] font-bold uppercase transition flex items-center gap-1"
+                        className="px-3.5 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-bold uppercase transition flex items-center gap-1"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         Check Out
@@ -793,7 +793,7 @@ export default function Attendance() {
 
             <form onSubmit={handleQuickRegister} className="space-y-4 relative z-10">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Full Name
                 </label>
                 <input
@@ -807,7 +807,7 @@ export default function Attendance() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Email Address
                 </label>
                 <input
@@ -818,14 +818,14 @@ export default function Attendance() {
                   onChange={(e) => setRegEmail(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
                 />
-                <p className="text-[9px] text-blue-600 font-medium">
+                <p className="text-xs text-blue-600 font-medium">
                   * Must be an official college email ending with @srishakthi.ac.in
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Department
                   </label>
                   <select
@@ -842,7 +842,7 @@ export default function Attendance() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Academic Year
                   </label>
                   <select

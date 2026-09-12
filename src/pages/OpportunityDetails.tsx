@@ -148,7 +148,7 @@ export default function OpportunityDetails() {
         {/* Floating overlays in banner */}
         <div className="absolute bottom-6 left-6 right-6 flex flex-col md:flex-row md:items-end justify-between gap-4 text-white">
           <div className="space-y-2 text-left">
-            <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded text-[10px] font-bold uppercase tracking-wider shadow-sm">
+            <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded text-xs font-bold uppercase tracking-wider shadow-sm">
               {opp.category}
             </span>
             <h1 className="text-2xl md:text-4xl font-black tracking-tight" title={opp.title}>
@@ -220,7 +220,7 @@ export default function OpportunityDetails() {
                   <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Skills / Focus Tags</h4>
                   <div className="flex flex-wrap gap-1.5">
                     {opp.tags.map((tag, idx) => (
-                      <span key={idx} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-600 dark:text-slate-400 font-bold rounded-lg border border-slate-200/40 dark:border-slate-700/40">
+                      <span key={idx} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-400 font-bold rounded-lg border border-slate-200/40 dark:border-slate-700/40">
                         #{tag}
                       </span>
                     ))}
@@ -280,19 +280,19 @@ export default function OpportunityDetails() {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                   <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-800 rounded-xl text-left">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Registration Ends</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Registration Ends</span>
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 block">
                       {new Date(opp.registrationDeadline).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-155 dark:border-slate-800 rounded-xl text-left">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Event Starts</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Event Starts</span>
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 block">
                       {new Date(opp.eventStartDate).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-155 dark:border-slate-800 rounded-xl text-left">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Event Ends</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Event Ends</span>
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 block">
                       {new Date(opp.eventEndDate).toLocaleDateString()}
                     </span>
@@ -339,7 +339,7 @@ export default function OpportunityDetails() {
           {/* Quick Registration Card */}
           <div className="glass-card p-6 border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5 shadow-sm text-left">
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Milestone Deadline</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Milestone Deadline</span>
               <h4 className="text-slate-800 dark:text-slate-100 font-bold text-sm flex items-center gap-1">
                 <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>Apply Before {new Date(opp.registrationDeadline).toLocaleDateString()}</span>
@@ -353,7 +353,7 @@ export default function OpportunityDetails() {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 font-semibold">Prize Pool / Stipend</span>
-                <span className="font-extrabold text-blue-600 dark:text-blue-400 truncate max-w-[150px]">{opp.prizePool}</span>
+                <span className="font-extrabold text-blue-600 dark:text-blue-400 truncate max-w-[min(100%,_150px)]">{opp.prizePool}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 font-semibold">Skill Level Req</span>
@@ -412,14 +412,14 @@ export default function OpportunityDetails() {
                     className="block p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-400/50 hover:scale-[1.01] transition-all shadow-sm"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase truncate flex-1 block">
+                      <span className="text-xs font-semibold text-slate-400 uppercase truncate flex-1 block">
                         {item.organizer}
                       </span>
                     </div>
                     <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs block mt-1 truncate">
                       {item.title}
                     </span>
-                    <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 mt-3 font-medium">
+                    <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mt-3 font-medium">
                       <span>{item.government_level ? item.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{item.mode}</span>
                       <span className="text-blue-600 dark:text-blue-400 font-bold">{item.freeOrPaid}</span>
                     </div>
