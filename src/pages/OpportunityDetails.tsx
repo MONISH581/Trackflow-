@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useStore, OpportunityInfo } from "../store.ts";
+import { useStore, OpportunityInfo, getPlatformSource } from "../store.ts";
 import {
   ArrowLeft,
   Calendar,
@@ -20,7 +20,8 @@ import {
   FileText,
   BadgeAlert,
   Info,
-  ChevronDown
+  ChevronDown,
+  Globe
 } from "lucide-react";
 
 export default function OpportunityDetails() {
@@ -148,8 +149,9 @@ export default function OpportunityDetails() {
         {/* Floating overlays in banner */}
         <div className="absolute bottom-6 left-6 right-6 flex flex-col md:flex-row md:items-end justify-between gap-4 text-white">
           <div className="space-y-2 text-left">
-            <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded text-xs font-bold uppercase tracking-wider shadow-sm">
-              {opp.category}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-600/90 text-cyan-100 rounded-lg text-xs font-black uppercase tracking-wider shadow-sm border border-cyan-400/30 backdrop-blur-md">
+              <Globe className="w-3 h-3 text-cyan-300" />
+              {getPlatformSource(opp)}
             </span>
             <h1 className="text-2xl md:text-4xl font-black tracking-tight" title={opp.title}>
               {opp.title}

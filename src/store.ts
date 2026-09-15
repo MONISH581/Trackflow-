@@ -190,6 +190,36 @@ export interface ActivityAnalyticsInfo {
   activityStatus: "Active" | "Warning" | "Needs Follow-up";
 }
 
+export function getPlatformSource(opp: any): string {
+  if (!opp) return "HACKATHONS";
+
+  const url = (opp.website || opp.registrationLink || "").toLowerCase();
+  const org = (opp.organizer || "").toLowerCase();
+  const title = (opp.title || "").toLowerCase();
+  const desc = (opp.description || "").toLowerCase();
+
+  if (url.includes("devpost.com") || org.includes("devpost") || desc.includes("devpost") || title.includes("devpost")) return "DEVPOST";
+  if (url.includes("unstop.com") || org.includes("unstop") || title.includes("unstop") || desc.includes("unstop")) return "UNSTOP";
+  if (url.includes("devfolio.co") || org.includes("devfolio") || title.includes("devfolio") || desc.includes("devfolio")) return "DEVFOLIO";
+  if (url.includes("dorahacks.io") || org.includes("dorahacks") || title.includes("dorahacks")) return "DORAHACKS";
+  if (url.includes("huggingface.co") || org.includes("hugging face") || org.includes("huggingface") || title.includes("huggingface")) return "HUGGING FACE";
+  if (url.includes("developers.google.com") || org.includes("google developer") || org.includes("google dev")) return "GOOGLE DEVELOPERS";
+  if (url.includes("devnetwork.com") || org.includes("devnetwork")) return "DEVNETWORK";
+  if (url.includes("hackathon.com") || org.includes("hackathon.com")) return "HACKATHON.COM";
+  if (url.includes("sih.gov.in") || org.includes("smart india hackathon") || title.includes("smart india hackathon") || title.includes("sih")) return "SMART INDIA HACKATHON";
+  if (url.includes("mlh.io") || org.includes("major league hacking") || org.includes("mlh")) return "MLH";
+  if (url.includes("hackerearth.com") || org.includes("hackerearth") || title.includes("hackerearth")) return "HACKEREARTH";
+  if (url.includes("kaggle.com") || org.includes("kaggle") || title.includes("kaggle")) return "KAGGLE";
+  if (url.includes("hackclub.com") || org.includes("hack club") || org.includes("hackclub")) return "HACK CLUB";
+
+  if (opp.government_level) return "GOVT HACKATHON";
+  if (opp.organizer && opp.organizer.length > 0 && opp.organizer.length <= 25) {
+    return opp.organizer.toUpperCase();
+  }
+
+  return (opp.category || "HACKATHONS").toUpperCase();
+}
+
 export interface TaskInfo {
   id: string;
   _id?: string;

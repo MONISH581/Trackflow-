@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { useStore, OpportunityInfo } from "../store.ts";
+import { useStore, OpportunityInfo, getPlatformSource } from "../store.ts";
 import {
   Search,
   Filter,
@@ -24,7 +24,8 @@ import {
   Users,
   AlertCircle,
   RefreshCw,
-  Plus
+  Plus,
+  Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -772,10 +773,11 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
           )}
         </div>
 
-        {/* Floating Category Badge Overlay */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-white">
-          <span className="text-xs font-bold tracking-tight uppercase">
-            {opp.category}
+        {/* Floating Platform Source Badge Overlay */}
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/20 text-white shadow-md">
+          <Globe className="w-3 h-3 text-cyan-400 shrink-0" />
+          <span className="text-[11px] font-black tracking-wider uppercase text-cyan-200">
+            {getPlatformSource(opp)}
           </span>
         </div>
 
