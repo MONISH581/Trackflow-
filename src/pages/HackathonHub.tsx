@@ -152,12 +152,19 @@ export default function HackathonHub() {
 
   const isTeacher = currentUser?.role === "coordinator" || currentUser?.role === "master_admin";
 
+  const [modeFilter, setModeFilter] = useState<"ALL" | "ONLINE" | "OFFLINE">("ALL");
+
   const filteredHackathons = hackathons.filter(h => {
     const now = Date.now();
     const isExpired = (h.registrationDeadline && new Date(h.registrationDeadline).getTime() < now) ||
                       (h.endDate && new Date(h.endDate).getTime() < now) ||
                       h.status === "Expired";
     if (isExpired) return false;
+
+    const isOffline = h.mode === "Offline" || (h.location && !h.location.toLowerCase().includes("online"));
+    const matchesMode = modeFilter === "ALL" ||
+      (modeFilter === "ONLINE" && !isOffline) ||
+      (modeFilter === "OFFLINE" && isOffline);
 
     const matchesDomain = domainFilter === "ALL" ||
       (domainFilter === "KAGGLE" && h.domain?.toLowerCase().includes("kaggle")) ||
@@ -166,8 +173,9 @@ export default function HackathonHub() {
       (domainFilter === "WEB3" && (h.domain?.toLowerCase().includes("web3") || h.domain?.toLowerCase().includes("open-source"))) ||
       (domainFilter === "PRIORITY" && (h.domain?.toLowerCase().includes("priority") || h.name?.toLowerCase().includes("devfolio") || h.name?.toLowerCase().includes("sih") || h.name?.toLowerCase().includes("mlh") || h.name?.toLowerCase().includes("devpost") || h.name?.toLowerCase().includes("hackerearth") || h.name?.toLowerCase().includes("unstop")));
     const matchesSearch = !searchQuery || h.name.toLowerCase().includes(searchQuery.toLowerCase()) || h.organizer.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesDomain && matchesSearch;
+    return matchesMode && matchesDomain && matchesSearch;
   });
+
 
   return (
     <div className="space-y-8 animate-fade-in pb-12 text-left">
@@ -334,8 +342,53 @@ export default function HackathonHub() {
             </div>
           </div>
 
-          {/* Category Filters & Search */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-4 border border-slate-200">
+          {/* Category & Mode Filters & Search */}
+          <div className="flex flex-col space-y-3 glass-card p-4 border border-slate-200">
+            {/* Mode Selector (Online / Offline / All) */}
+            <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <span>Participation Mode:</span>
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    onClick={() => setModeFilter("ALL")}
+                    className={`px-3 py-1 rounded-lg transition-all ${
+                      modeFilter === "ALL" ? "bg-white text-indigo-700 font-extrabold shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    All Modes
+                  </button>
+                  <button
+                    onClick={() => setModeFilter("ONLINE")}
+                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                      modeFilter === "ONLINE" ? "bg-emerald-600 text-white font-extrabold shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>🌐 Online (Virtual)</span>
+                  </button>
+                  <button
+                    onClick={() => setModeFilter("OFFLINE")}
+                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                      modeFilter === "OFFLINE" ? "bg-purple-600 text-white font-extrabold shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>📍 Offline (In-Person)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative max-w-xs w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search platforms, Kaggle, SIH..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Platform Domain Filter */}
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <button
                 onClick={() => setDomainFilter("ALL")}
@@ -376,17 +429,6 @@ export default function HackathonHub() {
                 Government Hackathons
               </button>
             </div>
-
-            <div className="relative max-w-xs w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search platforms, Kaggle, SIH..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -395,16 +437,24 @@ export default function HackathonHub() {
               const userRegistration = hackathonRegistrations.find(r => r.hackathonId === hId);
               const userInterested = hackathonInterests.some(i => i.hackathonId === hId && i.studentId === currentUser?.userId);
               const isKaggle = h.domain?.toLowerCase().includes("kaggle") || h.organizer?.toLowerCase().includes("kaggle");
+              const isOffline = h.mode === "Offline" || (h.location && !h.location.toLowerCase().includes("online"));
 
               return (
                 <div key={hId} className="glass-card p-6 border border-slate-200 flex flex-col justify-between hover:shadow-xl transition-all">
                   <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                        isKaggle ? 'bg-cyan-50 text-cyan-700 border-cyan-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                      }`}>
-                        {h.domain}
-                      </span>
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                          isKaggle ? 'bg-cyan-50 text-cyan-700 border-cyan-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        }`}>
+                          {h.domain}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold border ${
+                          isOffline ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}>
+                          {isOffline ? '📍 Offline' : '🌐 Online'}
+                        </span>
+                      </div>
                       {userRegistration && (
                         <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                           userRegistration.verificationStatus === 'Verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
@@ -415,6 +465,7 @@ export default function HackathonHub() {
                         </span>
                       )}
                     </div>
+
 
                     <h3 className="font-bold text-slate-800 text-base mt-3 leading-snug">{h.name}</h3>
                     <p className="text-xs text-indigo-600 font-bold mt-1 mb-2">Organizer: {h.organizer}</p>

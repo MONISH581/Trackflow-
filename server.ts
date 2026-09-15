@@ -2198,7 +2198,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY") {
       try {
         console.log("Curating live open hackathons on DoraHacks, Devfolio, Hugging Face, MLH, Unstop, HackerEarth, SIH & Kaggle via Gemini AI Search Grounding...");
-        const prompt = `Do a live web search using Google Search to find 8 actual, real, live, currently open hackathons for 2026/2027 hosted on these platforms:
+        const prompt = `Do a live web search using Google Search to find 10 actual, real, live, currently open hackathons for 2026/2027 hosted on these platforms:
 - DoraHacks (Web3 / open-source)
 - Devfolio (Indian tech & college hackathons)
 - Hugging Face Competitions (AI / LLM)
@@ -2208,7 +2208,11 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 - Google Developer Communities / Solution Challenge
 - Smart India Hackathon (SIH) or Kaggle
 
-IMPORTANT REQUIREMENT: Ensure all returned hackathons are 100% ONLINE / VIRTUAL so Indian students and developers can participate directly from home.
+FETCH BOTH TYPES OF HACKATHONS:
+1. Online / Virtual Hackathons (participate 100% from home)
+2. Offline / In-Person Hackathons (held on college campuses or in-person tech venues in India and globally)
+
+Make sure to specify "mode": "Online" or "Offline" and "location" for each event.
 Make sure the registrationLink redirects directly to the original official URL of the hackathon on its platform.
 Return a clean raw JSON array of objects fitting this schema:
 [
@@ -2218,12 +2222,13 @@ Return a clean raw JSON array of objects fitting this schema:
     "organizer": "Official Organizer Name",
     "description": "Engaging 2-3 sentence overview of the challenge and prize.",
     "domain": "Web3 & Open-Source" | "Recommended Priority Platform" | "AI & LLM Competitions" | "Student Hackathon League" | "College & Tech Competition" | "Enterprise & Coding" | "Government Hackathon" | "Kaggle / Machine Learning",
+    "mode": "Online" | "Offline",
+    "location": "Online (Virtual / Home)" | "City / Campus Location",
     "registrationLink": "https://...",
     "daysUntilDeadline": 30
   }
 ]
 Do not include markdown tags. Return only raw JSON string.`;
-
 
         let response;
         try {
@@ -2248,14 +2253,19 @@ Do not include markdown tags. Return only raw JSON string.`;
             const existing = await Hackathon.findOne({
               $or: [{ name: item.name }, { registrationLink: item.registrationLink }]
             });
+            const days = item.daysUntilDeadline || 30;
+            const itemMode = item.mode === "Offline" || (item.location && !item.location.toLowerCase().includes("online")) ? "Offline" : "Online";
+            const itemLoc = item.location || (itemMode === "Offline" ? "On-Site / Campus" : "Online (Participate from Home)");
+
             if (!existing && item.name && item.registrationLink) {
-              const days = item.daysUntilDeadline || 30;
               await Hackathon.create({
                 hackathonId: item.hackathonId || `live-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                 name: item.name,
                 organizer: item.organizer || "Official Organizer",
                 description: item.description || "Live hackathon opportunity open for student registration.",
                 domain: item.domain || "Global Directory",
+                mode: itemMode,
+                location: itemLoc,
                 startDate: new Date(),
                 endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
                 registrationDeadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
@@ -2268,7 +2278,6 @@ Do not include markdown tags. Return only raw JSON string.`;
               $or: [{ title: item.name }, { website: item.registrationLink }]
             });
             if (!oppExisting && item.name && item.registrationLink) {
-              const days = item.daysUntilDeadline || 30;
               await Opportunity.create({
                 title: item.name,
                 description: item.description || "Live hackathon opportunity.",
@@ -2278,8 +2287,8 @@ Do not include markdown tags. Return only raw JSON string.`;
                 bannerImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
                 website: item.registrationLink,
                 registrationLink: item.registrationLink,
-                location: "Online",
-                mode: "Online",
+                location: itemLoc,
+                mode: itemMode,
                 freeOrPaid: "Free",
                 targetAudience: "Student Only",
                 prizePool: "Platform Badges & Prizes",
@@ -2287,11 +2296,11 @@ Do not include markdown tags. Return only raw JSON string.`;
                 eventStartDate: new Date(),
                 eventEndDate: new Date(Date.now() + (days + 30) * 24 * 60 * 60 * 1000),
                 difficulty: "Intermediate",
-                eligibility: "Open to students globally.",
+                eligibility: itemMode === "Offline" ? "Open to students on-site." : "Open to students globally online.",
                 timeline: "Active Registration",
                 rules: "Standard platform terms apply.",
                 judgingCriteria: "Innovation, impact, and technical execution.",
-                tags: ["Hackathon", "Build", item.domain || "Live Event"],
+                tags: ["Hackathon", "Build", item.domain || "Live Event", itemMode],
                 featured: true,
                 trending: true,
                 approved: true
