@@ -438,16 +438,23 @@ export default function HackathonHub() {
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => handleExpressInterest(hId)}
-                          disabled={userInterested}
-                          className={`py-2 px-3 text-xs font-bold rounded-xl border transition flex items-center justify-center gap-1.5 ${
+                          className={`py-2 px-3 text-xs font-bold rounded-xl border transition flex items-center justify-center gap-1.5 group ${
                             userInterested
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default"
+                              ? "bg-emerald-50 hover:bg-rose-50 text-emerald-700 hover:text-rose-700 border-emerald-200 hover:border-rose-300 shadow-xs"
                               : "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200"
                           }`}
                         >
-                          <Star className={`w-3.5 h-3.5 ${userInterested ? "fill-emerald-600 text-emerald-600" : "text-amber-600"}`} />
-                          <span>{userInterested ? "Interested ✓" : "Express Interest"}</span>
+                          <Star className={`w-3.5 h-3.5 ${userInterested ? "fill-emerald-600 text-emerald-600 group-hover:text-rose-600 group-hover:fill-none" : "text-amber-600"}`} />
+                          {userInterested ? (
+                            <>
+                              <span className="group-hover:hidden">Interested ✓</span>
+                              <span className="hidden group-hover:inline">Uninterested</span>
+                            </>
+                          ) : (
+                            <span>Express Interest</span>
+                          )}
                         </button>
+
 
                         <button
                           onClick={() => setSelectedHackathon(h)}

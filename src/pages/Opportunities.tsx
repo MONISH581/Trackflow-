@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { useStore, OpportunityInfo, getPlatformSource } from "../store.ts";
+import { useStore, OpportunityInfo, getPlatformSource, formatPrizePoolToINR } from "../store.ts";
 import {
   Search,
   Filter,
@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
   BookmarkCheck,
   Zap,
+  Star,
   Tag,
   Sun,
   Moon,
@@ -27,6 +28,7 @@ import {
   Plus,
   Globe
 } from "lucide-react";
+
 import { motion, AnimatePresence } from "framer-motion";
 
 // Category Config with Icons and Colors
@@ -823,7 +825,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
             </span>
             <span className="flex items-center gap-1">
               <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span className="truncate max-w-[min(100%,_130px)]">{opp.prizePool}</span>
+              <span className="truncate max-w-[min(100%,_130px)] font-bold text-amber-700">{formatPrizePoolToINR(opp.prizePool)}</span>
             </span>
           </div>
 
@@ -882,6 +884,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
               View Details
             </Link>
           </div>
+
 
         </div>
 

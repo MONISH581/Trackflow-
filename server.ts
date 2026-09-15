@@ -2106,8 +2106,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
                 : "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
               website: cleanUrl,
               registrationLink: cleanUrl,
-              location: item.displayed_location?.location || "Online",
-              mode: item.displayed_location?.location === "Online" ? "Online" : "Offline",
+              location: "Online (Participate from Home)",
+              mode: "Online",
               freeOrPaid: "Free",
               targetAudience: "Student Only",
               prizePool: cleanPrize,
@@ -2115,11 +2115,11 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
               eventStartDate: new Date(),
               eventEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
               difficulty: "Intermediate",
-              eligibility: "Open to students and developers globally.",
+              eligibility: "Open to students and developers globally. Participate 100% from home.",
               timeline: "Live Registration",
               rules: "Standard platform rules apply.",
               judgingCriteria: "Quality, execution, and impact.",
-              tags: ["Hackathon", "Devpost", "Build"],
+              tags: ["Hackathon", "Devpost", "Build", "Online"],
               featured: true,
               trending: true,
               approved: true
@@ -2169,8 +2169,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
               bannerImage: item.banner || "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
               website: item.website,
               registrationLink: item.website,
-              location: item.location || "Online",
-              mode: item.mode === "virtual" ? "Online" : "Offline",
+              location: "Online (Participate from Home)",
+              mode: "Online",
               freeOrPaid: "Free",
               targetAudience: "Student Only",
               prizePool: "Swag & Prizes",
@@ -2178,11 +2178,11 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
               eventStartDate: startDate,
               eventEndDate: new Date(item.end),
               difficulty: "Intermediate",
-              eligibility: "High school and university students.",
+              eligibility: "High school and university students globally. Participate 100% online.",
               timeline: "Live Registration",
               rules: "Standard Hack Club code of conduct applies.",
               judgingCriteria: "Innovation, tech complexity, and impact.",
-              tags: ["Hackathon", "Hack Club", "Students"],
+              tags: ["Hackathon", "Hack Club", "Students", "Online"],
               featured: true,
               trending: true,
               approved: true
@@ -2208,6 +2208,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 - Google Developer Communities / Solution Challenge
 - Smart India Hackathon (SIH) or Kaggle
 
+IMPORTANT REQUIREMENT: Ensure all returned hackathons are 100% ONLINE / VIRTUAL so Indian students and developers can participate directly from home.
 Make sure the registrationLink redirects directly to the original official URL of the hackathon on its platform.
 Return a clean raw JSON array of objects fitting this schema:
 [
@@ -2222,6 +2223,7 @@ Return a clean raw JSON array of objects fitting this schema:
   }
 ]
 Do not include markdown tags. Return only raw JSON string.`;
+
 
         let response;
         try {
@@ -2640,8 +2642,10 @@ Do not include markdown tags. Return only raw JSON string.`;
 
       const existing = await HackathonInterest.findOne({ hackathonId: hackathon._id, studentId: user.userId });
       if (existing) {
-        return res.json({ success: true, message: "Interest already registered!", interest: existing });
+        await HackathonInterest.deleteOne({ _id: existing._id });
+        return res.json({ success: true, message: "Interest removed (Uninterested)", interested: false, interestId: existing._id });
       }
+
 
       const interest = new HackathonInterest({
         interestId: `int-${Date.now()}`,
@@ -4218,6 +4222,28 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
+  // Delete Message Endpoint (WhatsApp style deletion)
+  app.delete("/api/messages/:id", authMiddleware, async (req: any, res: any) => {
+    try {
+      const msg = await Message.findById(req.params.id);
+      if (!msg) return res.status(404).json({ error: "Message not found" });
+
+      if (msg.userId !== req.user.id && req.user.role !== "master_admin" && req.user.role !== "coordinator") {
+        return res.status(403).json({ error: "Unauthorized to delete this message" });
+      }
+
+      await Message.findByIdAndDelete(req.params.id);
+      if (msg.projectId) {
+        io.to(msg.projectId).emit("message_deleted", req.params.id);
+      } else {
+        io.emit("message_deleted_global", req.params.id);
+      }
+      res.json({ success: true, messageId: req.params.id });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Socket.IO for Real-Time Chat and Updates
   io.on("connection", (socket) => {
     console.log("A user connected", socket.id);
@@ -4251,10 +4277,25 @@ Do not include markdown tags. Return only raw JSON string.`;
       } catch (err) {}
     });
 
+    socket.on("delete_message", async (data) => {
+      try {
+        const { messageId, projectId } = data;
+        if (messageId) {
+          await Message.findByIdAndDelete(messageId);
+          if (projectId) {
+            io.to(projectId).emit("message_deleted", messageId);
+          } else {
+            io.emit("message_deleted_global", messageId);
+          }
+        }
+      } catch (err) {}
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected", socket.id);
     });
   });
+
 
 
   // Basic API Routes

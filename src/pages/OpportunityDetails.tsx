@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useStore, OpportunityInfo, getPlatformSource } from "../store.ts";
+import { useStore, OpportunityInfo, getPlatformSource, formatPrizePoolToINR } from "../store.ts";
 import {
   ArrowLeft,
   Calendar,
@@ -18,11 +18,13 @@ import {
   ClipboardList,
   Target,
   FileText,
+  Star,
   BadgeAlert,
   Info,
   ChevronDown,
   Globe
 } from "lucide-react";
+
 
 export default function OpportunityDetails() {
   const { id } = useParams<{ id: string }>();
@@ -34,8 +36,11 @@ export default function OpportunityDetails() {
     toggleApply,
     opportunities,
     fetchOpportunities,
+    expressHackathonInterest,
+    hackathonInterests,
     addToast
   } = useStore();
+
 
   const [opp, setOpp] = React.useState<OpportunityInfo | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -355,7 +360,7 @@ export default function OpportunityDetails() {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 font-semibold">Prize Pool / Stipend</span>
-                <span className="font-extrabold text-blue-600 dark:text-blue-400 truncate max-w-[min(100%,_150px)]">{opp.prizePool}</span>
+                <span className="font-extrabold text-blue-600 dark:text-blue-400 truncate max-w-[min(100%,_150px)]">{formatPrizePoolToINR(opp.prizePool)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 font-semibold">Skill Level Req</span>
@@ -367,8 +372,32 @@ export default function OpportunityDetails() {
               </div>
             </div>
 
-            {/* Application CTAs */}
+            {/* Application CTAs & Interested Toggle */}
             <div className="space-y-2 pt-4">
+              {currentUser?.role === "student" && (
+                <button
+                  onClick={async () => {
+                    const oppId = opp.id || opp._id || "";
+                    await expressHackathonInterest(oppId, currentUser.userId);
+                  }}
+                  className={`w-full py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 group ${
+                    hackathonInterests.some(i => (i.hackathonId === (opp.id || opp._id) || i.hackathonName === opp.title) && i.studentId === currentUser.userId)
+                      ? "bg-emerald-50 hover:bg-rose-50 text-emerald-700 hover:text-rose-700 border border-emerald-200 hover:border-rose-300"
+                      : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
+                  }`}
+                >
+                  <Star className={`w-4 h-4 ${hackathonInterests.some(i => (i.hackathonId === (opp.id || opp._id) || i.hackathonName === opp.title) && i.studentId === currentUser.userId) ? "fill-emerald-600 text-emerald-600 group-hover:text-rose-600 group-hover:fill-none" : "text-amber-600"}`} />
+                  {hackathonInterests.some(i => (i.hackathonId === (opp.id || opp._id) || i.hackathonName === opp.title) && i.studentId === currentUser.userId) ? (
+                    <>
+                      <span className="group-hover:hidden">Interested ✓</span>
+                      <span className="hidden group-hover:inline">Uninterested</span>
+                    </>
+                  ) : (
+                    <span>Express Interest</span>
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={handleApplyToggle}
                 className={`w-full py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
@@ -397,6 +426,7 @@ export default function OpportunityDetails() {
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
+
           </div>
 
           {/* Related Opportunities list */}

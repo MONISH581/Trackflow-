@@ -220,6 +220,58 @@ export function getPlatformSource(opp: any): string {
   return (opp.category || "HACKATHONS").toUpperCase();
 }
 
+export function formatPrizePoolToINR(prize: string | undefined | null): string {
+  if (!prize || !prize.trim()) return "₹50,000+ Prize Pool";
+
+  let str = prize.trim();
+
+  // If already formatted in INR (₹ or Rs. or INR), return clean string
+  if (str.includes("₹") || str.toLowerCase().includes("inr") || str.toLowerCase().includes("rs.")) {
+    return str;
+  }
+
+  const USD_TO_INR = 83;
+
+  // Convert $X, $Xk, $Xm, $X,XXX
+  str = str.replace(/\$(\d+(?:,\d+)*(?:\.\d+)?)\s*([kKmM])?/g, (_, numStr, suffix) => {
+    let val = parseFloat(numStr.replace(/,/g, ''));
+    if (suffix?.toLowerCase() === 'k') val *= 1000;
+    if (suffix?.toLowerCase() === 'm') val *= 1000000;
+
+    const inrVal = Math.round(val * USD_TO_INR);
+    if (inrVal >= 10000000) {
+      return `₹${(inrVal / 10000000).toFixed(1)} Crore`;
+    } else if (inrVal >= 100000) {
+      return `₹${(inrVal / 100000).toFixed(1)} Lakhs`;
+    } else {
+      return `₹${inrVal.toLocaleString('en-IN')}`;
+    }
+  });
+
+  // Convert raw "10000 USD"
+  str = str.replace(/(\d+(?:,\d+)*(?:\.\d+)?)\s*USD/gi, (_, numStr) => {
+    let val = parseFloat(numStr.replace(/,/g, ''));
+    const inrVal = Math.round(val * USD_TO_INR);
+    if (inrVal >= 10000000) {
+      return `₹${(inrVal / 10000000).toFixed(1)} Crore`;
+    } else if (inrVal >= 100000) {
+      return `₹${(inrVal / 100000).toFixed(1)} Lakhs`;
+    } else {
+      return `₹${inrVal.toLocaleString('en-IN')}`;
+    }
+  });
+
+  if (str.toLowerCase().includes("swag") || str.toLowerCase().includes("badges")) {
+    return `₹25,000+ ${str}`;
+  }
+  if (str.toLowerCase().includes("see official site") || str.toLowerCase().includes("check portal") || str.toLowerCase().includes("platform badges")) {
+    return "₹50,000+ Prize Pool";
+  }
+
+  return str;
+}
+
+
 export interface TaskInfo {
   id: string;
   _id?: string;
@@ -411,6 +463,8 @@ interface AppState {
   // Chat
   fetchMessages: (projectId?: string) => Promise<void>;
   sendMessage: (text: string, projectId?: string) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<boolean>;
+
 
   // Socket
   connectSocket: () => void;
@@ -837,15 +891,24 @@ export const useStore = create<AppState>((set, get) => ({
         body: JSON.stringify({ studentId }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to express interest");
-      get().addToast(data.message || "Expressed interest successfully! Shown in Teacher Console.", "success");
-      get().fetchHackathonInterests();
+      if (!response.ok) throw new Error(data.error || "Failed to update interest");
+      
+      if (data.interested === false) {
+        get().addToast("Removed interest (Uninterested)", "info");
+      } else {
+        get().addToast(data.message || "Expressed interest successfully! Shown in Teacher Console.", "success");
+      }
+      
+      const user = get().currentUser;
+      const sId = user?.role === "student" ? user.userId : undefined;
+      await get().fetchHackathonInterests(sId);
       return true;
     } catch (e: any) {
       get().addToast(e.message, "error");
       return false;
     }
   },
+
 
   fetchHackathonInterests: async (studentId) => {
     try {
@@ -1328,6 +1391,35 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  deleteMessage: async (messageId) => {
+    try {
+      const token = localStorage.getItem("token") || "";
+      const { socket } = get();
+      const response = await fetch(`${API_BASE}/api/messages/${messageId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to delete message");
+
+      if (socket) {
+        socket.emit("delete_message", { messageId });
+      }
+
+      set((state) => ({
+        messages: state.messages.filter((m) => (m.id !== messageId && m._id !== messageId))
+      }));
+      get().addToast("Message deleted", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to delete message", "error");
+      return false;
+    }
+  },
+
   connectSocket: () => {
     const socket = io(API_BASE);
     set({ socket });
@@ -1373,6 +1465,19 @@ export const useStore = create<AppState>((set, get) => ({
         get().fetchNotifications();
       }
     });
+
+    socket.on("message_deleted", (messageId) => {
+      set((state) => ({
+        messages: state.messages.filter((m) => (m.id !== messageId && m._id !== messageId))
+      }));
+    });
+
+    socket.on("message_deleted_global", (messageId) => {
+      set((state) => ({
+        messages: state.messages.filter((m) => (m.id !== messageId && m._id !== messageId))
+      }));
+    });
+
 
     socket.on("project_updated", ({ projectId, project }) => {
       const currentProj = get().activeProject;

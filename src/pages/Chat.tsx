@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore, MessageInfo, ProjectInfo } from "../store.ts";
-import { Send, Hash, Shield, Sparkles, FolderDot, MessageSquare } from "lucide-react";
+import { Send, Hash, Shield, Sparkles, FolderDot, MessageSquare, Trash2, MoreVertical, X } from "lucide-react";
 
 export default function Chat() {
   const {
@@ -11,12 +11,15 @@ export default function Chat() {
     socket,
     fetchMessages,
     sendMessage,
+    deleteMessage,
     fetchProjects,
   } = useStore();
 
   const [selectedRoomId, setSelectedRoomId] = React.useState<string>("global");
   const [inputText, setInputText] = React.useState("");
+  const [selectedMsgForDelete, setSelectedMsgForDelete] = React.useState<MessageInfo | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const touchTimerRef = React.useRef<any>(null);
 
   const studentProjectId = activeProject ? (activeProject._id || activeProject.id) : "";
 
@@ -55,6 +58,36 @@ export default function Chat() {
     const pId = selectedRoomId === "global" ? "" : selectedRoomId;
     await sendMessage(inputText, pId);
     setInputText("");
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedMsgForDelete) return;
+    const msgId = selectedMsgForDelete._id || selectedMsgForDelete.id;
+    if (msgId) {
+      await deleteMessage(msgId);
+    }
+    setSelectedMsgForDelete(null);
+  };
+
+  const handleTouchStart = (msg: MessageInfo) => {
+    touchTimerRef.current = setTimeout(() => {
+      if (msg.userId === currentUser?.userId || currentUser?.role === "coordinator" || currentUser?.role === "master_admin") {
+        setSelectedMsgForDelete(msg);
+      }
+    }, 500); // 500ms long press trigger
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, msg: MessageInfo) => {
+    e.preventDefault();
+    if (msg.userId === currentUser?.userId || currentUser?.role === "coordinator" || currentUser?.role === "master_admin") {
+      setSelectedMsgForDelete(msg);
+    }
   };
 
   // Find active room info details
@@ -144,7 +177,7 @@ export default function Chat() {
       </div>
 
       {/* Main Messaging Hub */}
-      <div className="flex-1 glass-card border border-blue-200/40 flex flex-col justify-between overflow-hidden shadow-sm">
+      <div className="flex-1 glass-card border border-blue-200/40 flex flex-col justify-between overflow-hidden shadow-sm relative">
         {/* Room Info Header */}
         <div className="p-4 border-b border-blue-200/35 flex items-center justify-between bg-slate-50/40">
           <div className="flex items-center gap-3">
@@ -172,16 +205,23 @@ export default function Chat() {
           ) : (
             messages.map((msg, idx) => {
               const isOwnMessage = msg.userId === currentUser?.userId;
+              const canDelete = isOwnMessage || currentUser?.role === "coordinator" || currentUser?.role === "master_admin";
+
               return (
                 <div
                   key={idx}
-                  className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
+                  className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} group relative`}
                 >
                   <div
-                    className={`max-w-[70%] p-3.5 rounded-2xl text-xs text-left border shadow-sm ${
+                    onContextMenu={(e) => handleContextMenu(e, msg)}
+                    onTouchStart={() => handleTouchStart(msg)}
+                    onTouchEnd={handleTouchEnd}
+                    onMouseDown={() => handleTouchStart(msg)}
+                    onMouseUp={handleTouchEnd}
+                    className={`max-w-[75%] p-3.5 rounded-2xl text-xs text-left border shadow-sm relative transition-all duration-150 select-none cursor-pointer ${
                       isOwnMessage
-                        ? "bg-blue-600 text-white border-blue-500 rounded-br-none"
-                        : "bg-white border-slate-200 border-slate-200 text-slate-800 rounded-bl-none"
+                        ? "bg-blue-600 text-white border-blue-500 rounded-br-none hover:bg-blue-700"
+                        : "bg-white border-slate-200 text-slate-800 rounded-bl-none hover:bg-slate-50"
                     }`}
                   >
                     {!isOwnMessage && (
@@ -190,9 +230,26 @@ export default function Chat() {
                       </span>
                     )}
                     <p className="leading-relaxed whitespace-pre-wrap font-sans">{msg.text}</p>
-                    <span className={`text-xs block text-right mt-1.5 leading-none ${isOwnMessage ? 'text-blue-200' : 'text-slate-400'}`}>
-                      {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <div className="flex items-center justify-between gap-2 mt-1.5 pt-0.5">
+                      <span className={`text-[10px] block leading-none ${isOwnMessage ? 'text-blue-200' : 'text-slate-400'}`}>
+                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+
+                      {canDelete && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedMsgForDelete(msg);
+                          }}
+                          className={`opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded ${
+                            isOwnMessage ? "text-blue-200 hover:text-white hover:bg-blue-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+                          }`}
+                          title="Long press or right-click to delete message (WhatsApp style)"
+                        >
+                          <MoreVertical className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -200,6 +257,55 @@ export default function Chat() {
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* WhatsApp Style Delete Confirmation Modal Popup */}
+        {selectedMsgForDelete && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 text-left">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete message?</span>
+                </div>
+                <button
+                  onClick={() => setSelectedMsgForDelete(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Message by {selectedMsgForDelete.user}:
+                </p>
+                <p className="text-xs text-slate-800 dark:text-slate-200 line-clamp-3 font-sans italic">
+                  "{selectedMsgForDelete.text}"
+                </p>
+              </div>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                This message will be permanently deleted for all members in real-time.
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setSelectedMsgForDelete(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md transition flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete for everyone</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Send Input Footer */}
         <form onSubmit={handleSend} className="p-4 border-t border-blue-200/35 flex gap-3 bg-slate-50/40">
@@ -221,3 +327,4 @@ export default function Chat() {
     </div>
   );
 }
+
