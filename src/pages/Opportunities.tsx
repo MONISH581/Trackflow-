@@ -211,11 +211,11 @@ export default function Opportunities() {
             className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold border border-white/10"
           >
             <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
-            <span>Updates Automatically Every 6 Hours</span>
+            <span>Updates Autonomously Every 6 Hours</span>
           </motion.div>
           <div className="space-y-3">
             <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
-              🚀 Student Opportunities Hub
+              Student Opportunities Hub
             </h1>
             <p className="text-sm md:text-base text-blue-100/90 max-w-2xl font-medium leading-relaxed">
               Discover Jobs, Hackathons, Internships, Scholarships, Coding Contests, Workshops, Conferences, Open Source Programs, and many more opportunities updated automatically every day.
