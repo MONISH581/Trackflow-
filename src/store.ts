@@ -356,6 +356,7 @@ interface AppState {
 
   // Hackathons & Proof Verification
   fetchHackathons: () => Promise<void>;
+  refreshLiveHackathons: () => Promise<boolean>;
   createHackathon: (hackathonData: Partial<HackathonInfo>) => Promise<boolean>;
   registerHackathonWithProof: (hackathonId: string, studentId: string, screenshotFile: File) => Promise<boolean>;
   fetchHackathonRegistrations: (studentId?: string) => Promise<void>;
@@ -710,6 +711,20 @@ export const useStore = create<AppState>((set, get) => ({
       const data = await response.json();
       set({ hackathons: data.hackathons || [] });
     } catch (e) {}
+  },
+
+  refreshLiveHackathons: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/hackathons/refresh`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to refresh live hackathons");
+      get().addToast(data.message || "Live hackathons refreshed successfully!", "success");
+      await get().fetchHackathons();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to refresh live hackathons", "error");
+      return false;
+    }
   },
 
   createHackathon: async (hackathonData) => {

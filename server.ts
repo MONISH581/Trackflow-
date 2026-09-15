@@ -1293,6 +1293,161 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   }
 
+  let lastHackathonSyncTime = new Date();
+
+  async function syncLiveHackathons() {
+    console.log("[6-Hour Cron] Starting synchronization of live & real hackathons from Devpost, Hack Club, DoraHacks, Hugging Face, Devfolio, MLH, SIH, Unstop, HackerEarth & Kaggle...");
+    let syncedCount = 0;
+
+    // 1. Sync from Devpost API
+    try {
+      const devpostRes = await axios.get("https://devpost.com/api/hackathons?page=1", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0",
+          "Accept": "application/json"
+        },
+        timeout: 10000
+      });
+      if (devpostRes.data && Array.isArray(devpostRes.data.hackathons)) {
+        for (const item of devpostRes.data.hackathons) {
+          const cleanUrl = item.url ? (item.url.startsWith("http") ? item.url : `https:${item.url}`) : "https://devpost.com";
+          const exists = await Hackathon.findOne({
+            $or: [{ name: item.title }, { registrationLink: cleanUrl }]
+          });
+          if (!exists) {
+            const hId = `devpost-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            await Hackathon.create({
+              hackathonId: hId,
+              name: item.title,
+              organizer: item.organization_name || "Devpost Organizer",
+              description: `Live software hackathon on Devpost. Prize pool: ${(item.prize_amount || "").replace(/<[^>]*>/g, "").trim() || "See official site"}. Join developers globally to build and submit projects.`,
+              domain: "Global Directory",
+              startDate: new Date(),
+              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              registrationDeadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+              registrationLink: cleanUrl,
+              status: "Active"
+            });
+            syncedCount++;
+          }
+        }
+      }
+    } catch (err: any) {
+      console.log("Devpost live sync warning:", err.message);
+    }
+
+    // 2. Sync from Hack Club API
+    try {
+      const hcRes = await axios.get("https://hackathons.hackclub.com/api/events/all", { timeout: 10000 });
+      if (hcRes.data && Array.isArray(hcRes.data)) {
+        for (const item of hcRes.data) {
+          const startDate = new Date(item.start);
+          if (startDate.getTime() < Date.now()) continue;
+          const exists = await Hackathon.findOne({
+            $or: [{ name: item.name }, { registrationLink: item.website }]
+          });
+          if (!exists) {
+            await Hackathon.create({
+              hackathonId: `hc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              name: item.name,
+              organizer: item.organization || "Hack Club Partner",
+              description: `Live student hackathon. ${item.desc || 'Build projects, learn skills, and compete with developer community!'}`,
+              domain: "Student Hackathon League",
+              startDate,
+              endDate: new Date(item.end),
+              registrationDeadline: startDate,
+              registrationLink: item.website,
+              status: "Active"
+            });
+            syncedCount++;
+          }
+        }
+      }
+    } catch (err: any) {
+      console.log("Hack Club live sync warning:", err.message);
+    }
+
+    // 3. Gemini Live Grounded Search for DoraHacks, Devfolio, MLH, Hugging Face, Unstop, HackerEarth, SIH, Kaggle
+    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY") {
+      try {
+        console.log("Curating live open hackathons on DoraHacks, Devfolio, Hugging Face, MLH, Unstop, HackerEarth, SIH & Kaggle via Gemini AI Search Grounding...");
+        const prompt = `Do a live web search using Google Search to find 8 actual, real, live, currently open hackathons for 2026/2027 hosted on these platforms:
+- DoraHacks (Web3 / open-source)
+- Devfolio (Indian tech & college hackathons)
+- Hugging Face Competitions (AI / LLM)
+- Major League Hacking (MLH)
+- Unstop (Engineering & college hackathons)
+- HackerEarth (AI & coding challenges)
+- Google Developer Communities / Solution Challenge
+- Smart India Hackathon (SIH) or Kaggle
+
+Make sure the registrationLink redirects directly to the original official URL of the hackathon on its platform.
+Return a clean raw JSON array of objects fitting this schema:
+[
+  {
+    "hackathonId": "unique-slug-2026",
+    "name": "Exact Hackathon Title",
+    "organizer": "Official Organizer Name",
+    "description": "Engaging 2-3 sentence overview of the challenge and prize.",
+    "domain": "Web3 & Open-Source" | "Recommended Priority Platform" | "AI & LLM Competitions" | "Student Hackathon League" | "College & Tech Competition" | "Enterprise & Coding" | "Government Hackathon" | "Kaggle / Machine Learning",
+    "registrationLink": "https://...",
+    "daysUntilDeadline": 30
+  }
+]
+Do not include markdown tags. Return only raw JSON string.`;
+
+        let response;
+        try {
+          response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: { tools: [{ googleSearch: {} }] }
+          });
+        } catch (e: any) {
+          response = await ai.models.generateContent({
+            model: "gemini-3.6-flash",
+            contents: prompt,
+            config: { tools: [{ googleSearch: {} }] }
+          });
+        }
+
+        const text = response.text ? response.text.trim() : "";
+        const jsonStr = text.replace(/^```json/, "").replace(/```$/, "").trim();
+        const items = JSON.parse(jsonStr);
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            const existing = await Hackathon.findOne({
+              $or: [{ name: item.name }, { registrationLink: item.registrationLink }]
+            });
+            if (!existing && item.name && item.registrationLink) {
+              const days = item.daysUntilDeadline || 30;
+              await Hackathon.create({
+                hackathonId: item.hackathonId || `live-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                name: item.name,
+                organizer: item.organizer || "Official Organizer",
+                description: item.description || "Live hackathon opportunity open for student registration.",
+                domain: item.domain || "Global Directory",
+                startDate: new Date(),
+                endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+                registrationDeadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+                registrationLink: item.registrationLink,
+                status: "Active"
+              });
+              syncedCount++;
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn("Gemini Live Hackathon Grounded Sync failed:", err.message);
+      }
+    }
+
+    lastHackathonSyncTime = new Date();
+    console.log(`[6-Hour Cron Completed] Synced ${syncedCount} new live hackathons. Last synced: ${lastHackathonSyncTime.toISOString()}`);
+    io.emit("hackathons_updated");
+    return syncedCount;
+  }
+
   const runStartupJobs = async () => {
     try {
       const oppCount = await Opportunity.countDocuments();
@@ -1308,9 +1463,14 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         console.log(`Database already populated with ${oppCount} opportunities. Skipping redundant cold-start seeding.`);
       }
       if (!process.env.VERCEL) {
+        // Refresh live hackathons every 6 hours (21,600,000 ms)
         setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
         setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
+        setInterval(syncLiveHackathons, 6 * 60 * 60 * 1000);
       }
+      setTimeout(() => {
+        syncLiveHackathons().catch((err) => console.error("Initial startup live hackathon sync error:", err.message));
+      }, 3000);
     } catch (err) {
       console.error("Failed running startup data seed/sync jobs:", err);
     }
@@ -2050,51 +2210,191 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   // Hackathons & Proof Verification Endpoints
   app.get("/api/hackathons", async (req, res) => {
     try {
-      let hackathons = await Hackathon.find().sort({ startDate: 1 });
-      if (hackathons.length === 0) {
-        // Seed default hackathons & Kaggle ML competitions
-        const defaultEvents = [
-          {
-            hackathonId: "kaggle-grand-prix-2026",
-            name: "Kaggle Machine Learning Grand Prix 2026",
-            organizer: "Kaggle & Google AI",
-            description: "Build state-of-the-art predictive models, NLP classifiers, and computer vision pipelines in this flagship Kaggle ML challenge.",
-            domain: "Kaggle / Machine Learning",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-            registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-            registrationLink: "https://www.kaggle.com/competitions",
-            status: "Active"
-          },
-          {
-            hackathonId: "kaggle-llm-challenge-2026",
-            name: "Kaggle LLM Science Exam Challenge",
-            organizer: "Kaggle Community",
-            description: "Fine-tune open-weights Large Language Models to answer complex STEM questions and benchmark AI reasoning capability.",
-            domain: "Kaggle / Generative AI",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
-            registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            registrationLink: "https://www.kaggle.com/competitions",
-            status: "Active"
-          },
-          {
-            hackathonId: "sih-2026-hackathon",
-            name: "Smart India Hackathon 2026 (SIH)",
-            organizer: "Ministry of Education & AICTE",
-            description: "Solve pressing problem statements submitted by Central Ministries, State Departments, PSUs, and Industry leaders.",
-            domain: "Government Hackathon",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            registrationLink: "https://sih.gov.in",
-            status: "Active"
-          }
-        ];
-        await Hackathon.insertMany(defaultEvents);
-        hackathons = await Hackathon.find().sort({ startDate: 1 });
+      const defaultEvents = [
+        {
+          hackathonId: "dorahacks-web3-2026",
+          name: "DoraHacks Web3 & Open-Source Hackathons",
+          organizer: "DoraHacks Foundation",
+          description: "Premier platform for Web3, crypto, decentralized tech, and open-source developer hackathons. Build dApps and decentralized AI.",
+          domain: "Web3 & Open-Source",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://dorahacks.io",
+          status: "Active"
+        },
+        {
+          hackathonId: "hackathon-com-global-2026",
+          name: "Hackathon.com Global Directory",
+          organizer: "Hackathon.com",
+          description: "Global hackathon directory connecting developers, innovators, and organizers with hackathons worldwide.",
+          domain: "Global Directory",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://www.hackathon.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "devnetwork-ai-cloud-2026",
+          name: "DevNetwork Hackathons",
+          organizer: "DevNetwork",
+          description: "Enterprise-grade developer hackathons focusing on AI models, Cloud computing, DevOps, and API tech.",
+          domain: "AI & Enterprise Cloud",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://devnetwork.com/hackathons/",
+          status: "Active"
+        },
+        {
+          hackathonId: "huggingface-ai-competitions-2026",
+          name: "Hugging Face AI & LLM Competitions",
+          organizer: "Hugging Face",
+          description: "Build, fine-tune, and benchmark state-of-the-art Open Source Large Language Models, NLP, and multimodal AI systems.",
+          domain: "AI & LLM Competitions",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://huggingface.co/competitions",
+          status: "Active"
+        },
+        {
+          hackathonId: "google-developer-community-2026",
+          name: "Google Developer Communities & Challenges",
+          organizer: "Google Developers",
+          description: "Google-sponsored global developer challenges, Solution Challenges, Gemini AI sprints, and community hackathons.",
+          domain: "Google AI & Cloud",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://developers.google.com/community",
+          status: "Active"
+        },
+        {
+          hackathonId: "devfolio-india-2026",
+          name: "Devfolio Hackathon Platform",
+          organizer: "Devfolio",
+          description: "Recommended Priority #1 platform in India. Discover top university & tech community hackathons with 1-click profiles.",
+          domain: "Recommended Priority Platform",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://devfolio.co",
+          status: "Active"
+        },
+        {
+          hackathonId: "sih-2026-hackathon",
+          name: "Smart India Hackathon 2026 (SIH)",
+          organizer: "Ministry of Education & AICTE",
+          description: "Recommended Priority #2 nationwide hackathon. Solve pressing problem statements submitted by Central Ministries, State Departments, PSUs, and Industry leaders.",
+          domain: "Government Hackathon",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://sih.gov.in",
+          status: "Active"
+        },
+        {
+          hackathonId: "mlh-season-2026",
+          name: "Major League Hacking (MLH)",
+          organizer: "Major League Hacking",
+          description: "Recommended Priority #3 student hackathon league. Over 200+ weekend hackathons annually worldwide with hardware access, workshops, and swag.",
+          domain: "Student Hackathon League",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://mlh.io",
+          status: "Active"
+        },
+        {
+          hackathonId: "devpost-global-2026",
+          name: "Devpost Hackathons",
+          organizer: "Devpost",
+          description: "Recommended Priority #4 global software hackathon platform. Join online and in-person hackathons with millions in prizes.",
+          domain: "Global Directory",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://devpost.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "hackerearth-challenges-2026",
+          name: "HackerEarth Hackathons",
+          organizer: "HackerEarth",
+          description: "Recommended Priority #5 enterprise innovation platform hosting hackathons, coding challenges, and hiring contests.",
+          domain: "Enterprise & Coding",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://www.hackerearth.com/challenges/",
+          status: "Active"
+        },
+        {
+          hackathonId: "unstop-hackathons-2026",
+          name: "Unstop Hackathons & Competitions",
+          organizer: "Unstop",
+          description: "Recommended Priority #6 college hackathon platform in India. Join tech sprints, coding contests, and case competitions.",
+          domain: "College & Tech Competition",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://unstop.com/hackathons",
+          status: "Active"
+        },
+        {
+          hackathonId: "kaggle-grand-prix-2026",
+          name: "Kaggle Machine Learning Grand Prix 2026",
+          organizer: "Kaggle & Google AI",
+          description: "Build state-of-the-art predictive models, NLP classifiers, and computer vision pipelines in this flagship Kaggle ML challenge.",
+          domain: "Kaggle / Machine Learning",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://www.kaggle.com/competitions",
+          status: "Active"
+        },
+        {
+          hackathonId: "kaggle-llm-challenge-2026",
+          name: "Kaggle LLM Science Exam Challenge",
+          organizer: "Kaggle Community",
+          description: "Fine-tune open-weights Large Language Models to answer complex STEM questions and benchmark AI reasoning capability.",
+          domain: "Kaggle / Generative AI",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://www.kaggle.com/competitions",
+          status: "Active"
+        }
+      ];
+
+      for (const event of defaultEvents) {
+        const existing = await Hackathon.findOne({ hackathonId: event.hackathonId });
+        if (!existing) {
+          await Hackathon.create(event);
+        }
       }
-      res.json({ hackathons: hackathons.map(h => ({ id: h._id, ...h.toObject() })) });
+
+      let hackathons = await Hackathon.find().sort({ startDate: 1 });
+      res.json({
+        hackathons: hackathons.map(h => ({ id: h._id, ...h.toObject() })),
+        lastSyncedAt: lastHackathonSyncTime ? lastHackathonSyncTime.toISOString() : new Date().toISOString()
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Live Hackathon On-Demand Refresh Endpoint
+  app.post("/api/hackathons/refresh", async (req, res) => {
+    try {
+      const count = await syncLiveHackathons();
+      res.json({
+        success: true,
+        message: `Successfully synced live hackathons from APIs & Google Search Grounding! (${count} new events)`,
+        lastSyncedAt: lastHackathonSyncTime ? lastHackathonSyncTime.toISOString() : new Date().toISOString()
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
