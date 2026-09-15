@@ -153,6 +153,12 @@ export default function HackathonHub() {
   const isTeacher = currentUser?.role === "coordinator" || currentUser?.role === "master_admin";
 
   const filteredHackathons = hackathons.filter(h => {
+    const now = Date.now();
+    const isExpired = (h.registrationDeadline && new Date(h.registrationDeadline).getTime() < now) ||
+                      (h.endDate && new Date(h.endDate).getTime() < now) ||
+                      h.status === "Expired";
+    if (isExpired) return false;
+
     const matchesDomain = domainFilter === "ALL" ||
       (domainFilter === "KAGGLE" && h.domain?.toLowerCase().includes("kaggle")) ||
       (domainFilter === "GOVT" && (h.domain?.toLowerCase().includes("govt") || h.domain?.toLowerCase().includes("government"))) ||

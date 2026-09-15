@@ -1293,6 +1293,34 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   }
 
+  async function cleanupExpiredHackathons() {
+    try {
+      const now = new Date();
+      const allHackathons = await Hackathon.find();
+      let deletedCount = 0;
+
+      for (const h of allHackathons) {
+        const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < now.getTime();
+        const endExpired = h.endDate && new Date(h.endDate).getTime() < now.getTime();
+        const isStatusExpired = h.status === "Expired";
+
+        if (deadlineExpired || endExpired || isStatusExpired) {
+          await Hackathon.findByIdAndDelete(h._id || h.id);
+          deletedCount++;
+        }
+      }
+
+      if (deletedCount > 0) {
+        console.log(`[Expired Hackathon Cleanup] Purged ${deletedCount} expired hackathons.`);
+        io.emit("hackathons_updated");
+      }
+      return deletedCount;
+    } catch (err: any) {
+      console.error("Expired hackathon cleanup error:", err.message);
+      return 0;
+    }
+  }
+
   let lastHackathonSyncTime = new Date();
 
   async function syncLiveHackathons() {
@@ -1463,12 +1491,15 @@ Do not include markdown tags. Return only raw JSON string.`;
         console.log(`Database already populated with ${oppCount} opportunities. Skipping redundant cold-start seeding.`);
       }
       if (!process.env.VERCEL) {
+        // Purge expired hackathons every 15 minutes
+        setInterval(cleanupExpiredHackathons, 15 * 60 * 1000);
         // Refresh live hackathons every 6 hours (21,600,000 ms)
         setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
         setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
         setInterval(syncLiveHackathons, 6 * 60 * 60 * 1000);
       }
       setTimeout(() => {
+        cleanupExpiredHackathons().catch(() => {});
         syncLiveHackathons().catch((err) => console.error("Initial startup live hackathon sync error:", err.message));
       }, 3000);
     } catch (err) {
@@ -2210,6 +2241,7 @@ Do not include markdown tags. Return only raw JSON string.`;
   // Hackathons & Proof Verification Endpoints
   app.get("/api/hackathons", async (req, res) => {
     try {
+      await cleanupExpiredHackathons();
       const defaultEvents = [
         {
           hackathonId: "dorahacks-web3-2026",
@@ -2376,9 +2408,16 @@ Do not include markdown tags. Return only raw JSON string.`;
         }
       }
 
-      let hackathons = await Hackathon.find().sort({ startDate: 1 });
+      const nowTime = Date.now();
+      let hackathons = await Hackathon.find();
+      let activeHackathons = hackathons.filter(h => {
+        const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < nowTime;
+        const endExpired = h.endDate && new Date(h.endDate).getTime() < nowTime;
+        return !deadlineExpired && !endExpired && h.status !== "Expired";
+      }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
       res.json({
-        hackathons: hackathons.map(h => ({ id: h._id, ...h.toObject() })),
+        hackathons: activeHackathons.map(h => ({ id: h._id, ...h.toObject() })),
         lastSyncedAt: lastHackathonSyncTime ? lastHackathonSyncTime.toISOString() : new Date().toISOString()
       });
     } catch (e: any) {
