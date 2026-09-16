@@ -21,6 +21,7 @@ export default function Profile() {
 
   const [saving, setSaving] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [showPhotoOptions, setShowPhotoOptions] = React.useState(false);
 
   const OFFICIAL_LABS = [
     "Artificial Intelligence and Research Lab",
@@ -130,20 +131,29 @@ export default function Profile() {
         
         {/* Header Profile Banner */}
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 pb-6 border-b border-slate-200">
-          <div className="relative group">
+          <div 
+            className="relative group cursor-pointer sm:cursor-auto"
+            onClick={() => setShowPhotoOptions(!showPhotoOptions)}
+          >
             <img
               src={avatar || currentUser.avatar}
               alt={name}
               className="w-24 h-24 rounded-3xl ring-4 ring-blue-500/20 object-cover shadow-md"
             />
-            <div className="absolute inset-0 bg-black/40 sm:bg-black/60 text-white rounded-3xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex flex-col items-center justify-center transition text-xs font-black gap-2">
-              <label className="cursor-pointer flex items-center gap-1 hover:text-blue-300 p-1">
+            <div className={`absolute inset-0 bg-black/60 text-white rounded-3xl flex flex-col items-center justify-center transition text-xs font-black gap-2 ${showPhotoOptions ? 'opacity-100' : 'opacity-0 sm:group-hover:opacity-100'}`}>
+              <label 
+                className="cursor-pointer flex items-center gap-1 hover:text-blue-300 p-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Camera className="w-3.5 h-3.5" />
                 <span>Change</span>
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={handleImageFileChange}
+                  onChange={(e) => {
+                    handleImageFileChange(e);
+                    setShowPhotoOptions(false);
+                  }}
                   className="hidden"
                 />
               </label>
