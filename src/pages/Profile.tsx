@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "../store.ts";
-import { User, Mail, Building, GraduationCap, Github, Save, Copy, Check, Camera, Image, Upload, Lock, KeyRound, Phone, Layers, Sparkles, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Building, GraduationCap, Github, Save, Copy, Check, Camera, Image, Upload, Lock, KeyRound, Phone, Layers, Sparkles, Eye, EyeOff, Trash2 } from "lucide-react";
 
 export default function Profile() {
   const { currentUser, updateProfile, addToast } = useStore();
@@ -136,16 +136,28 @@ export default function Profile() {
               alt={name}
               className="w-24 h-24 rounded-3xl ring-4 ring-blue-500/20 object-cover shadow-md"
             />
-            <label className="absolute inset-0 bg-black/60 text-white rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition text-xs font-black gap-1">
-              <Camera className="w-4 h-4" />
-              <span>Change</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageFileChange}
-                className="hidden"
-              />
-            </label>
+            <div className="absolute inset-0 bg-black/60 text-white rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition text-xs font-black gap-2">
+              <label className="cursor-pointer flex items-center gap-1 hover:text-blue-300">
+                <Camera className="w-3.5 h-3.5" />
+                <span>Change</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
+                  className="hidden"
+                />
+              </label>
+              {(avatar || currentUser.avatar) && (
+                <button
+                  type="button"
+                  onClick={() => setAvatar("")}
+                  className="cursor-pointer flex items-center gap-1 text-red-400 hover:text-red-300"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1.5 text-center sm:text-left flex-1">

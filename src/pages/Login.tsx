@@ -658,6 +658,40 @@ export default function Login() {
                     </div>
                   </div>
                 </div>
+
+                {(role === "student" || role === "coordinator") && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
+                      Department *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Computer Science"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition"
+                    />
+                  </div>
+                )}
+
+                {role === "student" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
+                      Academic Year *
+                    </label>
+                    <select
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs cursor-pointer focus:outline-none focus:border-blue-600 focus:bg-white"
+                    >
+                      <option value="1">Year 1</option>
+                      <option value="2">Year 2</option>
+                      <option value="3">Year 3</option>
+                      <option value="4">Year 4</option>
+                    </select>
+                  </div>
+                )}
               </>
             )}
 
