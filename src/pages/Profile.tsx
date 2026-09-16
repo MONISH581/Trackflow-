@@ -136,8 +136,8 @@ export default function Profile() {
               alt={name}
               className="w-24 h-24 rounded-3xl ring-4 ring-blue-500/20 object-cover shadow-md"
             />
-            <div className="absolute inset-0 bg-black/60 text-white rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition text-xs font-black gap-2">
-              <label className="cursor-pointer flex items-center gap-1 hover:text-blue-300">
+            <div className="absolute inset-0 bg-black/40 sm:bg-black/60 text-white rounded-3xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex flex-col items-center justify-center transition text-xs font-black gap-2">
+              <label className="cursor-pointer flex items-center gap-1 hover:text-blue-300 p-1">
                 <Camera className="w-3.5 h-3.5" />
                 <span>Change</span>
                 <input
