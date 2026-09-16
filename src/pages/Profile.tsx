@@ -384,52 +384,9 @@ export default function Profile() {
                 />
               </div>
 
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
-                  GitHub Personal Access Token (Optional for Private Repos)
-                </label>
-                <input
-                  type="password"
-                  autoComplete="off"
-                  placeholder="ghp_********************************"
-                  value={githubToken}
-                  onChange={(e) => setGithubToken(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition font-mono"
-                />
-              </div>
             </div>
           </div>
 
-          {/* Section 5: Profile Avatar Photo */}
-          <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
-              <Camera className="w-4 h-4 text-blue-600" />
-              Update Profile Avatar Photo
-            </h3>
-
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <label className="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
-                <Upload className="w-4 h-4 text-blue-600" />
-                <span>Upload Photo File</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageFileChange}
-                  className="hidden"
-                />
-              </label>
-
-              <span className="text-xs text-slate-400 font-semibold">or Avatar Image URL:</span>
-
-              <input
-                type="text"
-                placeholder="https://avatar.vercel.sh/yourname"
-                value={avatar}
-                onChange={(e) => setAvatar(e.target.value)}
-                className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 bg-white"
-              />
-            </div>
-          </div>
 
           {/* Submit Action Button */}
           <div className="pt-4 border-t border-slate-200 flex justify-end">
