@@ -262,13 +262,23 @@ export default function Profile() {
                 <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500 block">
                   Department *
                 </label>
-                <input
-                  type="text"
+                <select
                   required
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
-                />
+                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                >
+                  <option value="Computer Science and Engineering">Computer Science and Engineering</option>
+                  <option value="Information Technology">Information Technology</option>
+                  <option value="Artificial Intelligence and Data Science">Artificial Intelligence and Data Science</option>
+                  <option value="Electronics and Communication">Electronics and Communication</option>
+                  <option value="Electrical and Electronics">Electrical and Electronics</option>
+                  <option value="Mechanical Engineering">Mechanical Engineering</option>
+                  <option value="Civil Engineering">Civil Engineering</option>
+                  <option value="Biotechnology">Biotechnology</option>
+                  <option value="Agricultural Engineering">Agricultural Engineering</option>
+                  <option value="Food Technology">Food Technology</option>
+                </select>
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">

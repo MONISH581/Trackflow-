@@ -664,14 +664,23 @@ export default function Login() {
                     <label className="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">
                       Department *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       required
-                      placeholder="e.g. Computer Science"
                       value={department}
                       onChange={(e) => setDepartment(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition"
-                    />
+                      className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs cursor-pointer focus:outline-none focus:border-blue-600 focus:bg-white"
+                    >
+                      <option value="Computer Science and Engineering">Computer Science and Engineering</option>
+                      <option value="Information Technology">Information Technology</option>
+                      <option value="Artificial Intelligence and Data Science">Artificial Intelligence and Data Science</option>
+                      <option value="Electronics and Communication">Electronics and Communication</option>
+                      <option value="Electrical and Electronics">Electrical and Electronics</option>
+                      <option value="Mechanical Engineering">Mechanical Engineering</option>
+                      <option value="Civil Engineering">Civil Engineering</option>
+                      <option value="Biotechnology">Biotechnology</option>
+                      <option value="Agricultural Engineering">Agricultural Engineering</option>
+                      <option value="Food Technology">Food Technology</option>
+                    </select>
                   </div>
                 )}
 
