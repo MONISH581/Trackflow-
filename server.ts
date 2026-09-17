@@ -1321,6 +1321,34 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   }
 
+  async function cleanupExpiredOpportunities() {
+    try {
+      const now = new Date();
+      const allOpps = await Opportunity.find();
+      let deletedCount = 0;
+
+      for (const opp of allOpps) {
+        const deadlineExpired = opp.registrationDeadline && new Date(opp.registrationDeadline).getTime() < now.getTime();
+        const endExpired = opp.eventEndDate && new Date(opp.eventEndDate).getTime() < now.getTime();
+        const isStatusExpired = opp.status === "Expired";
+
+        if (deadlineExpired || endExpired || isStatusExpired) {
+          await Opportunity.findByIdAndDelete(opp._id || opp.id);
+          deletedCount++;
+        }
+      }
+
+      if (deletedCount > 0) {
+        console.log(`[Expired Opportunity Cleanup] Purged ${deletedCount} expired opportunities.`);
+        io.emit("opportunities_updated");
+      }
+      return deletedCount;
+    } catch (err: any) {
+      console.error("Expired opportunity cleanup error:", err.message);
+      return 0;
+    }
+  }
+
   let lastHackathonSyncTime = new Date();
 
 
@@ -2335,8 +2363,9 @@ Do not include markdown tags. Return only raw JSON string.`;
         console.log(`Database already populated with ${oppCount} opportunities. Skipping redundant cold-start seeding.`);
       }
       if (!process.env.VERCEL) {
-        // Purge expired hackathons every 15 minutes
-        setInterval(cleanupExpiredHackathons, 15 * 60 * 1000);
+        // Purge expired hackathons and opportunities every 1 minute
+        setInterval(cleanupExpiredHackathons, 1 * 60 * 1000);
+        setInterval(cleanupExpiredOpportunities, 1 * 60 * 1000);
         // Refresh live hackathons every 6 hours (21,600,000 ms)
         setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
         setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
@@ -2344,6 +2373,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       }
       setTimeout(() => {
         cleanupExpiredHackathons().catch(() => {});
+        cleanupExpiredOpportunities().catch(() => {});
         syncLiveHackathons().catch((err) => console.error("Initial startup live hackathon sync error:", err.message));
       }, 3000);
     } catch (err) {
@@ -3964,6 +3994,8 @@ Do not include markdown tags. Return only raw JSON string.`;
 
   app.get("/api/opportunities", async (req, res) => {
     try {
+      await cleanupExpiredOpportunities();
+      
       const { category, mode, freeOrPaid, targetAudience, difficulty, status, search, sort, governmentLevel } = req.query;
       let query: any = { approved: true };
 
