@@ -150,6 +150,12 @@ export default function Opportunities() {
     if (activeTab === "bookmarks") list = bookmarkedOpportunities;
     if (activeTab === "recommendations") list = recommendations;
 
+    // Remove expired opportunities automatically
+    list = list.filter(opp => {
+      const isExpired = (opp.registrationDeadline && new Date(opp.registrationDeadline).getTime() <= Date.now()) || opp.status === "Expired";
+      return !isExpired;
+    });
+
     if (activeTab !== "all") {
       return list.filter(opp => {
         if (selectedCategory && opp.category !== selectedCategory) return false;
