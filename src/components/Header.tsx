@@ -11,7 +11,6 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   const location = useLocation();
   const { notifications, markNotificationRead, currentUser } = useStore();
   const [showNotifs, setShowNotifs] = React.useState(false);
-  const [searchQuery, setSearchQuery] = React.useState("");
 
   const unreadNotifications = notifications.filter((n) => !n.read);
 
@@ -64,21 +63,6 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Center Quick Search (EdTech Search Bar) */}
-      <div className="hidden lg:flex items-center relative w-full max-w-[18rem]">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search courses, projects, tools..."
-          className="w-full pl-10 pr-9 py-2 bg-slate-100/70 hover:bg-slate-100 focus:bg-white text-xs font-medium text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 outline-none transition-all"
-        />
-        <kbd className="absolute right-3 px-1.5 py-0.5 text-xs font-bold text-slate-400 bg-white rounded border border-slate-200 shadow-xs pointer-events-none">
-          /
-        </kbd>
       </div>
 
       {/* Notifications Alert Bell & User profile */}
