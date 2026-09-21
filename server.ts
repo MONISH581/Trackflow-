@@ -4456,20 +4456,30 @@ Do not include markdown tags. Return only raw JSON string.`;
 
     socket.on("send_message", async (data) => {
       try {
-        const msg = new Message({
-          user: data.user,
-          userId: data.userId,
-          text: data.text,
-          projectId: data.projectId || ""
-        });
-        await msg.save();
-        if (data.projectId) {
-          io.to(data.projectId).emit("receive_message", msg);
+        let msg;
+        if (data._id || data.id) {
+          msg = data;
         } else {
-          io.emit("receive_message_global", msg);
+          msg = new Message({
+            user: data.user,
+            userId: data.userId,
+            text: data.text,
+            projectId: data.projectId || ""
+          });
+          await msg.save();
         }
 
-        await notifyMessageRecipients(data.userId, data.user, data.text, data.projectId);
+        const formattedMsg = { id: msg._id || msg.id, ...(typeof msg.toObject === 'function' ? msg.toObject() : msg) };
+
+        if (data.projectId) {
+          socket.to(data.projectId).emit("receive_message", formattedMsg);
+        } else {
+          socket.broadcast.emit("receive_message_global", formattedMsg);
+        }
+
+        if (!data._id && !data.id) {
+          await notifyMessageRecipients(data.userId, data.user, data.text, data.projectId);
+        }
       } catch (err) {}
     });
 

@@ -1375,15 +1375,16 @@ export const useStore = create<AppState>((set, get) => ({
 
   sendMessage: async (text, projectId) => {
     const user = get().currentUser;
-    if (!user) return;
+    if (!user || !text.trim()) return;
 
-    const tempId = `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const tempId = `msg-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const cleanText = text.trim();
     const newMsg: MessageInfo = {
       id: tempId,
       _id: tempId,
       user: user.name,
       userId: user.userId,
-      text,
+      text: cleanText,
       projectId: projectId || "",
       createdAt: new Date().toISOString()
     };
@@ -1391,29 +1392,25 @@ export const useStore = create<AppState>((set, get) => ({
     // Instant Optimistic local update (0ms UI render for sender)
     set((state) => ({ messages: [...state.messages, newMsg] }));
 
-    // Real-time WebSocket emission for instant recipient delivery
-    const socket = get().socket;
-    if (socket) {
-      socket.emit("send_message", {
-        user: user.name,
-        userId: user.userId,
-        text,
-        projectId: projectId || ""
-      });
-    }
-
-    // Persist to database asynchronously
+    // Persist to database asynchronously & broadcast once via API
     try {
-      await fetch(`${API_BASE}/api/messages`, {
+      const response = await fetch(`${API_BASE}/api/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user: user.name,
           userId: user.userId,
-          text,
+          text: cleanText,
           projectId: projectId || "",
         }),
       });
+      const data = await response.json();
+      if (response.ok && data.message) {
+        const savedMsg = data.message;
+        set((state) => ({
+          messages: state.messages.map((m) => (m.id === tempId || m._id === tempId ? savedMsg : m))
+        }));
+      }
     } catch (e: any) {
       console.warn("Background message save notice:", e.message);
     }
@@ -1472,9 +1469,21 @@ export const useStore = create<AppState>((set, get) => ({
 
     socket.on("receive_message", (msg) => {
       set((state) => {
-        // Prevent duplicate messages if already present
-        const exists = state.messages.some(m => (m._id && m._id === msg._id) || (m.id && m.id === msg.id));
-        return exists ? state : { messages: [...state.messages, msg] };
+        const msgId = msg._id || msg.id;
+        const exists = state.messages.some(m => (m._id && m._id === msgId) || (m.id && m.id === msgId));
+        if (exists) return state;
+
+        const user = get().currentUser;
+        if (user && msg.userId === user.userId) {
+          const tempMsg = state.messages.find(m => m.id?.startsWith("msg-") && m.text === msg.text);
+          if (tempMsg) {
+            return {
+              messages: state.messages.map(m => m.id === tempMsg.id ? msg : m)
+            };
+          }
+        }
+
+        return { messages: [...state.messages, msg] };
       });
       const user = get().currentUser;
       if (user && msg.userId !== user.userId) {
@@ -1485,8 +1494,21 @@ export const useStore = create<AppState>((set, get) => ({
 
     socket.on("receive_message_global", (msg) => {
       set((state) => {
-        const exists = state.messages.some(m => (m._id && m._id === msg._id) || (m.id && m.id === msg.id));
-        return exists ? state : { messages: [...state.messages, msg] };
+        const msgId = msg._id || msg.id;
+        const exists = state.messages.some(m => (m._id && m._id === msgId) || (m.id && m.id === msgId));
+        if (exists) return state;
+
+        const user = get().currentUser;
+        if (user && msg.userId === user.userId) {
+          const tempMsg = state.messages.find(m => m.id?.startsWith("msg-") && m.text === msg.text);
+          if (tempMsg) {
+            return {
+              messages: state.messages.map(m => m.id === tempMsg.id ? msg : m)
+            };
+          }
+        }
+
+        return { messages: [...state.messages, msg] };
       });
       const user = get().currentUser;
       if (user && msg.userId !== user.userId) {

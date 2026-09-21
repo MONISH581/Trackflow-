@@ -55,9 +55,10 @@ export default function Chat() {
     e.preventDefault();
     if (!inputText.trim()) return;
 
-    const pId = selectedRoomId === "global" ? "" : selectedRoomId;
-    await sendMessage(inputText, pId);
+    const textToSend = inputText.trim();
     setInputText("");
+    const pId = selectedRoomId === "global" ? "" : selectedRoomId;
+    await sendMessage(textToSend, pId);
   };
 
   const handleDeleteConfirm = async () => {
