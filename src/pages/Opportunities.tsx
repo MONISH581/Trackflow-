@@ -59,6 +59,7 @@ export default function Opportunities() {
     fetchRecommendations,
     fetchCategoryCounts,
     syncOpportunities,
+    refreshLiveHackathons,
     submitStudentOpportunity,
     addToast
   } = useStore();
@@ -66,6 +67,24 @@ export default function Opportunities() {
   const [activeTab, setActiveTab] = React.useState<"all" | "bookmarks" | "recommendations">("all");
   const [categoryCounts, setCategoryCounts] = React.useState<any[]>([]);
   const [recommendations, setRecommendations] = React.useState<OpportunityInfo[]>([]);
+  const [isSyncingLive, setIsSyncingLive] = React.useState(false);
+
+  const handleSyncLiveHackathons = async () => {
+    setIsSyncingLive(true);
+    await refreshLiveHackathons();
+    await fetchOpportunities({
+      category: selectedCategory,
+      mode,
+      governmentLevel,
+      freeOrPaid,
+      difficulty,
+      status,
+      search,
+      sort
+    });
+    fetchCategoryCounts().then(data => setCategoryCounts(data));
+    setIsSyncingLive(false);
+  };
   
   // Student Submission Modal
   const [showStudentSubmitModal, setShowStudentSubmitModal] = React.useState(false);
@@ -189,6 +208,15 @@ export default function Opportunities() {
           <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">Opportunities Portal</span>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncLiveHackathons}
+            disabled={isSyncingLive}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/10 flex items-center gap-1.5 disabled:opacity-50"
+            title="Fetch maximum live hackathons from Devpost, Hack Club, Kontests & AI Web Search"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingLive ? "animate-spin" : ""}`} />
+            <span>{isSyncingLive ? "Syncing Hackathons..." : "Sync Live Hackathons"}</span>
+          </button>
           {currentUser?.role === "student" && (
             <button
               onClick={() => setShowStudentSubmitModal(true)}

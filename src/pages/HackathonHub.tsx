@@ -156,9 +156,9 @@ export default function HackathonHub() {
 
   const filteredHackathons = hackathons.filter(h => {
     const now = Date.now();
-    const isExpired = (h.registrationDeadline && new Date(h.registrationDeadline).getTime() < now) ||
-                      (h.endDate && new Date(h.endDate).getTime() < now) ||
-                      h.status === "Expired";
+    const deadlinePassed = h.registrationDeadline ? new Date(h.registrationDeadline).getTime() < now : false;
+    const endPassed = h.endDate ? new Date(h.endDate).getTime() < now : false;
+    const isExpired = (deadlinePassed && endPassed) || h.status === "Expired";
     if (isExpired) return false;
 
     const isOffline = h.mode === "Offline" || (h.location && !h.location.toLowerCase().includes("online"));
@@ -166,12 +166,24 @@ export default function HackathonHub() {
       (modeFilter === "ONLINE" && !isOffline) ||
       (modeFilter === "OFFLINE" && isOffline);
 
+    const dom = (h.domain || "").toLowerCase();
+    const nam = (h.name || "").toLowerCase();
+    const org = (h.organizer || "").toLowerCase();
+    const tag = (h.tags || []).join(" ").toLowerCase();
+
     const matchesDomain = domainFilter === "ALL" ||
-      (domainFilter === "KAGGLE" && h.domain?.toLowerCase().includes("kaggle")) ||
-      (domainFilter === "GOVT" && (h.domain?.toLowerCase().includes("govt") || h.domain?.toLowerCase().includes("government"))) ||
-      (domainFilter === "AI" && (h.domain?.toLowerCase().includes("ai") || h.domain?.toLowerCase().includes("llm"))) ||
-      (domainFilter === "WEB3" && (h.domain?.toLowerCase().includes("web3") || h.domain?.toLowerCase().includes("open-source"))) ||
-      (domainFilter === "PRIORITY" && (h.domain?.toLowerCase().includes("priority") || h.name?.toLowerCase().includes("devfolio") || h.name?.toLowerCase().includes("sih") || h.name?.toLowerCase().includes("mlh") || h.name?.toLowerCase().includes("devpost") || h.name?.toLowerCase().includes("hackerearth") || h.name?.toLowerCase().includes("unstop")));
+      (domainFilter === "DEVPOST" && (nam.includes("devpost") || org.includes("devpost") || dom.includes("devpost") || tag.includes("devpost"))) ||
+      (domainFilter === "DEVFOLIO" && (nam.includes("devfolio") || org.includes("devfolio") || dom.includes("devfolio"))) ||
+      (domainFilter === "MLH" && (nam.includes("mlh") || org.includes("major league") || org.includes("hack club") || dom.includes("student hackathon"))) ||
+      (domainFilter === "SIH" && (nam.includes("sih") || nam.includes("smart india") || org.includes("aicte") || org.includes("ministry"))) ||
+      (domainFilter === "UNSTOP" && (nam.includes("unstop") || org.includes("unstop") || dom.includes("college"))) ||
+      (domainFilter === "HACKEREARTH" && (nam.includes("hackerearth") || org.includes("hackerearth") || dom.includes("enterprise"))) ||
+      (domainFilter === "KAGGLE" && (nam.includes("kaggle") || dom.includes("kaggle") || tag.includes("kaggle") || tag.includes("machine learning"))) ||
+      (domainFilter === "AI" && (nam.includes("ai") || nam.includes("llm") || dom.includes("ai") || dom.includes("llm") || org.includes("hugging face") || org.includes("meta"))) ||
+      (domainFilter === "WEB3" && (nam.includes("web3") || dom.includes("web3") || org.includes("dorahacks") || org.includes("solana") || org.includes("ethglobal"))) ||
+      (domainFilter === "GOOGLE" && (nam.includes("google") || org.includes("google") || org.includes("microsoft") || dom.includes("cloud"))) ||
+      (domainFilter === "GOVT" && (nam.includes("govt") || dom.includes("govt") || org.includes("ministry") || org.includes("nasa") || nam.includes("naan mudhalvan") || org.includes("tn"))) ||
+      (domainFilter === "PRIORITY" && (dom.includes("priority") || nam.includes("devfolio") || nam.includes("sih") || nam.includes("mlh") || nam.includes("devpost") || nam.includes("hackerearth") || nam.includes("unstop")));
     const matchesSearch = !searchQuery || h.name.toLowerCase().includes(searchQuery.toLowerCase()) || h.organizer.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesMode && matchesDomain && matchesSearch;
   });
@@ -388,45 +400,80 @@ export default function HackathonHub() {
               </div>
             </div>
 
-            {/* Platform Domain Filter */}
-            <div className="flex items-center gap-2 flex-wrap text-xs">
+            {/* Platform & Sector Domain Filter */}
+            <div className="flex items-center gap-1.5 flex-wrap text-xs">
               <button
                 onClick={() => setDomainFilter("ALL")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "ALL" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "ALL" ? "bg-indigo-600 text-white shadow-xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
               >
-                All Platforms
+                All Platforms ({hackathons.length})
               </button>
               <button
-                onClick={() => setDomainFilter("PRIORITY")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${domainFilter === "PRIORITY" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"}`}
+                onClick={() => setDomainFilter("DEVPOST")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "DEVPOST" ? "bg-blue-600 text-white shadow-xs" : "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"}`}
               >
-                <Trophy className="w-3.5 h-3.5" />
-                Recommended Priority
+                Devpost
+              </button>
+              <button
+                onClick={() => setDomainFilter("DEVFOLIO")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "DEVFOLIO" ? "bg-emerald-600 text-white shadow-xs" : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"}`}
+              >
+                Devfolio
+              </button>
+              <button
+                onClick={() => setDomainFilter("SIH")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "SIH" ? "bg-orange-600 text-white shadow-xs" : "bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100"}`}
+              >
+                SIH & Govt
+              </button>
+              <button
+                onClick={() => setDomainFilter("MLH")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "MLH" ? "bg-red-600 text-white shadow-xs" : "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"}`}
+              >
+                MLH & Hack Club
+              </button>
+              <button
+                onClick={() => setDomainFilter("UNSTOP")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "UNSTOP" ? "bg-indigo-600 text-white shadow-xs" : "bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100"}`}
+              >
+                Unstop
+              </button>
+              <button
+                onClick={() => setDomainFilter("HACKEREARTH")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "HACKEREARTH" ? "bg-violet-600 text-white shadow-xs" : "bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100"}`}
+              >
+                HackerEarth
               </button>
               <button
                 onClick={() => setDomainFilter("KAGGLE")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${domainFilter === "KAGGLE" ? "bg-cyan-600 text-white" : "bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100"}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 ${domainFilter === "KAGGLE" ? "bg-cyan-600 text-white shadow-xs" : "bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100"}`}
               >
-                <Trophy className="w-3.5 h-3.5" />
-                Kaggle ML Competitions
+                <Trophy className="w-3 h-3" />
+                Kaggle ML
               </button>
               <button
                 onClick={() => setDomainFilter("AI")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "AI" ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "AI" ? "bg-purple-600 text-white shadow-xs" : "bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"}`}
               >
                 AI & LLM
               </button>
               <button
                 onClick={() => setDomainFilter("WEB3")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "WEB3" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "WEB3" ? "bg-amber-600 text-white shadow-xs" : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"}`}
               >
-                Web3 & Open Source
+                Web3 & DoraHacks
+              </button>
+              <button
+                onClick={() => setDomainFilter("GOOGLE")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "GOOGLE" ? "bg-rose-600 text-white shadow-xs" : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"}`}
+              >
+                Google & Cloud
               </button>
               <button
                 onClick={() => setDomainFilter("GOVT")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "GOVT" ? "bg-teal-600 text-white" : "bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${domainFilter === "GOVT" ? "bg-teal-600 text-white shadow-xs" : "bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"}`}
               >
-                Government Hackathons
+                Govt & NASA
               </button>
             </div>
           </div>

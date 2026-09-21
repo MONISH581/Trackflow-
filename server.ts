@@ -826,8 +826,10 @@ async function startServer() {
       const hcRes = await axios.get("https://hackathons.hackclub.com/api/events/all", { timeout: 10000 });
       if (hcRes.data && Array.isArray(hcRes.data)) {
         for (const hackathon of hcRes.data) {
+          const endDate = new Date(hackathon.end);
+          if (endDate.getTime() < Date.now()) continue; // Only skip if event already finished!
+
           const startDate = new Date(hackathon.start);
-          if (startDate.getTime() < Date.now()) continue; 
 
           const exists = await Opportunity.findOne({
             $or: [
@@ -850,125 +852,131 @@ async function startServer() {
               mode: hackathon.mode === "virtual" ? "Online" : (hackathon.mode === "hybrid" ? "Hybrid" : "Offline"),
               freeOrPaid: "Free",
               targetAudience: "Student Only",
-              prizePool: "Check Website",
-              registrationDeadline: startDate,
+              prizePool: "Swag & Cash Prizes",
+              registrationDeadline: endDate,
               eventStartDate: startDate,
-              eventEndDate: new Date(hackathon.end),
+              eventEndDate: endDate,
               difficulty: "Intermediate",
               eligibility: "High school and university students.",
-              timeline: `Starts: ${startDate.toLocaleString()}`,
+              timeline: `Starts: ${startDate.toLocaleDateString()}`,
               rules: "Standard MLH or Hack Club rules apply. See website for full Code of Conduct.",
               judgingCriteria: "Innovation, technical complexity, and impact.",
               tags: ["Hackathon", "Build", "Hack Club"],
-              featured: false,
-              trending: false,
+              featured: true,
+              trending: true,
               approved: true,
             });
             await newHackathon.save();
             newCount++;
           }
         }
-        console.log(`Synced ${newCount} new hackathons from Hack Club API.`);
+        console.log(`Synced ${newCount} new live hackathons from Hack Club API.`);
       }
     } catch (err: any) {
       console.log("Hack Club API fetch failed, skipping...", err.message);
     }
 
     try {
-      console.log("Fetching live hackathons from Devpost API...");
-      const devpostRes = await axios.get("https://devpost.com/api/hackathons?page=1", {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0",
-          "Accept": "application/json"
-        },
-        timeout: 10000
-      });
-      if (devpostRes.data && Array.isArray(devpostRes.data.hackathons)) {
-        let count = 0;
-        for (const hackathon of devpostRes.data.hackathons) {
-          const exists = await Opportunity.findOne({
-            $or: [
-              { title: hackathon.title },
-              { website: hackathon.url }
-            ]
+      console.log("Fetching live hackathons across multiple pages from Devpost API...");
+      for (let page = 1; page <= 5; page++) {
+        try {
+          const devpostRes = await axios.get(`https://devpost.com/api/hackathons?page=${page}`, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0",
+              "Accept": "application/json"
+            },
+            timeout: 10000
           });
+          if (devpostRes.data && Array.isArray(devpostRes.data.hackathons)) {
+            let count = 0;
+            for (const hackathon of devpostRes.data.hackathons) {
+              const cleanUrl = hackathon.url ? (hackathon.url.startsWith("http") ? hackathon.url : `https:${hackathon.url}`) : "https://devpost.com";
+              const exists = await Opportunity.findOne({
+                $or: [
+                  { title: hackathon.title },
+                  { website: cleanUrl }
+                ]
+              });
 
-          if (!exists) {
-            let eventStartDate = new Date();
-            let eventEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            let registrationDeadline = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+              if (!exists) {
+                let eventStartDate = new Date();
+                let eventEndDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+                let registrationDeadline = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
 
-            if (hackathon.submission_period_dates) {
-              try {
-                const datesStr = hackathon.submission_period_dates;
-                const parts = datesStr.split(" - ");
-                if (parts.length === 2) {
-                  let startStr = parts[0].trim();
-                  let endStr = parts[1].trim();
-                  let year = new Date().getFullYear();
-                  const yearMatch = datesStr.match(/\d{4}/);
-                  if (yearMatch) year = parseInt(yearMatch[0]);
-                  if (/^\d+/.test(endStr) && !/[a-zA-Z]/.test(endStr.split(",")[0])) {
-                    const monthMatch = startStr.match(/[a-zA-Z]+/);
-                    if (monthMatch) endStr = `${monthMatch[0]} ${endStr}`;
-                  }
-                  if (!/\d{4}/.test(startStr)) startStr = `${startStr}, ${year}`;
-                  if (!/\d{4}/.test(endStr)) endStr = `${endStr}, ${year}`;
-                  const parsedStart = new Date(startStr);
-                  const parsedEnd = new Date(endStr);
-                  if (!isNaN(parsedStart.getTime())) eventStartDate = parsedStart;
-                  if (!isNaN(parsedEnd.getTime())) {
-                    eventEndDate = parsedEnd;
-                    registrationDeadline = parsedEnd;
-                  }
+                if (hackathon.submission_period_dates) {
+                  try {
+                    const datesStr = hackathon.submission_period_dates;
+                    const parts = datesStr.split(" - ");
+                    if (parts.length === 2) {
+                      let startStr = parts[0].trim();
+                      let endStr = parts[1].trim();
+                      let year = new Date().getFullYear();
+                      const yearMatch = datesStr.match(/\d{4}/);
+                      if (yearMatch) year = parseInt(yearMatch[0]);
+                      if (/^\d+/.test(endStr) && !/[a-zA-Z]/.test(endStr.split(",")[0])) {
+                        const monthMatch = startStr.match(/[a-zA-Z]+/);
+                        if (monthMatch) endStr = `${monthMatch[0]} ${endStr}`;
+                      }
+                      if (!/\d{4}/.test(startStr)) startStr = `${startStr}, ${year}`;
+                      if (!/\d{4}/.test(endStr)) endStr = `${endStr}, ${year}`;
+                      const parsedStart = new Date(startStr);
+                      const parsedEnd = new Date(endStr);
+                      if (!isNaN(parsedStart.getTime())) eventStartDate = parsedStart;
+                      if (!isNaN(parsedEnd.getTime())) {
+                        eventEndDate = parsedEnd;
+                        registrationDeadline = parsedEnd;
+                      }
+                    }
+                  } catch (e) {}
                 }
-              } catch (e) {}
+
+                const cleanPrize = (hackathon.prize_amount || "").replace(/<[^>]*>/g, "").trim() || "See website";
+                const bannerImage = hackathon.thumbnail_url 
+                  ? (hackathon.thumbnail_url.startsWith("http") ? hackathon.thumbnail_url : `https:${hackathon.thumbnail_url}`)
+                  : "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80";
+
+                const newHackathon = new Opportunity({
+                  title: hackathon.title,
+                  description: `Real-time Hackathon hosted on Devpost by ${hackathon.organization_name || 'community'}. Participate to build innovative solutions, collaborate with developers, and compete for a prize pool of ${cleanPrize}.`,
+                  category: "Hackathons",
+                  organizer: hackathon.organization_name || "Devpost Organizer",
+                  organizerLogo: hackathon.thumbnail_url 
+                    ? (hackathon.thumbnail_url.startsWith("http") ? hackathon.thumbnail_url : `https:${hackathon.thumbnail_url}`)
+                    : `https://avatar.vercel.sh/${(hackathon.organization_name || 'devpost').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                  bannerImage: bannerImage,
+                  website: cleanUrl,
+                  registrationLink: cleanUrl,
+                  location: hackathon.displayed_location?.location || "Online",
+                  mode: hackathon.displayed_location?.location === "Online" ? "Online" : "Offline",
+                  freeOrPaid: "Free",
+                  targetAudience: "Student Only",
+                  prizePool: cleanPrize,
+                  registrationDeadline,
+                  eventStartDate,
+                  eventEndDate,
+                  difficulty: "Intermediate",
+                  eligibility: "Open to students and developers globally.",
+                  timeline: `Submission Period: ${hackathon.submission_period_dates || 'Ongoing'}`,
+                  rules: "Standard Devpost and organizer code of conduct and rules apply.",
+                  judgingCriteria: "Quality of the idea, implementation complexity, pitch presentation, and value.",
+                  tags: (hackathon.themes || []).map((t: any) => t.name).concat(["Hackathon", "Build", "Devpost"]),
+                  featured: hackathon.featured || true,
+                  trending: hackathon.registrations_count > 500,
+                  approved: true,
+                });
+                await newHackathon.save();
+                count++;
+                newCount++;
+              }
             }
-
-            const cleanPrize = (hackathon.prize_amount || "").replace(/<[^>]*>/g, "").trim() || "See website";
-            const cleanUrl = hackathon.url ? (hackathon.url.startsWith("http") ? hackathon.url : `https:${hackathon.url}`) : "https://devpost.com";
-            const bannerImage = hackathon.thumbnail_url 
-              ? (hackathon.thumbnail_url.startsWith("http") ? hackathon.thumbnail_url : `https:${hackathon.thumbnail_url}`)
-              : "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80";
-
-            const newHackathon = new Opportunity({
-              title: hackathon.title,
-              description: `Real-time Hackathon hosted on Devpost by ${hackathon.organization_name || 'community'}. Participate to build innovative solutions, collaborate with developers, and compete for a prize pool of ${cleanPrize}.`,
-              category: "Hackathons",
-              organizer: hackathon.organization_name || "Devpost Organizer",
-              organizerLogo: hackathon.thumbnail_url 
-                ? (hackathon.thumbnail_url.startsWith("http") ? hackathon.thumbnail_url : `https:${hackathon.thumbnail_url}`)
-                : `https://avatar.vercel.sh/${(hackathon.organization_name || 'devpost').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-              bannerImage: bannerImage,
-              website: cleanUrl,
-              registrationLink: cleanUrl,
-              location: hackathon.displayed_location?.location || "Online",
-              mode: hackathon.displayed_location?.location === "Online" ? "Online" : "Offline",
-              freeOrPaid: "Free",
-              targetAudience: "Student Only",
-              prizePool: cleanPrize,
-              registrationDeadline,
-              eventStartDate,
-              eventEndDate,
-              difficulty: "Intermediate",
-              eligibility: "Open to students and developers globally.",
-              timeline: `Submission Period: ${hackathon.submission_period_dates || 'Ongoing'}`,
-              rules: "Standard Devpost and organizer code of conduct and rules apply.",
-              judgingCriteria: "Quality of the idea, implementation complexity, pitch presentation, and value.",
-              tags: (hackathon.themes || []).map((t: any) => t.name).concat(["Hackathon", "Build", "Devpost"]),
-              featured: hackathon.featured || false,
-              trending: hackathon.registrations_count > 1000,
-              approved: true,
-            });
-            await newHackathon.save();
-            count++;
-            newCount++;
+            console.log(`Synced Page ${page}: ${count} new hackathons from Devpost API.`);
           }
+        } catch (pageErr: any) {
+          console.log(`Devpost page ${page} fetch warning:`, pageErr.message);
         }
-        console.log(`Synced ${count} new hackathons from Devpost API.`);
       }
     } catch (err: any) {
-      console.log("Devpost API fetch failed, skipping...");
+      console.log("Devpost API multi-page fetch failed, skipping...");
     }
 
     try {
@@ -1300,11 +1308,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       let deletedCount = 0;
 
       for (const h of allHackathons) {
-        const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < now.getTime();
-        const endExpired = h.endDate && new Date(h.endDate).getTime() < now.getTime();
+        const deadlineExpired = h.registrationDeadline ? new Date(h.registrationDeadline).getTime() < now.getTime() : false;
+        const endExpired = h.endDate ? new Date(h.endDate).getTime() < now.getTime() : false;
         const isStatusExpired = h.status === "Expired";
 
-        if (deadlineExpired || endExpired || isStatusExpired) {
+        // Only purge if BOTH deadline and end date have passed, or explicitly marked Expired
+        if ((deadlineExpired && endExpired) || isStatusExpired) {
           await Hackathon.findByIdAndDelete(h._id || h.id);
           deletedCount++;
         }
@@ -2085,74 +2094,84 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   const syncLiveHackathons = async () => {
     let syncedCount = 0;
-    // 1. Sync from Devpost API
+
+    // 1. Sync multi-page Devpost API (Pages 1 to 5)
     try {
-      const devpostRes = await axios.get("https://devpost.com/api/hackathons?page=1", {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0",
-          "Accept": "application/json"
-        },
-        timeout: 10000
-      });
-      if (devpostRes.data && Array.isArray(devpostRes.data.hackathons)) {
-        for (const item of devpostRes.data.hackathons) {
-          const cleanUrl = item.url ? (item.url.startsWith("http") ? item.url : `https:${item.url}`) : "https://devpost.com";
-          const exists = await Hackathon.findOne({
-            $or: [{ name: item.title }, { registrationLink: cleanUrl }]
+      console.log("Syncing Devpost live hackathons across multiple pages (1..5)...");
+      for (let page = 1; page <= 5; page++) {
+        try {
+          const devpostRes = await axios.get(`https://devpost.com/api/hackathons?page=${page}`, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0",
+              "Accept": "application/json"
+            },
+            timeout: 10000
           });
-          if (!exists) {
-            const hId = `devpost-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            await Hackathon.create({
-              hackathonId: hId,
-              name: item.title,
-              organizer: item.organization_name || "Devpost Organizer",
-              description: `Live software hackathon on Devpost. Prize pool: ${(item.prize_amount || "").replace(/<[^>]*>/g, "").trim() || "See official site"}. Join developers globally to build and submit projects.`,
-              domain: "Global Directory",
-              startDate: new Date(),
-              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              registrationDeadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-              registrationLink: cleanUrl,
-              status: "Active"
-            });
-            syncedCount++;
+          if (devpostRes.data && Array.isArray(devpostRes.data.hackathons)) {
+            for (const item of devpostRes.data.hackathons) {
+              const cleanUrl = item.url ? (item.url.startsWith("http") ? item.url : `https:${item.url}`) : "https://devpost.com";
+              const cleanPrize = (item.prize_amount || "").replace(/<[^>]*>/g, "").trim() || "See official site";
+              
+              const exists = await Hackathon.findOne({
+                $or: [{ name: item.title }, { registrationLink: cleanUrl }]
+              });
+              if (!exists) {
+                const hId = `devpost-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+                await Hackathon.create({
+                  hackathonId: hId,
+                  name: item.title,
+                  organizer: item.organization_name || "Devpost Organizer",
+                  description: `Live software hackathon on Devpost. Prize pool: ${cleanPrize}. Join developers globally to build and submit projects.`,
+                  domain: "Global Directory",
+                  startDate: new Date(),
+                  endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+                  registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+                  registrationLink: cleanUrl,
+                  status: "Active"
+                });
+                syncedCount++;
+              }
+
+              const oppExists = await Opportunity.findOne({
+                $or: [{ title: item.title }, { website: cleanUrl }]
+              });
+              if (!oppExists) {
+                await Opportunity.create({
+                  title: item.title,
+                  description: `Real-time Hackathon hosted on Devpost by ${item.organization_name || 'community'}. Build innovative solutions and compete for ${cleanPrize}.`,
+                  category: "Hackathons",
+                  organizer: item.organization_name || "Devpost Organizer",
+                  organizerLogo: item.thumbnail_url 
+                    ? (item.thumbnail_url.startsWith("http") ? item.thumbnail_url : `https:${item.thumbnail_url}`)
+                    : `https://avatar.vercel.sh/${(item.organization_name || 'devpost').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+                  bannerImage: item.thumbnail_url 
+                    ? (item.thumbnail_url.startsWith("http") ? item.thumbnail_url : `https:${item.thumbnail_url}`)
+                    : "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
+                  website: cleanUrl,
+                  registrationLink: cleanUrl,
+                  location: item.displayed_location?.location || "Online (Participate from Home)",
+                  mode: item.displayed_location?.location && !item.displayed_location.location.toLowerCase().includes("online") ? "Offline" : "Online",
+                  freeOrPaid: "Free",
+                  targetAudience: "Student Only",
+                  prizePool: cleanPrize,
+                  registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+                  eventStartDate: new Date(),
+                  eventEndDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+                  difficulty: "Intermediate",
+                  eligibility: "Open to students and developers globally. Participate online or on-site.",
+                  timeline: "Live Registration Open",
+                  rules: "Standard platform rules apply.",
+                  judgingCriteria: "Quality, execution, and impact.",
+                  tags: (item.themes || []).map((t: any) => t.name).concat(["Hackathon", "Devpost", "Build"]),
+                  featured: true,
+                  trending: true,
+                  approved: true
+                });
+              }
+            }
           }
-          const oppExists = await Opportunity.findOne({
-            $or: [{ title: item.title }, { website: cleanUrl }]
-          });
-          if (!oppExists) {
-            const cleanPrize = (item.prize_amount || "").replace(/<[^>]*>/g, "").trim() || "See official site";
-            await Opportunity.create({
-              title: item.title,
-              description: `Real-time Hackathon hosted on Devpost by ${item.organization_name || 'community'}. Build innovative solutions and compete for ${cleanPrize}.`,
-              category: "Hackathons",
-              organizer: item.organization_name || "Devpost Organizer",
-              organizerLogo: item.thumbnail_url 
-                ? (item.thumbnail_url.startsWith("http") ? item.thumbnail_url : `https:${item.thumbnail_url}`)
-                : `https://avatar.vercel.sh/${(item.organization_name || 'devpost').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-              bannerImage: item.thumbnail_url 
-                ? (item.thumbnail_url.startsWith("http") ? item.thumbnail_url : `https:${item.thumbnail_url}`)
-                : "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
-              website: cleanUrl,
-              registrationLink: cleanUrl,
-              location: "Online (Participate from Home)",
-              mode: "Online",
-              freeOrPaid: "Free",
-              targetAudience: "Student Only",
-              prizePool: cleanPrize,
-              registrationDeadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-              eventStartDate: new Date(),
-              eventEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              difficulty: "Intermediate",
-              eligibility: "Open to students and developers globally. Participate 100% from home.",
-              timeline: "Live Registration",
-              rules: "Standard platform rules apply.",
-              judgingCriteria: "Quality, execution, and impact.",
-              tags: ["Hackathon", "Devpost", "Build", "Online"],
-              featured: true,
-              trending: true,
-              approved: true
-            });
-          }
+        } catch (pErr: any) {
+          console.log(`Devpost page ${page} warning:`, pErr.message);
         }
       }
     } catch (err: any) {
@@ -2164,8 +2183,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const hcRes = await axios.get("https://hackathons.hackclub.com/api/events/all", { timeout: 10000 });
       if (hcRes.data && Array.isArray(hcRes.data)) {
         for (const item of hcRes.data) {
+          const endDate = new Date(item.end);
+          if (endDate.getTime() < Date.now()) continue; // Skip only finished hackathons
+
           const startDate = new Date(item.start);
-          if (startDate.getTime() < Date.now()) continue;
           const exists = await Hackathon.findOne({
             $or: [{ name: item.name }, { registrationLink: item.website }]
           });
@@ -2177,8 +2198,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
               description: `Live student hackathon. ${item.desc || 'Build projects, learn skills, and compete with developer community!'}`,
               domain: "Student Hackathon League",
               startDate,
-              endDate: new Date(item.end),
-              registrationDeadline: startDate,
+              endDate,
+              registrationDeadline: endDate,
               registrationLink: item.website,
               status: "Active"
             });
@@ -2197,20 +2218,20 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
               bannerImage: item.banner || "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
               website: item.website,
               registrationLink: item.website,
-              location: "Online (Participate from Home)",
-              mode: "Online",
+              location: item.location || "Online (Participate from Home)",
+              mode: item.mode === "virtual" ? "Online" : (item.mode === "hybrid" ? "Hybrid" : "Offline"),
               freeOrPaid: "Free",
               targetAudience: "Student Only",
               prizePool: "Swag & Prizes",
-              registrationDeadline: startDate,
+              registrationDeadline: endDate,
               eventStartDate: startDate,
-              eventEndDate: new Date(item.end),
+              eventEndDate: endDate,
               difficulty: "Intermediate",
-              eligibility: "High school and university students globally. Participate 100% online.",
-              timeline: "Live Registration",
+              eligibility: "High school and university students globally.",
+              timeline: "Live Registration Open",
               rules: "Standard Hack Club code of conduct applies.",
               judgingCriteria: "Innovation, tech complexity, and impact.",
-              tags: ["Hackathon", "Hack Club", "Students", "Online"],
+              tags: ["Hackathon", "Hack Club", "Students"],
               featured: true,
               trending: true,
               approved: true
@@ -2222,21 +2243,88 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       console.log("Hack Club live sync warning:", err.message);
     }
 
-    // 3. Gemini Live Grounded Search for DoraHacks, Devfolio, MLH, Hugging Face, Unstop, HackerEarth, SIH, Kaggle
+    // 3. Sync Kontests API (Competitive Coding & Hackathons)
+    try {
+      const kontestsRes = await axios.get("https://kontests.net/api/v1/all", { timeout: 10000 });
+      if (kontestsRes.data && Array.isArray(kontestsRes.data)) {
+        for (const contest of kontestsRes.data) {
+          const endDate = new Date(contest.end_time);
+          if (endDate.getTime() < Date.now()) continue;
+
+          const startDate = new Date(contest.start_time);
+          const exists = await Hackathon.findOne({
+            $or: [{ name: contest.name }, { registrationLink: contest.url }]
+          });
+          if (!exists) {
+            await Hackathon.create({
+              hackathonId: `kontest-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              name: contest.name,
+              organizer: contest.site || "Coding Platform",
+              description: `Live coding competition & hackathon hosted on ${contest.site}. Test algorithms & problem solving skills.`,
+              domain: "Enterprise & Coding",
+              startDate,
+              endDate,
+              registrationDeadline: endDate,
+              registrationLink: contest.url,
+              status: "Active"
+            });
+            syncedCount++;
+          }
+          const oppExists = await Opportunity.findOne({
+            $or: [{ title: contest.name }, { website: contest.url }]
+          });
+          if (!oppExists) {
+            await Opportunity.create({
+              title: contest.name,
+              description: `Live coding challenge / hackathon hosted on ${contest.site}. Solve algorithmic problem statements and compete globally.`,
+              category: "Hackathons",
+              organizer: contest.site || "Coding Platform",
+              organizerLogo: `https://avatar.vercel.sh/${(contest.site || 'kontest').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+              bannerImage: "https://images.unsplash.com/photo-1607799279861-4dd421887fb3?auto=format&fit=crop&w=800&q=80",
+              website: contest.url,
+              registrationLink: contest.url,
+              location: "Online",
+              mode: "Online",
+              freeOrPaid: "Free",
+              targetAudience: "Student Only",
+              prizePool: "Rating points & Badges",
+              registrationDeadline: endDate,
+              eventStartDate: startDate,
+              eventEndDate: endDate,
+              difficulty: "Intermediate",
+              eligibility: "Open globally to students and developers.",
+              timeline: "Registration Open",
+              rules: "Standard platform rules apply.",
+              judgingCriteria: "Correctness, speed, and complexity.",
+              tags: ["Coding Contest", "Hackathon", contest.site || "Code"],
+              featured: true,
+              trending: true,
+              approved: true
+            });
+          }
+        }
+      }
+    } catch (err: any) {
+      console.log("Kontests live sync warning:", err.message);
+    }
+
+    // 4. Gemini Live Grounded Search for DoraHacks, Devfolio, MLH, Hugging Face, Unstop, HackerEarth, SIH, Kaggle
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY") {
       try {
         console.log("Curating live open hackathons on DoraHacks, Devfolio, Hugging Face, MLH, Unstop, HackerEarth, SIH & Kaggle via Gemini AI Search Grounding...");
-        const prompt = `Do a live web search using Google Search to find 10 actual, real, live, currently open hackathons for 2026/2027 hosted on these platforms:
-- DoraHacks (Web3 / open-source)
-- Devfolio (Indian tech & college hackathons)
-- Hugging Face Competitions (AI / LLM)
-- Major League Hacking (MLH)
-- Unstop (Engineering & college hackathons)
-- HackerEarth (AI & coding challenges)
-- Google Developer Communities / Solution Challenge
-- Smart India Hackathon (SIH) or Kaggle
+        const prompt = `Do a live web search using Google Search to find 25 actual, real, live, currently open hackathons for 2026/2027 hosted on these platforms:
+- Devfolio (Top Indian tech & college hackathons)
+- Smart India Hackathon (SIH 2026 / AICTE)
+- DoraHacks (Web3 / open-source & decentralized AI)
+- Major League Hacking (MLH Season)
+- Hugging Face Competitions (AI / LLM / Open Weights)
+- Unstop (Engineering & college hackathons in India)
+- HackerEarth (AI & enterprise coding challenges)
+- Kaggle (Machine Learning Grand Prix & LLM Challenges)
+- Google Developer Communities & Solution Challenge
+- Solana Renaissance / ETHGlobal / NASA Space Apps
 
-FETCH BOTH TYPES OF HACKATHONS:
+FETCH BOTH ONLINE & OFFLINE HACKATHONS:
 1. Online / Virtual Hackathons (participate 100% from home)
 2. Offline / In-Person Hackathons (held on college campuses or in-person tech venues in India and globally)
 
@@ -2253,7 +2341,7 @@ Return a clean raw JSON array of objects fitting this schema:
     "mode": "Online" | "Offline",
     "location": "Online (Virtual / Home)" | "City / Campus Location",
     "registrationLink": "https://...",
-    "daysUntilDeadline": 30
+    "daysUntilDeadline": 45
   }
 ]
 Do not include markdown tags. Return only raw JSON string.`;
@@ -2281,7 +2369,7 @@ Do not include markdown tags. Return only raw JSON string.`;
             const existing = await Hackathon.findOne({
               $or: [{ name: item.name }, { registrationLink: item.registrationLink }]
             });
-            const days = item.daysUntilDeadline || 30;
+            const days = item.daysUntilDeadline || 45;
             const itemMode = item.mode === "Offline" || (item.location && !item.location.toLowerCase().includes("online")) ? "Offline" : "Online";
             const itemLoc = item.location || (itemMode === "Offline" ? "On-Site / Campus" : "Online (Participate from Home)");
 
@@ -2295,7 +2383,7 @@ Do not include markdown tags. Return only raw JSON string.`;
                 mode: itemMode,
                 location: itemLoc,
                 startDate: new Date(),
-                endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+                endDate: new Date(Date.now() + (days + 15) * 24 * 60 * 60 * 1000),
                 registrationDeadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
                 registrationLink: item.registrationLink,
                 status: "Active"
@@ -2319,13 +2407,13 @@ Do not include markdown tags. Return only raw JSON string.`;
                 mode: itemMode,
                 freeOrPaid: "Free",
                 targetAudience: "Student Only",
-                prizePool: "Platform Badges & Prizes",
+                prizePool: "Platform Badges & Cash Prizes",
                 registrationDeadline: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
                 eventStartDate: new Date(),
                 eventEndDate: new Date(Date.now() + (days + 30) * 24 * 60 * 60 * 1000),
                 difficulty: "Intermediate",
                 eligibility: itemMode === "Offline" ? "Open to students on-site." : "Open to students globally online.",
-                timeline: "Active Registration",
+                timeline: "Active Registration Open",
                 rules: "Standard platform terms apply.",
                 judgingCriteria: "Innovation, impact, and technical execution.",
                 tags: ["Hackathon", "Build", item.domain || "Live Event", itemMode],
@@ -2351,31 +2439,25 @@ Do not include markdown tags. Return only raw JSON string.`;
   const runStartupJobs = async () => {
     try {
       const oppCount = await Opportunity.countDocuments();
-      if (oppCount === 0) {
-        console.log("Database empty. Running initial demo data and opportunities seed...");
+      console.log(`[TrackFlow Server] Initial startup check: Database contains ${oppCount} opportunities.`);
+      if (oppCount < 10) {
+        console.log("Database low on opportunities. Running initial seed...");
         await seedDemoData();
         await seedOpportunities();
-        setTimeout(() => {
-          syncGovernmentHackathons().catch(() => {});
-          syncOpportunities().catch(() => {});
-        }, 1000);
-      } else {
-        console.log(`Database already populated with ${oppCount} opportunities. Skipping redundant cold-start seeding.`);
       }
+      
+      // Instantly trigger live hackathon sync across Devpost (P1..5), Hack Club, Kontests, & Gemini AI Grounding
+      syncLiveHackathons().catch((err) => console.error("Initial live hackathon background sync:", err.message));
+
       if (!process.env.VERCEL) {
-        // Purge expired hackathons and opportunities every 1 minute
-        setInterval(cleanupExpiredHackathons, 1 * 60 * 1000);
-        setInterval(cleanupExpiredOpportunities, 1 * 60 * 1000);
+        // Purge expired hackathons and opportunities every 15 minutes
+        setInterval(cleanupExpiredHackathons, 15 * 60 * 1000);
+        setInterval(cleanupExpiredOpportunities, 15 * 60 * 1000);
         // Refresh live hackathons every 6 hours (21,600,000 ms)
         setInterval(syncGovernmentHackathons, 6 * 60 * 60 * 1000);
         setInterval(syncOpportunities, 6 * 60 * 60 * 1000);
         setInterval(syncLiveHackathons, 6 * 60 * 60 * 1000);
       }
-      setTimeout(() => {
-        cleanupExpiredHackathons().catch(() => {});
-        cleanupExpiredOpportunities().catch(() => {});
-        syncLiveHackathons().catch((err) => console.error("Initial startup live hackathon sync error:", err.message));
-      }, 3000);
     } catch (err) {
       console.error("Failed running startup data seed/sync jobs:", err);
     }
@@ -2491,7 +2573,7 @@ Do not include markdown tags. Return only raw JSON string.`;
         },
         {
           hackathonId: "google-developer-community-2026",
-          name: "Google Developer Communities & Challenges",
+          name: "Google Developer Communities & Solution Challenge 2026",
           organizer: "Google Developers",
           description: "Google-sponsored global developer challenges, Solution Challenges, Gemini AI sprints, and community hackathons.",
           domain: "Google AI & Cloud",
@@ -2596,6 +2678,78 @@ Do not include markdown tags. Return only raw JSON string.`;
           registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           registrationLink: "https://www.kaggle.com/competitions",
           status: "Active"
+        },
+        {
+          hackathonId: "solana-renaissance-2026",
+          name: "Solana Renaissance Global Hackathon",
+          organizer: "Solana Foundation",
+          description: "Build high-speed crypto, DePIN, DeFi, and Web3 infrastructure on Solana with $1M+ total prize pool.",
+          domain: "Web3 & Open-Source",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://solana.com/hackathon",
+          status: "Active"
+        },
+        {
+          hackathonId: "ethglobal-2026",
+          name: "ETHGlobal Hackathons 2026",
+          organizer: "ETHGlobal",
+          description: "The premier global Ethereum developer hackathon series with virtual & in-person events worldwide.",
+          domain: "Web3 & Open-Source",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://ethglobal.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "nasa-space-apps-2026",
+          name: "NASA International Space Apps Challenge 2026",
+          organizer: "NASA",
+          description: "The world's largest global hackathon. Solve challenges using open Earth & space data.",
+          domain: "Government Hackathon",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://www.spaceappschallenge.org",
+          status: "Active"
+        },
+        {
+          hackathonId: "microsoft-imagine-cup-2026",
+          name: "Microsoft Imagine Cup 2026",
+          organizer: "Microsoft",
+          description: "Global student tech competition to build impactful AI solutions using Azure Cloud and AI technologies.",
+          domain: "AI & Enterprise Cloud",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 150 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://imaginecup.microsoft.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "meta-llama-impact-2026",
+          name: "Meta Llama Open Source AI Hackathon",
+          organizer: "Meta AI",
+          description: "Build next-generation applications leveraging Meta's open-weights Llama 3 models and open source AI stack.",
+          domain: "AI & LLM Competitions",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://llama.meta.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "naan-mudhalvan-tn-2026",
+          name: "Naan Mudhalvan Tamil Nadu Govt Tech Hackathon",
+          organizer: "Tamil Nadu Skill Development Corporation",
+          description: "State government hackathon for engineering college students in Tamil Nadu to solve real civic & industry challenges.",
+          domain: "Government Hackathon",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://naanmudhalvan.tn.gov.in",
+          status: "Active"
         }
       ];
 
@@ -2643,7 +2797,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       let activeHackathons = hackathons.filter(h => {
         const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < nowTime;
         const endExpired = h.endDate && new Date(h.endDate).getTime() < nowTime;
-        return !deadlineExpired && !endExpired && h.status !== "Expired";
+        return (!deadlineExpired || !endExpired) && h.status !== "Expired";
       }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
       res.json({
@@ -4009,15 +4163,16 @@ Do not include markdown tags. Return only raw JSON string.`;
       const now = new Date();
       if (status) {
         if (status === "Live") {
-          query.registrationDeadline = { $gt: now };
-          query.eventStartDate = { $lte: now };
+          query.$or = [
+            { registrationDeadline: { $gte: now } },
+            { eventEndDate: { $gte: now } }
+          ];
         } else if (status === "Upcoming") {
           query.eventStartDate = { $gt: now };
-          query.registrationDeadline = { $gt: now };
         } else if (status === "Completed") {
           query.eventEndDate = { $lt: now };
         } else if (status === "ClosingSoon") {
-          query.registrationDeadline = { $gt: now, $lte: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000) };
+          query.registrationDeadline = { $gt: now, $lte: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000) };
         }
       }
 

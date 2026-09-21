@@ -275,11 +275,11 @@ export default function Dashboard() {
                 to={card.link}
                 className="nixtio-card nixtio-card-hover p-4 sm:p-5 flex flex-col justify-between space-y-3 group"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <div className={`p-3 rounded-2xl ${card.iconBg} border ${card.color} shadow-xs group-hover:scale-105 transition-transform`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                  <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full border ${card.badgeColor}`}>
+                  <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full border shrink-0 ${card.badgeColor}`}>
                     {card.badge}
                   </span>
                 </div>
@@ -287,7 +287,7 @@ export default function Dashboard() {
                   <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight block">
                     {card.value}
                   </span>
-                  <span className="text-xs font-bold text-slate-500 mt-0.5 block truncate">
+                  <span className="text-xs font-bold text-slate-600 mt-0.5 block leading-snug">
                     {card.title}
                   </span>
                 </div>
@@ -639,11 +639,11 @@ export default function Dashboard() {
     }
 
     return (
-      <div className="space-y-6 text-left">
+      <div className="space-y-6 text-left overflow-x-hidden">
         {/* Student Nixtio Hero Banner */}
         <div className="nixtio-hero-banner p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl z-10">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-200 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
                 Learner Workspace &bull; {currentUser.department || "Lab Core"}
               </span>
@@ -656,7 +656,7 @@ export default function Dashboard() {
               </span>
             </div>
             <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight leading-tight">
-              Welcome back, {currentUser.name}! 🚀
+              Welcome back, {currentUser.name}!
             </h1>
             <p className="text-xs sm:text-sm text-indigo-100 font-medium leading-relaxed">
               Assigned Project: <span className="font-bold text-white underline decoration-indigo-300">{project.name}</span>
@@ -692,14 +692,14 @@ export default function Dashboard() {
         {/* Student Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Progress Overview Card */}
-          <div className="lg:col-span-2 nixtio-card p-6 border border-slate-200/80 space-y-6 flex flex-col justify-between">
+          <div className="lg:col-span-2 nixtio-card p-6 border border-slate-200/80 space-y-6 flex flex-col justify-between overflow-hidden">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-indigo-600" />
-                  Project Overview & Milestone Synopsis
+                  <TrendingUp className="w-5 h-5 text-indigo-600 shrink-0" />
+                  <span>Project Overview & Milestone Synopsis</span>
                 </h3>
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full w-fit">
                   Domain: {project.domain || "Tech Lab"}
                 </span>
               </div>
@@ -723,13 +723,13 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-              <span className="text-xs text-slate-500 font-semibold">
-                GitHub Repo: <span className="text-slate-800 font-mono font-bold">{project.githubRepo || "Not linked"}</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 overflow-hidden">
+              <span className="text-xs text-slate-500 font-semibold truncate max-w-full sm:max-w-xs">
+                GitHub Repo: <span className="text-slate-800 font-mono font-bold truncate inline-block max-w-[180px] sm:max-w-[220px] align-bottom" title={project.githubRepo || "Not linked"}>{project.githubRepo || "Not linked"}</span>
               </span>
               <Link
                 to="/project-hub"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20 shrink-0 w-full sm:w-auto"
               >
                 <span>Explore Full Workspace</span>
                 <ArrowRight className="w-3.5 h-3.5" />
