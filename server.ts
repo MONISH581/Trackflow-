@@ -2449,6 +2449,30 @@ Do not include markdown tags. Return only raw JSON string.`;
       // Instantly trigger live hackathon sync across Devpost (P1..5), Hack Club, Kontests, & Gemini AI Grounding
       syncLiveHackathons().catch((err) => console.error("Initial live hackathon background sync:", err.message));
 
+      // Purge any historical duplicate message records from DB
+      try {
+        const allMsgs = await Message.find().sort({ createdAt: 1 });
+        const idsToRemove: any[] = [];
+        const seenMap: Record<string, Date> = {};
+
+        for (const m of allMsgs) {
+          const key = `${m.userId || ""}_${m.projectId || ""}_${(m.text || "").trim()}`;
+          const lastTime = seenMap[key];
+          if (lastTime && m.createdAt && (new Date(m.createdAt).getTime() - lastTime.getTime() < 10000)) {
+            idsToRemove.push(m._id);
+          } else if (m.createdAt) {
+            seenMap[key] = new Date(m.createdAt);
+          }
+        }
+
+        if (idsToRemove.length > 0) {
+          await Message.deleteMany({ _id: { $in: idsToRemove } });
+          console.log(`[TrackFlow Cleanup] Purged ${idsToRemove.length} historical duplicate chat messages from database.`);
+        }
+      } catch (cleanErr: any) {
+        console.warn("Message duplicate cleanup warning:", cleanErr.message);
+      }
+
       if (!process.env.VERCEL) {
         // Purge expired hackathons and opportunities every 15 minutes
         setInterval(cleanupExpiredHackathons, 15 * 60 * 1000);
@@ -3910,12 +3934,39 @@ Do not include markdown tags. Return only raw JSON string.`;
   });
 
   // DB endpoints for Messages
+  const dedupeServerMessages = (rawMessages: any[]) => {
+    const list = rawMessages.map(m => ({ id: String(m._id || m.id), ...(typeof m.toObject === 'function' ? m.toObject() : m) }));
+    const result: any[] = [];
+    const seenIds = new Set<string>();
+
+    for (const msg of list) {
+      const msgId = String(msg.id || msg._id || "");
+      if (msgId && seenIds.has(msgId)) continue;
+
+      const isDuplicate = result.some((existing) => {
+        if (existing.userId === msg.userId && (existing.text || "").trim() === (msg.text || "").trim() && (existing.projectId || "") === (msg.projectId || "")) {
+          if (!existing.createdAt || !msg.createdAt) return true;
+          const timeDiff = Math.abs(new Date(existing.createdAt).getTime() - new Date(msg.createdAt).getTime());
+          return timeDiff < 10000; // 10 seconds window
+        }
+        return false;
+      });
+
+      if (isDuplicate) continue;
+
+      if (msgId) seenIds.add(msgId);
+      result.push(msg);
+    }
+    return result;
+  };
+
   app.get("/api/messages", async (req, res) => {
     try {
       const { projectId } = req.query;
       const query = projectId ? { projectId: String(projectId) } : { $or: [{ projectId: "" }, { projectId: null }] };
-      const messages = await Message.find(query).sort({ createdAt: 1 });
-      res.json({ messages: messages.map(m => ({ id: m._id, ...m.toObject() })) });
+      const rawMessages = await Message.find(query).sort({ createdAt: 1 });
+      const cleanMessages = dedupeServerMessages(rawMessages);
+      res.json({ messages: cleanMessages });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -3962,24 +4013,47 @@ Do not include markdown tags. Return only raw JSON string.`;
   app.post("/api/messages", async (req, res) => {
     try {
       const { user: sender, userId, text, projectId } = req.body;
+      const cleanText = (text || "").trim();
+      const pId = projectId || "";
+
+      if (!cleanText) {
+        return res.status(400).json({ error: "Message text is required" });
+      }
+
+      // Check if duplicate message was created in the last 4 seconds
+      const fourSecondsAgo = new Date(Date.now() - 4000);
+      const existing = await Message.findOne({
+        userId,
+        text: cleanText,
+        projectId: pId,
+        createdAt: { $gte: fourSecondsAgo }
+      });
+
+      if (existing) {
+        const formattedExisting = { id: String(existing._id), ...(typeof existing.toObject === 'function' ? existing.toObject() : existing) };
+        return res.json({ message: formattedExisting });
+      }
+
       const msg = new Message({
         user: sender,
         userId,
-        text,
-        projectId: projectId || ""
+        text: cleanText,
+        projectId: pId
       });
       await msg.save();
       
-      if (projectId) {
-        io.to(projectId).emit("receive_message", msg);
+      const formattedMsg = { id: String(msg._id), ...(typeof msg.toObject === 'function' ? msg.toObject() : msg) };
+
+      if (pId) {
+        io.to(pId).emit("receive_message", formattedMsg);
       } else {
-        io.emit("receive_message_global", msg);
+        io.emit("receive_message_global", formattedMsg);
       }
 
       // Automatically dispatch notifications to recipients
-      await notifyMessageRecipients(userId, sender, text, projectId);
+      await notifyMessageRecipients(userId, sender, cleanText, pId);
 
-      res.json({ message: { id: msg._id, ...msg.toObject() } });
+      res.json({ message: formattedMsg });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -4456,29 +4530,37 @@ Do not include markdown tags. Return only raw JSON string.`;
 
     socket.on("send_message", async (data) => {
       try {
-        let msg;
-        if (data._id || data.id) {
-          msg = data;
-        } else {
+        const cleanText = (data.text || "").trim();
+        const pId = data.projectId || "";
+        if (!cleanText) return;
+
+        // Check if message was saved via API in the last 4 seconds
+        const fourSecondsAgo = new Date(Date.now() - 4000);
+        let msg: any = await Message.findOne({
+          userId: data.userId,
+          text: cleanText,
+          projectId: pId,
+          createdAt: { $gte: fourSecondsAgo }
+        });
+
+        if (!msg && !data._id && !data.id) {
           msg = new Message({
             user: data.user,
             userId: data.userId,
-            text: data.text,
-            projectId: data.projectId || ""
+            text: cleanText,
+            projectId: pId
           });
           await msg.save();
+          await notifyMessageRecipients(data.userId, data.user, cleanText, pId);
         }
 
-        const formattedMsg = { id: msg._id || msg.id, ...(typeof msg.toObject === 'function' ? msg.toObject() : msg) };
-
-        if (data.projectId) {
-          socket.to(data.projectId).emit("receive_message", formattedMsg);
-        } else {
-          socket.broadcast.emit("receive_message_global", formattedMsg);
-        }
-
-        if (!data._id && !data.id) {
-          await notifyMessageRecipients(data.userId, data.user, data.text, data.projectId);
+        if (msg) {
+          const formattedMsg = { id: String(msg._id || msg.id), ...(typeof msg.toObject === 'function' ? msg.toObject() : msg) };
+          if (pId) {
+            socket.to(pId).emit("receive_message", formattedMsg);
+          } else {
+            socket.broadcast.emit("receive_message_global", formattedMsg);
+          }
         }
       } catch (err) {}
     });

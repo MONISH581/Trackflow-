@@ -311,6 +311,33 @@ export interface MessageInfo {
   createdAt?: string;
 }
 
+export function dedupeClientMessages(list: MessageInfo[]): MessageInfo[] {
+  if (!Array.isArray(list)) return [];
+  const result: MessageInfo[] = [];
+  const seenIds = new Set<string>();
+
+  for (const msg of list) {
+    const msgId = msg._id || msg.id;
+    if (msgId && seenIds.has(msgId)) continue;
+
+    const isDuplicateContent = result.some((existing) => {
+      if (existing.userId === msg.userId && (existing.text || "").trim() === (msg.text || "").trim() && (existing.projectId || "") === (msg.projectId || "")) {
+        if (!existing.createdAt || !msg.createdAt) return true;
+        const timeDiff = Math.abs(new Date(existing.createdAt).getTime() - new Date(msg.createdAt).getTime());
+        return timeDiff < 6000; // 6 seconds window
+      }
+      return false;
+    });
+
+    if (isDuplicateContent) continue;
+
+    if (msgId) seenIds.add(msgId);
+    result.push(msg);
+  }
+
+  return result;
+}
+
 interface ToastMessage {
   id: string;
   message: string;
@@ -1369,7 +1396,7 @@ export const useStore = create<AppState>((set, get) => ({
       const query = projectId ? `?projectId=${projectId}` : "";
       const response = await fetch(`${API_BASE}/api/messages${query}`);
       const data = await response.json();
-      set({ messages: data.messages || [] });
+      set({ messages: dedupeClientMessages(data.messages || []) });
     } catch (e) {}
   },
 
@@ -1390,7 +1417,7 @@ export const useStore = create<AppState>((set, get) => ({
     };
 
     // Instant Optimistic local update (0ms UI render for sender)
-    set((state) => ({ messages: [...state.messages, newMsg] }));
+    set((state) => ({ messages: dedupeClientMessages([...state.messages, newMsg]) }));
 
     // Persist to database asynchronously & broadcast once via API
     try {
@@ -1408,7 +1435,7 @@ export const useStore = create<AppState>((set, get) => ({
       if (response.ok && data.message) {
         const savedMsg = data.message;
         set((state) => ({
-          messages: state.messages.map((m) => (m.id === tempId || m._id === tempId ? savedMsg : m))
+          messages: dedupeClientMessages(state.messages.map((m) => (m.id === tempId || m._id === tempId ? savedMsg : m)))
         }));
       }
     } catch (e: any) {
@@ -1447,6 +1474,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   connectSocket: () => {
+    const existingSocket = get().socket;
+    if (existingSocket) {
+      if (existingSocket.connected) return;
+      existingSocket.disconnect();
+    }
+
     const socket = io(API_BASE);
     set({ socket });
 
@@ -1478,12 +1511,12 @@ export const useStore = create<AppState>((set, get) => ({
           const tempMsg = state.messages.find(m => m.id?.startsWith("msg-") && m.text === msg.text);
           if (tempMsg) {
             return {
-              messages: state.messages.map(m => m.id === tempMsg.id ? msg : m)
+              messages: dedupeClientMessages(state.messages.map(m => m.id === tempMsg.id ? msg : m))
             };
           }
         }
 
-        return { messages: [...state.messages, msg] };
+        return { messages: dedupeClientMessages([...state.messages, msg]) };
       });
       const user = get().currentUser;
       if (user && msg.userId !== user.userId) {
@@ -1503,12 +1536,12 @@ export const useStore = create<AppState>((set, get) => ({
           const tempMsg = state.messages.find(m => m.id?.startsWith("msg-") && m.text === msg.text);
           if (tempMsg) {
             return {
-              messages: state.messages.map(m => m.id === tempMsg.id ? msg : m)
+              messages: dedupeClientMessages(state.messages.map(m => m.id === tempMsg.id ? msg : m))
             };
           }
         }
 
-        return { messages: [...state.messages, msg] };
+        return { messages: dedupeClientMessages([...state.messages, msg]) };
       });
       const user = get().currentUser;
       if (user && msg.userId !== user.userId) {
