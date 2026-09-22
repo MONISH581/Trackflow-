@@ -151,10 +151,14 @@ export interface HackathonRegistrationInfo {
   hackathonName: string;
   studentId: string;
   studentName: string;
+  studentEmail?: string;
+  department?: string;
   registerNumber: string;
   registrationDate: string;
   screenshotUrl: string;
   verificationStatus: "Pending" | "Verified" | "Rejected";
+  effectiveStatus?: "Pending" | "Verified" | "Rejected" | "Expired";
+  validUntil?: string;
   verifiedBy?: string;
   verifiedAt?: string;
   rejectionReason?: string;
@@ -298,7 +302,8 @@ export interface NotificationInfo {
   message: string;
   read: boolean;
   relatedId?: string;
-  type: "general" | "team";
+  type: string;
+  targetRoute?: string;
   createdAt?: string;
 }
 
@@ -421,8 +426,9 @@ interface AppState {
   setLoading: (loading: boolean) => void;
   
   // Auth
-  login: (userData: Partial<UserInfo>) => Promise<boolean>;
+  login: (userData: Partial<UserInfo> & { overrideSession?: boolean; forceLogoutAll?: boolean }) => Promise<{ success: boolean; code?: string; message?: string }>;
   logout: () => void;
+  logoutAllDevices: (email?: string) => Promise<boolean>;
   updateProfile: (userId: string, data: Partial<UserInfo>) => Promise<boolean>;
   checkSession: () => void;
 
@@ -594,7 +600,9 @@ export const useStore = create<AppState>((set, get) => ({
       const data = await safeJson(response, {});
 
       if (!response.ok) {
-        throw new Error(data.error || `Server Error (${response.status}): Could not process login.`);
+        const errMessage = data.message || data.error || `Server Error (${response.status}): Could not process login.`;
+        const errCode = data.code || (response.status === 409 ? "SESSION_ALREADY_ACTIVE" : "LOGIN_ERROR");
+        return { success: false, code: errCode, message: errMessage };
       }
       
       const user = data.user;
@@ -626,10 +634,9 @@ export const useStore = create<AppState>((set, get) => ({
         );
       }
       await Promise.all(fetchPromises);
-      return true;
+      return { success: true };
     } catch (e: any) {
-      get().addToast(e.message, "error");
-      return false;
+      return { success: false, code: "NETWORK_ERROR", message: e.message || "Could not connect to server" };
     } finally {
       get().setLoading(false);
     }
@@ -650,6 +657,30 @@ export const useStore = create<AppState>((set, get) => ({
     localStorage.removeItem("trackflow_session_token");
     set({ currentUser: null, activeProject: null, projects: [], tasks: [], notifications: [], messages: [] });
     get().addToast("Logged out successfully", "info");
+  },
+
+  logoutAllDevices: async (email?: string) => {
+    try {
+      const user = get().currentUser;
+      const targetEmail = email || user?.email;
+      const response = await fetch(`${API_BASE}/api/auth/logout-all`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email: targetEmail, userId: user?.userId })
+      });
+      const data = await safeJson(response, {});
+      if (response.ok && data.success) {
+        get().logout();
+        get().addToast("Successfully logged out from all devices.", "success");
+        return true;
+      } else {
+        get().addToast(data.message || "Failed to revoke active sessions.", "error");
+        return false;
+      }
+    } catch (err: any) {
+      get().addToast(err.message || "Network error", "error");
+      return false;
+    }
   },
 
   updateProfile: async (userId, data) => {

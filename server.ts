@@ -148,15 +148,61 @@ async function startServer() {
     try {
       const user = await User.findOne({ $or: [{ userId: req.user.id }, { _id: req.user.id }, { email: req.user.email }] });
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(404).json({ error: "User not found", code: "ACCOUNT_NOT_FOUND" });
       }
 
       const reqSessionToken = req.headers["x-session-token"] || req.query.sessionToken;
       if (user.activeSessionToken && reqSessionToken && reqSessionToken !== user.activeSessionToken) {
-        return res.status(401).json({ error: "CONCURRENT_LOGIN_LOGOUT", message: "Account logged in on another device." });
+        return res.status(401).json({ error: "CONCURRENT_LOGIN_LOGOUT", code: "SESSION_REVOKED", message: "Account logged in on another device." });
       }
 
       res.json({ active: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Global Logout - Revoke all active sessions for a user
+  app.post('/api/auth/logout-all', async (req: any, res: any) => {
+    try {
+      const { userId, email } = req.body;
+      let targetUserId = userId;
+
+      if (!targetUserId && email) {
+        const u = await User.findOne({ email: email.toLowerCase().trim() });
+        if (u) targetUserId = u.userId;
+      }
+
+      if (!targetUserId && req.headers.authorization) {
+        try {
+          const token = req.headers.authorization.split(" ")[1];
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          if (decoded) targetUserId = decoded.id;
+        } catch (e) {}
+      }
+
+      if (targetUserId) {
+        const user = await User.findOne({ $or: [{ userId: targetUserId }, { _id: targetUserId }] });
+        if (user) {
+          user.activeSessionToken = "";
+          await user.save();
+        }
+
+        const activeSessions = await Session.find({ userId: targetUserId, isActive: true });
+        for (const s of activeSessions) {
+          s.isActive = false;
+          s.revokedAt = new Date();
+          await s.save();
+        }
+
+        try {
+          io.to(`user_${targetUserId}`).emit("force_logout", {
+            message: "All sessions have been revoked."
+          });
+        } catch (sErr) {}
+      }
+
+      res.json({ success: true, message: "Logged out from all devices successfully. You can now log in normally." });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -687,6 +733,7 @@ async function startServer() {
   const ActivityLog = createModelWrapper("activity_logs");
   const MilestonePresentation = createModelWrapper("milestone_presentations");
   const ProjectExtension = createModelWrapper("project_extensions");
+  const Session = createModelWrapper("sessions");
 
   const OFFICIAL_LABS = [
     "Artificial Intelligence and Research Lab",
@@ -1411,16 +1458,15 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       if (isSignup && (role === 'master_admin' || userRole === 'master_admin')) {
         return res.status(403).json({ error: "Public Master Admin registration is disabled. Master Admin accounts can only be provisioned by existing administrators." });
       }
-
       let user = await User.findOne({ email: cleanEmail });
 
       if (isSignup && user) {
-        return res.status(400).json({ error: "An account with this email address already exists. Please log in instead." });
+        return res.status(400).json({ error: "An account with this email address already exists. Please log in.", code: "ACCOUNT_ALREADY_EXISTS" });
       }
 
       if (!user) {
         if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in') {
-          // Auto-provision Master Admin on demand if serverless cold-start
+          // Auto-provision Master Admin on demand
           const passwordHash = await bcrypt.hash(password || "password123", 10);
           user = new User({
             userId: "master-sathish",
@@ -1436,7 +1482,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           });
           await user.save();
         } else if (!isSignup) {
-          return res.status(404).json({ error: "Account not registered. Please register first." });
+          return res.status(404).json({ error: "No account found with this email address. Please register first.", code: "ACCOUNT_NOT_FOUND" });
         } else {
           if (!password || password.length < 6) {
             return res.status(400).json({ error: "Password must be at least 6 characters." });
@@ -1456,7 +1502,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             role: userRole,
             accountStatus: 'ACTIVE',
             avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
-            department: department || (userRole === 'master_admin' ? 'Master Control' : (userRole === 'coordinator' ? 'Engineering' : 'Computer Science')),
+            department: department || "Computer Science and Engineering",
             preferredDomain: preferredDomain || "Artificial Intelligence",
             year: year || "1",
             status: initialStatus,
@@ -1464,33 +1510,9 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           });
           await user.save();
         }
-        
-        if (userRole === 'student') {
-          const coordinators = await User.find({ role: 'coordinator', status: 'approved' });
-          for (const coord of coordinators) {
-            await new Notification({
-              userId: coord.userId,
-              title: "New Student Registration",
-              message: `A new student, ${user.name} (${user.registerNumber || 'Reg Pending'}), has registered.`,
-              relatedId: user.userId,
-              type: "general"
-            }).save();
-          }
-        } else if (userRole === 'coordinator') {
-          const masters = await User.find({ role: 'master_admin' });
-          for (const master of masters) {
-            await new Notification({
-              userId: master.userId,
-              title: "New Teacher / Admin Registration",
-              message: `Teacher/Admin ${user.name} (${user.email}) has registered and is waiting for Master Admin approval.`,
-              relatedId: user.userId,
-              type: "general"
-            }).save();
-          }
-        }
       } else {
         if (user.accountStatus === 'LOCKED') {
-          return res.status(403).json({ error: "Your TrackFlow account is currently locked. Please contact your coordinator for permission." });
+          return res.status(403).json({ error: "Your TrackFlow account is currently locked. Please contact your coordinator for permission.", code: "ACCOUNT_LOCKED" });
         }
 
         // Verify password
@@ -1506,18 +1528,15 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           try {
             isMatch = await bcrypt.compare(password, currentHash);
           } catch (bErr) {
-            console.warn("Bcrypt compare exception caught:", bErr);
             isMatch = false;
           }
         } else if (currentHash && currentHash === password) {
-          // Plaintext password match -> upgrade to bcrypt
           isMatch = true;
           user.passwordHash = await bcrypt.hash(password, 10);
           delete user.password;
           await user.save();
         }
 
-        // If Master Admin login attempt with default password, auto-sync credentials
         if (!isMatch && isMasterAdminEmail && (password === "password123" || !currentHash)) {
           isMatch = true;
           user.passwordHash = await bcrypt.hash(password, 10);
@@ -1528,7 +1547,29 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         }
 
         if (!isMatch) {
-          return res.status(401).json({ error: "Invalid email or password." });
+          return res.status(401).json({ error: "Invalid email or password.", code: "INVALID_CREDENTIALS" });
+        }
+
+        // Check if active session exists on another device
+        const { overrideSession, forceLogoutAll } = req.body;
+        const now = new Date();
+        const activeSessions = await Session.find({ userId: user.userId, isActive: true, expiresAt: { $gt: now } });
+
+        if (activeSessions.length > 0 && !overrideSession && !forceLogoutAll) {
+          return res.status(409).json({
+            error: "Your account is already logged in on another device. Please log out from that device or log out from all devices.",
+            code: "SESSION_ALREADY_ACTIVE",
+            userId: user.userId
+          });
+        }
+
+        // If overriding session or logging in after global logout, revoke old active sessions
+        if (activeSessions.length > 0) {
+          for (const s of activeSessions) {
+            s.isActive = false;
+            s.revokedAt = now;
+            await s.save();
+          }
         }
 
         if (name) user.name = name;
@@ -1543,6 +1584,23 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         if (!user.userId) user.userId = user._id || user.id || `user-${Date.now()}`;
         await user.save();
       }
+
+      // Generate fresh session token & DB Session record
+      const sessionToken = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      user.activeSessionToken = sessionToken;
+      await user.save();
+
+      const newSession = new Session({
+        sessionId: `sess_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+        userId: user.userId,
+        sessionToken,
+        deviceId: req.headers["user-agent"] || "device_unknown",
+        createdAt: new Date(),
+        lastActiveAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        isActive: true
+      });
+      await newSession.save();
 
       // Automatic Attendance Marking on Login for Students
       if (user.role === 'student') {
@@ -3016,6 +3074,17 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
+  // Helper function for exact calendar month arithmetic
+  function addOneCalendarMonth(dateObj: Date): Date {
+    const result = new Date(dateObj.getTime());
+    const currentMonth = result.getMonth();
+    result.setMonth(currentMonth + 1);
+    if (result.getMonth() !== (currentMonth + 1) % 12) {
+      result.setDate(0); // Adjust to last day of target month (e.g., Jan 31 -> Feb 28)
+    }
+    return result;
+  }
+
   // MANDATORY Hackathon Registration with Screenshot Proof Upload
   app.post("/api/hackathons/:id/register", upload.single("screenshot"), async (req, res) => {
     try {
@@ -3024,10 +3093,20 @@ Do not include markdown tags. Return only raw JSON string.`;
       if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
 
       const user = await User.findOne({ userId: studentId });
-      if (!user) return res.status(404).json({ error: "Student user not found" });
+      if (!user) return res.status(404).json({ error: "Student user not found", code: "ACCOUNT_NOT_FOUND" });
 
       if (!req.file) {
         return res.status(400).json({ error: "Registration Screenshot Required! Upload proof of registration before submitting." });
+      }
+
+      // Check if active pending submission already exists
+      const existingPending = await HackathonRegistration.findOne({
+        studentId: user.userId,
+        hackathonId: hackathon._id,
+        verificationStatus: "Pending"
+      });
+      if (existingPending) {
+        return res.status(400).json({ error: "A pending verification request already exists for this hackathon. Please wait for coordinator review." });
       }
 
       const screenshotUrl = `/uploads/${req.file.filename}`;
@@ -3038,6 +3117,8 @@ Do not include markdown tags. Return only raw JSON string.`;
         hackathonName: hackathon.name,
         studentId: user.userId,
         studentName: user.name,
+        studentEmail: user.email,
+        department: user.department || "Computer Science and Engineering",
         registerNumber: user.registerNumber || "Reg Pending",
         registrationDate: new Date(),
         screenshotUrl,
@@ -3045,14 +3126,16 @@ Do not include markdown tags. Return only raw JSON string.`;
       });
       await reg.save();
 
-      // Notify Coordinator
+      // Notify Coordinators with targetRoute metadata
       const coordinators = await User.find({ role: 'coordinator' });
       for (const coord of coordinators) {
         await new Notification({
           userId: coord.userId,
           title: "Hackathon Proof Uploaded",
-          message: `${user.name} uploaded registration screenshot proof for ${hackathon.name}. Verification required.`,
+          message: `${user.name} (${user.department || 'CSE'}) uploaded registration screenshot proof for ${hackathon.name}. Verification required.`,
           relatedId: reg._id,
+          targetRoute: "/hackathons?tab=verification",
+          read: false,
           type: "general"
         }).save();
       }
@@ -3063,39 +3146,118 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
+  // GET Hackathon Registrations with Pagination, Search & Filters
   app.get("/api/hackathons/registrations", async (req, res) => {
     try {
-      const { studentId } = req.query;
+      const { studentId, page = "1", limit = "25", status, department, search } = req.query;
       let query: any = {};
       if (studentId) query.studentId = String(studentId);
+      if (department && department !== "ALL") query.department = String(department);
 
-      const registrations = await HackathonRegistration.find(query).sort({ registrationDate: -1 });
-      res.json({ registrations: registrations.map(r => ({ id: r._id, ...r.toObject() })) });
+      let allRegistrations = await HackathonRegistration.find(query).sort({ registrationDate: -1 });
+
+      // Dynamic Evaluation of 1-Month Calendar Expiration
+      const now = new Date();
+      allRegistrations = allRegistrations.map((r: any) => {
+        const obj = typeof r.toObject === 'function' ? r.toObject() : { ...r };
+        obj.id = String(r._id || r.id);
+        
+        if (obj.verificationStatus === "Verified" && obj.validUntil) {
+          const validUntilDate = new Date(obj.validUntil);
+          if (now.getTime() > validUntilDate.getTime()) {
+            obj.effectiveStatus = "EXPIRED";
+          } else {
+            obj.effectiveStatus = "Verified";
+          }
+        } else {
+          obj.effectiveStatus = obj.verificationStatus;
+        }
+        return obj;
+      });
+
+      // Filter by Status / Search
+      if (status && status !== "ALL") {
+        allRegistrations = allRegistrations.filter((r: any) => {
+          if (status === "EXPIRED") return r.effectiveStatus === "EXPIRED";
+          if (status === "Verified") return r.effectiveStatus === "Verified";
+          if (status === "Pending") return r.verificationStatus === "Pending";
+          if (status === "Rejected") return r.verificationStatus === "Rejected";
+          return true;
+        });
+      }
+
+      if (search && String(search).trim()) {
+        const q = String(search).toLowerCase().trim();
+        allRegistrations = allRegistrations.filter((r: any) =>
+          (r.studentName || "").toLowerCase().includes(q) ||
+          (r.studentEmail || "").toLowerCase().includes(q) ||
+          (r.hackathonName || "").toLowerCase().includes(q) ||
+          (r.registerNumber || "").toLowerCase().includes(q)
+        );
+      }
+
+      // Calculate verification statistics summary
+      const stats = {
+        totalCount: allRegistrations.length,
+        pendingCount: allRegistrations.filter((r: any) => r.verificationStatus === "Pending").length,
+        verifiedCount: allRegistrations.filter((r: any) => r.effectiveStatus === "Verified").length,
+        rejectedCount: allRegistrations.filter((r: any) => r.verificationStatus === "Rejected").length,
+        expiredCount: allRegistrations.filter((r: any) => r.effectiveStatus === "EXPIRED").length
+      };
+
+      // Paginate
+      const pageNum = parseInt(String(page)) || 1;
+      const limitNum = parseInt(String(limit)) || 25;
+      const total = allRegistrations.length;
+      const totalPages = Math.ceil(total / limitNum) || 1;
+      const paginatedData = allRegistrations.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+      res.json({
+        registrations: paginatedData,
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+        stats
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
+  // Atomic Verification Approval/Rejection with 1-Month Calendar Validity
   app.put("/api/hackathons/registrations/:id/verify", async (req, res) => {
     try {
-      const { verificationStatus, rejectionReason, coordinatorId } = req.body; // 'Verified' | 'Rejected'
+      const { verificationStatus, rejectionReason, coordinatorId, coordinatorName } = req.body; // 'Verified' | 'Rejected'
       const reg = await HackathonRegistration.findById(req.params.id);
       if (!reg) return res.status(404).json({ error: "Registration record not found" });
 
+      if (reg.verificationStatus !== "Pending") {
+        return res.status(400).json({ error: `Registration proof has already been processed as ${reg.verificationStatus}.` });
+      }
+
+      const now = new Date();
       reg.verificationStatus = verificationStatus;
-      reg.verifiedBy = coordinatorId || "Coordinator";
-      reg.verifiedAt = new Date();
+      reg.verifiedBy = coordinatorName || coordinatorId || "Coordinator";
+      reg.verifiedAt = now;
+
+      if (verificationStatus === "Verified") {
+        reg.validUntil = addOneCalendarMonth(now);
+      }
+
       if (rejectionReason) reg.rejectionReason = rejectionReason;
       await reg.save();
 
-      // Notify student
+      // Notify student with structured metadata for target routing
       await new Notification({
         userId: reg.studentId,
         title: verificationStatus === 'Verified' ? 'Hackathon Proof Verified ✓' : 'Hackathon Proof Rejected ✗',
         message: verificationStatus === 'Verified'
-          ? `Your registration proof for "${reg.hackathonName}" has been verified!`
+          ? `Your registration proof for "${reg.hackathonName}" has been verified! Valid until ${addOneCalendarMonth(now).toLocaleDateString()}.`
           : `Your registration screenshot for "${reg.hackathonName}" was rejected: ${rejectionReason || 'Please upload valid proof screenshot.'}`,
         relatedId: reg._id,
+        targetRoute: "/hackathons?tab=registrations",
+        read: false,
         type: "general"
       }).save();
 

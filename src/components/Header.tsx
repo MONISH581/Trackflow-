@@ -110,10 +110,21 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                     notifications.map((notif) => (
                       <div
                         key={notif._id || notif.id}
-                        className={`p-3 rounded-xl border text-left transition-all ${
+                        onClick={async () => {
+                          if (!notif.read) {
+                            await markNotificationRead(notif._id || notif.id);
+                          }
+                          setShowNotifs(false);
+                          if (notif.targetRoute) {
+                            navigate(notif.targetRoute);
+                          } else if (notif.type?.toUpperCase().includes("HACKATHON")) {
+                            navigate("/hackathons");
+                          }
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer hover:border-indigo-300 ${
                           notif.read
                             ? "bg-slate-50 border-slate-200/60 text-slate-500"
-                            : "bg-indigo-50/60 border-indigo-100 text-slate-900 font-medium"
+                            : "bg-indigo-50/60 border-indigo-100 text-slate-900 font-medium shadow-xs"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -122,8 +133,11 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                           </span>
                           {!notif.read && (
                             <button
-                              onClick={() => markNotificationRead(notif._id || notif.id)}
-                              className="p-1 rounded-md bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markNotificationRead(notif._id || notif.id);
+                              }}
+                              className="p-1 rounded-md bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition cursor-pointer"
                               title="Mark read"
                             >
                               <Check className="w-3 h-3" />

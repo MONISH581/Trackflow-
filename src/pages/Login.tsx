@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Shield, GraduationCap, KeyRound, Cpu, ArrowDown, Lock, CheckCircle2, ChevronRight, Layers, Sparkles, X, Info, ExternalLink, Eye, EyeOff } from "lucide-react";
 import { AppleVisionScroll } from "../components/AppleVisionScroll.tsx";
 
+import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
+
 export default function Login() {
-  const { login, loading, addToast } = useStore();
+  const { login, logoutAllDevices, loading, addToast } = useStore();
   const navigate = useNavigate();
 
   const [role, setRole] = React.useState<"student" | "coordinator" | "master_admin">("student");
@@ -17,8 +19,10 @@ export default function Login() {
   const [section, setSection] = React.useState("A");
   const [lab, setLab] = React.useState("Artificial Intelligence and Research Lab");
   const [preferredDomain, setPreferredDomain] = React.useState("Artificial Intelligence");
-  const [department, setDepartment] = React.useState("Computer Science");
+  const [department, setDepartment] = React.useState<string>(OFFICIAL_DEPARTMENTS[0]);
   const [year, setYear] = React.useState("1");
+  const [showSessionModal, setShowSessionModal] = React.useState(false);
+  const [sessionModalMsg, setSessionModalMsg] = React.useState("");
 
   const [showSplash, setShowSplash] = React.useState(() => {
     return !sessionStorage.getItem("trackflow_splash_shown");
@@ -151,6 +155,47 @@ export default function Login() {
     return lower.endsWith("@srishakthi.ac.in") && lower.split("@")[0].length >= 3;
   };
 
+  const executeLogin = async (overrideSession = false) => {
+    if (rememberMe && email) {
+      localStorage.setItem("trackflow_remembered_email", email);
+    } else {
+      localStorage.removeItem("trackflow_remembered_email");
+    }
+
+    const payload = {
+      email,
+      password,
+      name: mode === "signup" ? name : undefined,
+      role,
+      isSignup: mode === "signup",
+      department: role === "master_admin" ? "Master Control" : department,
+      registerNumber: role === "student" ? registerNumber : undefined,
+      section: role === "student" ? section : undefined,
+      lab,
+      preferredDomain: role === "student" ? preferredDomain : undefined,
+      year: role === "student" ? year : undefined,
+      overrideSession
+    };
+
+    const result = await login(payload);
+
+    if (result.success) {
+      setShowSessionModal(false);
+      if (role === "master_admin") {
+        navigate("/master-control");
+      } else {
+        navigate("/");
+      }
+    } else {
+      if (result.code === "SESSION_ALREADY_ACTIVE") {
+        setSessionModalMsg(result.message || "Your account is already logged in on another device.");
+        setShowSessionModal(true);
+      } else {
+        addToast(result.message || "Login failed. Please verify credentials.", "error");
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -170,32 +215,13 @@ export default function Login() {
       }
     }
 
-    if (rememberMe && email) {
-      localStorage.setItem("trackflow_remembered_email", email);
-    } else {
-      localStorage.removeItem("trackflow_remembered_email");
-    }
+    await executeLogin(false);
+  };
 
-    const success = await login({
-      email,
-      password,
-      name: mode === "signup" ? name : undefined,
-      role,
-      isSignup: mode === "signup",
-      department: role === "master_admin" ? "Master Control" : department,
-      registerNumber: role === "student" ? registerNumber : undefined,
-      section: role === "student" ? section : undefined,
-      lab,
-      preferredDomain: role === "student" ? preferredDomain : undefined,
-      year: role === "student" ? year : undefined,
-    });
-
-    if (success) {
-      if (role === "master_admin") {
-        navigate("/master-control");
-      } else {
-        navigate("/");
-      }
+  const handleGlobalLogoutAndLogin = async () => {
+    const revoked = await logoutAllDevices(email);
+    if (revoked) {
+      await executeLogin(true);
     }
   };
 
@@ -670,16 +696,11 @@ export default function Login() {
                       onChange={(e) => setDepartment(e.target.value)}
                       className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs cursor-pointer focus:outline-none focus:border-blue-600 focus:bg-white"
                     >
-                      <option value="Computer Science and Engineering">Computer Science and Engineering</option>
-                      <option value="Information Technology">Information Technology</option>
-                      <option value="Artificial Intelligence and Data Science">Artificial Intelligence and Data Science</option>
-                      <option value="Electronics and Communication">Electronics and Communication</option>
-                      <option value="Electrical and Electronics">Electrical and Electronics</option>
-                      <option value="Mechanical Engineering">Mechanical Engineering</option>
-                      <option value="Civil Engineering">Civil Engineering</option>
-                      <option value="Biotechnology">Biotechnology</option>
-                      <option value="Agricultural Engineering">Agricultural Engineering</option>
-                      <option value="Food Technology">Food Technology</option>
+                      {OFFICIAL_DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
@@ -694,10 +715,10 @@ export default function Login() {
                       onChange={(e) => setYear(e.target.value)}
                       className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs cursor-pointer focus:outline-none focus:border-blue-600 focus:bg-white"
                     >
-                      <option value="1">Year 1</option>
-                      <option value="2">Year 2</option>
-                      <option value="3">Year 3</option>
-                      <option value="4">Year 4</option>
+                      <option value="1">Year 1 (1st Year)</option>
+                      <option value="2">Year 2 (2nd Year)</option>
+                      <option value="3">Year 3 (3rd Year)</option>
+                      <option value="4">Year 4 (4th Year)</option>
                     </select>
                   </div>
                 )}
@@ -753,6 +774,39 @@ export default function Login() {
           </form>
         </div>
       </section>
+
+      {/* Single Device Session Conflict Modal */}
+      {showSessionModal && (
+        <div className="fixed inset-0 z-[99999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-slate-800 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+              <Shield className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-black text-slate-900">Session Conflict Detected</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {sessionModalMsg || "Your account is already logged in on another device. Only one active device session is permitted per user."}
+              </p>
+            </div>
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={handleGlobalLogoutAndLogin}
+                className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
+              >
+                Log Out From All Devices & Continue
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSessionModal(false)}
+                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-slate-200/80 py-8 text-center text-xs text-slate-500 bg-white/50 backdrop-blur-md">

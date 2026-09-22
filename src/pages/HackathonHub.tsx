@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useStore, HackathonInfo, HackathonRegistrationInfo } from "../store.ts";
-import { Sparkles, Calendar, Upload, CheckCircle2, Clock, XCircle, ExternalLink, ShieldCheck, Plus, X, Image as ImageIcon, Star, Heart, UserCheck, Search, Trophy, Globe, Layers, Flame, Zap, RefreshCw } from "lucide-react";
+import { useStore, HackathonInfo, HackathonRegistrationInfo, API_BASE, getAuthHeaders } from "../store.ts";
+import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
+import { 
+  Sparkles, Calendar, Upload, CheckCircle2, Clock, XCircle, ExternalLink, ShieldCheck, 
+  Plus, X, Image as ImageIcon, Star, Heart, UserCheck, Search, Trophy, Globe, Layers, 
+  Flame, Zap, RefreshCw, ZoomIn, ZoomOut, RotateCw, Download, Filter, ChevronLeft, ChevronRight 
+} from "lucide-react";
 
 const FEATURED_PLATFORMS = [
   {
@@ -68,6 +73,86 @@ export default function HackathonHub() {
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Lightbox Image Viewer Modal State
+  const [lightboxModal, setLightboxModal] = useState<{
+    url: string;
+    title: string;
+    studentName?: string;
+    dept?: string;
+    validUntil?: string;
+  } | null>(null);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxRotation, setLightboxRotation] = useState(0);
+
+  // Paginated Verifications History State
+  const [paginatedRegistrations, setPaginatedRegistrations] = useState<HackathonRegistrationInfo[]>([]);
+  const [paginationMeta, setPaginationMeta] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [statsMeta, setStatsMeta] = useState({ totalCount: 0, pendingCount: 0, verifiedCount: 0, rejectedCount: 0, expiredCount: 0 });
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterDept, setFilterDept] = useState("ALL");
+  const [searchQueryHist, setSearchQueryHist] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [isLoadingHist, setIsLoadingHist] = useState(false);
+
+  const fetchPaginatedVerifications = async () => {
+    setIsLoadingHist(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(pageNumber));
+      params.set("limit", "20");
+      if (filterStatus !== "ALL") params.set("status", filterStatus);
+      if (filterDept !== "ALL") params.set("department", filterDept);
+      if (searchQueryHist.trim()) params.set("search", searchQueryHist.trim());
+
+      const res = await fetch(`${API_BASE}/api/hackathons/registrations?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setPaginatedRegistrations(json.data || []);
+        setPaginationMeta(json.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
+        setStatsMeta(json.stats || { totalCount: 0, pendingCount: 0, verifiedCount: 0, rejectedCount: 0, expiredCount: 0 });
+      }
+    } catch (err) {
+      console.error("Failed to fetch verifications history:", err);
+    } finally {
+      setIsLoadingHist(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "verification") {
+      fetchPaginatedVerifications();
+    }
+  }, [activeTab, pageNumber, filterStatus, filterDept, searchQueryHist]);
+
+  const openLightbox = (url: string, title: string, studentName?: string, dept?: string, validUntil?: string) => {
+    setLightboxModal({ url, title, studentName, dept, validUntil });
+    setLightboxZoom(1);
+    setLightboxRotation(0);
+  };
+
+  const formatExternalUrl = (url?: string) => {
+    if (!url) return "#";
+    const trimmed = url.trim();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+    return `https://${trimmed}`;
+  };
+
+  const formatDateStr = (dateStr?: string) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateStr;
+    }
+  };
 
   const handleManualRefresh = async () => {
     setIsSyncing(true);
@@ -675,96 +760,302 @@ export default function HackathonHub() {
         </div>
       )}
 
-      {/* Coordinator Verification Panel Tab */}
+      {/* Coordinator Verification Panel & History Tab */}
       {activeTab === "verification" && isTeacher && (
-        <div className="space-y-4">
-          <div className="glass-card p-6 border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-800">Hackathon & Kaggle Proof Verification Console</h2>
-            <p className="text-xs text-slate-500">Review student uploaded proof screenshots and approve or decline registrations</p>
+        <div className="space-y-6">
+          <div className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                Hackathon Proof Verification Console & History
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Verifications done till date with 1-month validity calendar tracking and lightbox proof inspection.
+              </p>
+            </div>
+            <button
+              onClick={() => fetchPaginatedVerifications()}
+              className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition flex items-center gap-1.5 cursor-pointer self-start md:self-auto"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingHist ? "animate-spin" : ""}`} />
+              <span>Refresh Verifications</span>
+            </button>
           </div>
 
-          {hackathonRegistrations.length === 0 ? (
+          {/* Verification Statistics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Proofs</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{statsMeta.totalCount}</p>
+            </div>
+            <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80 shadow-xs">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700">Pending Review</p>
+              <p className="text-2xl font-black text-amber-800 mt-1">{statsMeta.pendingCount}</p>
+            </div>
+            <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 shadow-xs">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Approved & Valid</p>
+              <p className="text-2xl font-black text-emerald-800 mt-1">{statsMeta.verifiedCount}</p>
+            </div>
+            <div className="p-4 bg-rose-50/70 rounded-2xl border border-rose-200/80 shadow-xs">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-rose-700">Rejected</p>
+              <p className="text-2xl font-black text-rose-800 mt-1">{statsMeta.rejectedCount}</p>
+            </div>
+            <div className="p-4 bg-slate-100/70 rounded-2xl border border-slate-300/80 shadow-xs col-span-2 sm:col-span-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600">Expired (1-Mo)</p>
+              <p className="text-2xl font-black text-slate-700 mt-1">{statsMeta.expiredCount}</p>
+            </div>
+          </div>
+
+          {/* Filters & Search Toolbar */}
+          <div className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by student name, email, reg no, or hackathon..."
+                value={searchQueryHist}
+                onChange={(e) => {
+                  setSearchQueryHist(e.target.value);
+                  setPageNumber(1);
+                }}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-indigo-600 focus:bg-white"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setPageNumber(1);
+                }}
+                className="px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer focus:outline-none focus:border-indigo-600"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="Pending">Pending Review</option>
+                <option value="Verified">Approved (Valid)</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Expired">Expired</option>
+              </select>
+
+              <select
+                value={filterDept}
+                onChange={(e) => {
+                  setFilterDept(e.target.value);
+                  setPageNumber(1);
+                }}
+                className="px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer focus:outline-none focus:border-indigo-600 max-w-[220px] truncate"
+              >
+                <option value="ALL">All SIET Departments</option>
+                {OFFICIAL_DEPARTMENTS.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Verification Cards / History List */}
+          {isLoadingHist ? (
+            <div className="py-12 text-center text-xs text-slate-500 font-bold bg-white rounded-2xl border border-slate-200">
+              Loading verification history records...
+            </div>
+          ) : paginatedRegistrations.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
               <ShieldCheck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-700">No Registrations to Verify</h3>
+              <h3 className="text-sm font-bold text-slate-700">No Verification Records Found</h3>
+              <p className="text-xs text-slate-400 mt-1">Try resetting your filters or search query.</p>
             </div>
           ) : (
-            hackathonRegistrations.map((reg) => (
-              <div key={reg.id || reg._id} className="glass-card p-6 border border-slate-200 space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-bold text-slate-800 text-base">{reg.studentName}</h3>
-                      <span className="text-xs font-semibold text-slate-500">Reg: {reg.registerNumber}</span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                        reg.verificationStatus === 'Verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        reg.verificationStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                        'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}>
-                        {reg.verificationStatus}
-                      </span>
-                    </div>
-                    <p className="text-xs font-medium text-indigo-600 mt-1">Hackathon: {reg.hackathonName}</p>
-                  </div>
+            <div className="space-y-3">
+              {paginatedRegistrations.map((reg) => {
+                const effStatus = reg.effectiveStatus || reg.verificationStatus;
+                const isVerifiedValid = effStatus === "Verified";
+                const isExpired = effStatus === "Expired";
+                const isRejected = effStatus === "Rejected";
 
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={reg.screenshotUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100 transition flex items-center gap-1.5"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      <span>Inspect Proof Screenshot 🔍</span>
-                    </a>
+                return (
+                  <div
+                    key={reg.id || reg._id}
+                    className="p-5 bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 shadow-xs transition space-y-4 text-left"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      {/* Left: Student & Department Metadata */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h3 className="font-bold text-slate-900 text-sm">{reg.studentName}</h3>
+                          <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {reg.registerNumber || "Reg No N/A"}
+                          </span>
+                          <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
+                            {reg.department || "SIET Department"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">{reg.studentEmail}</p>
 
-                    {reg.verificationStatus === "Pending" && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleVerify(reg._id || reg.id || "", "Verified")}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                          <span className="text-xs font-bold text-slate-800">Event: {reg.hackathonName}</span>
+                        </div>
+                      </div>
+
+                      {/* Middle: Proof Thumbnail */}
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div
+                          onClick={() => openLightbox(reg.screenshotUrl, reg.hackathonName, reg.studentName, reg.department, reg.validUntil)}
+                          className="relative w-20 h-14 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 group cursor-pointer shadow-xs hover:border-indigo-400 transition"
+                          title="Click to view full image in lightbox"
                         >
-                          Verify Proof ✓
-                        </button>
+                          <img src={reg.screenshotUrl} alt="Proof Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-slate-950/40 flex items-center justify-center text-white transition">
+                            <ImageIcon className="w-4 h-4" />
+                          </div>
+                        </div>
+
                         <button
-                          onClick={() => setVerifyingId(reg._id || reg.id || "")}
-                          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                          type="button"
+                          onClick={() => openLightbox(reg.screenshotUrl, reg.hackathonName, reg.studentName, reg.department, reg.validUntil)}
+                          className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                         >
-                          Decline ✕
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>View Proof</span>
                         </button>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {verifyingId === (reg._id || reg.id) && (
-                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-3">
-                    <p className="text-xs font-bold text-rose-800">Specify Rejection Reason for Student:</p>
-                    <input
-                      type="text"
-                      placeholder="e.g. Invalid screenshot proof / missing registration ID"
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      className="w-full p-2 text-xs border border-rose-300 rounded-lg focus:outline-none"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setVerifyingId(null)}
-                        className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleVerify(reg._id || reg.id || "", "Rejected")}
-                        className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 rounded-lg"
-                      >
-                        Confirm Rejection
-                      </button>
+                      {/* Right: Status Badges & Actions */}
+                      <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                        {isVerifiedValid && (
+                          <div className="text-right">
+                            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-bold text-xs inline-flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              Approved
+                            </span>
+                            <p className="text-[11px] font-bold text-slate-500 mt-1">
+                              Valid until: {formatDateStr(reg.validUntil)}
+                            </p>
+                          </div>
+                        )}
+
+                        {isExpired && (
+                          <div className="text-right">
+                            <span className="px-3 py-1 bg-slate-100 text-slate-700 border border-slate-300 rounded-full font-bold text-xs inline-flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-slate-500" />
+                              Expired
+                            </span>
+                            <p className="text-[11px] font-bold text-slate-500 mt-1">
+                              Expired on: {formatDateStr(reg.validUntil)}
+                            </p>
+                          </div>
+                        )}
+
+                        {isRejected && (
+                          <div className="text-right">
+                            <span className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-bold text-xs inline-flex items-center gap-1.5">
+                              <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                              Rejected
+                            </span>
+                            {reg.rejectionReason && (
+                              <p className="text-[11px] font-bold text-rose-600 mt-1">
+                                {reg.rejectionReason}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {effStatus === "Pending" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                await handleVerify(reg._id || reg.id || "", "Verified");
+                                fetchPaginatedVerifications();
+                              }}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
+                            >
+                              Approve ✓
+                            </button>
+                            <button
+                              onClick={() => setVerifyingId(reg._id || reg.id || "")}
+                              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
+                            >
+                              Decline ✕
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Rejection input box */}
+                    {verifyingId === (reg._id || reg.id) && (
+                      <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-3 animate-in fade-in duration-150">
+                        <p className="text-xs font-bold text-rose-800">Specify Rejection Reason for Student:</p>
+                        <input
+                          type="text"
+                          placeholder="e.g. Invalid screenshot proof / missing registration ID"
+                          value={rejectionReason}
+                          onChange={(e) => setRejectionReason(e.target.value)}
+                          className="w-full p-2.5 text-xs bg-white border border-rose-300 rounded-lg focus:outline-none"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setVerifyingId(null)}
+                            className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={async () => {
+                              await handleVerify(reg._id || reg.id || "", "Rejected");
+                              fetchPaginatedVerifications();
+                            }}
+                            className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg cursor-pointer"
+                          >
+                            Confirm Rejection
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Verification Audit Trail */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Submitted: {new Date(reg.registrationDate).toLocaleString()}</span>
+                      {reg.verifiedBy && (
+                        <span>
+                          Verified by <strong className="text-slate-600">{reg.verifiedBy}</strong> on {formatDateStr(reg.verifiedAt)}
+                        </span>
+                      )}
                     </div>
                   </div>
-                )}
+                );
+              })}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {paginationMeta.totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 text-xs">
+              <span className="text-slate-500 font-bold">
+                Showing page {paginationMeta.page} of {paginationMeta.totalPages} ({paginationMeta.total} records)
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={paginationMeta.page <= 1}
+                  onClick={() => setPageNumber((p) => Math.max(p - 1, 1))}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Previous</span>
+                </button>
+                <button
+                  disabled={paginationMeta.page >= paginationMeta.totalPages}
+                  onClick={() => setPageNumber((p) => Math.min(p + 1, paginationMeta.totalPages))}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
-            ))
+            </div>
           )}
         </div>
       )}
@@ -915,6 +1206,95 @@ export default function HackathonHub() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Image Viewer Modal */}
+      {lightboxModal && (
+        <div 
+          className="fixed inset-0 z-[99999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setLightboxModal(null)}
+        >
+          {/* Top Toolbar */}
+          <div 
+            className="w-full max-w-5xl flex items-center justify-between text-white border-b border-slate-800 pb-3 z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-0.5 min-w-0 pr-4">
+              <h3 className="text-sm font-bold truncate text-slate-100">{lightboxModal.title}</h3>
+              {lightboxModal.studentName && (
+                <p className="text-xs text-indigo-400 font-medium truncate">
+                  Submitted by: {lightboxModal.studentName} {lightboxModal.dept ? `• ${lightboxModal.dept}` : ""}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setLightboxZoom((z) => Math.min(z + 0.25, 3))}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setLightboxZoom((z) => Math.max(z - 0.25, 0.5))}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                title="Rotate"
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+              <a
+                href={lightboxModal.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                onClick={(e) => e.stopPropagation()}
+                className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition cursor-pointer"
+                title="Open / Download Full Image"
+              >
+                <Download className="w-4 h-4" />
+              </a>
+              <button
+                onClick={() => setLightboxModal(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-200 hover:text-white transition cursor-pointer ml-2"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Center Image Canvas */}
+          <div 
+            className="flex-1 w-full max-w-5xl flex items-center justify-center overflow-auto p-2 sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxModal.url}
+              alt={lightboxModal.title}
+              style={{
+                transform: `scale(${lightboxZoom}) rotate(${lightboxRotation}deg)`,
+                transition: "transform 0.2s ease-out"
+              }}
+              className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl select-none"
+            />
+          </div>
+
+          {/* Bottom Status info */}
+          <div 
+            className="text-center text-xs text-slate-400 border-t border-slate-800 pt-3 w-full max-w-5xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Touch or click background, or tap close button to return
           </div>
         </div>
       )}
