@@ -127,10 +127,28 @@ export default function HackathonHub() {
     }
   }, [activeTab, pageNumber, filterStatus, filterDept, searchQueryHist]);
 
+  const getAbsoluteImageUrl = (url?: string) => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:") || url.startsWith("blob:")) {
+      return url;
+    }
+    const cleanPath = url.startsWith("/") ? url : `/${url}`;
+    return `${window.location.origin}${cleanPath}`;
+  };
+
   const openLightbox = (url: string, title: string, studentName?: string, dept?: string, validUntil?: string) => {
-    setLightboxModal({ url, title, studentName, dept, validUntil });
+    const fullUrl = getAbsoluteImageUrl(url);
+    setLightboxModal({ url: fullUrl, title, studentName, dept, validUntil });
     setLightboxZoom(1);
     setLightboxRotation(0);
+  };
+
+  const handleStatCardClick = (status: string) => {
+    setFilterStatus(status);
+    setPageNumber(1);
+    setTimeout(() => {
+      document.getElementById("verification-history-list")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
 
   const formatExternalUrl = (url?: string) => {
@@ -724,38 +742,52 @@ export default function HackathonHub() {
               <p className="text-xs text-slate-400 mt-1">Select an active hackathon or Kaggle competition to upload mandatory registration screenshot proof.</p>
             </div>
           ) : (
-            hackathonRegistrations.map((reg) => (
-              <div key={reg.id || reg._id} className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-slate-800 text-base">{reg.hackathonName}</h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                      reg.verificationStatus === 'Verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                      reg.verificationStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                      'bg-amber-50 text-amber-700 border-amber-200'
-                    }`}>
-                      {reg.verificationStatus}
-                    </span>
+            hackathonRegistrations.map((reg) => {
+              const fullProofUrl = getAbsoluteImageUrl(reg.screenshotUrl);
+              return (
+                <div key={reg.id || reg._id} className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-bold text-slate-800 text-base">{reg.hackathonName}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                        reg.verificationStatus === 'Verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        reg.verificationStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                        'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {reg.verificationStatus}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">Registered: {new Date(reg.registrationDate).toLocaleString()}</p>
+                    {reg.rejectionReason && (
+                      <p className="text-xs font-semibold text-rose-600 mt-1">Reason: {reg.rejectionReason}</p>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-500">Registered: {new Date(reg.registrationDate).toLocaleString()}</p>
-                  {reg.rejectionReason && (
-                    <p className="text-xs font-semibold text-rose-600 mt-1">Reason: {reg.rejectionReason}</p>
-                  )}
-                </div>
 
-                <div className="flex items-center gap-4">
-                  <a
-                    href={reg.screenshotUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
-                  >
-                    <ImageIcon className="w-4 h-4 text-indigo-600" />
-                    <span>View Uploaded Proof</span>
-                  </a>
+                  <div className="flex items-center gap-3">
+                    {/* Proof Thumbnail Image */}
+                    <div
+                      onClick={() => openLightbox(fullProofUrl, reg.hackathonName)}
+                      className="relative w-20 h-14 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 group cursor-pointer shadow-xs hover:border-indigo-400 transition shrink-0"
+                      title="Click to inspect uploaded proof image"
+                    >
+                      <img src={fullProofUrl} alt="Proof Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                      <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-slate-950/40 flex items-center justify-center text-white transition">
+                        <ImageIcon className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openLightbox(fullProofUrl, reg.hackathonName)}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition cursor-pointer"
+                    >
+                      <ImageIcon className="w-4 h-4 text-indigo-600" />
+                      <span>View Uploaded Proof</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -782,32 +814,66 @@ export default function HackathonHub() {
             </button>
           </div>
 
-          {/* Verification Statistics Cards */}
+          {/* Interactive Verification Statistics Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Proofs</p>
+            <div
+              onClick={() => handleStatCardClick("ALL")}
+              className={`p-4 rounded-2xl border transition cursor-pointer hover:shadow-md ${
+                filterStatus === "ALL" ? "bg-indigo-50/90 border-indigo-300 ring-2 ring-indigo-500/20" : "bg-white border-slate-200/80 hover:border-slate-300"
+              }`}
+              title="Click to view all proof submissions"
+            >
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Total Proofs</p>
               <p className="text-2xl font-black text-slate-800 mt-1">{statsMeta.totalCount}</p>
             </div>
-            <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80 shadow-xs">
+
+            <div
+              onClick={() => handleStatCardClick("Pending")}
+              className={`p-4 rounded-2xl border transition cursor-pointer hover:shadow-md ${
+                filterStatus === "Pending" ? "bg-amber-100 border-amber-400 ring-2 ring-amber-500/20" : "bg-amber-50/70 border-amber-200/80 hover:border-amber-300"
+              }`}
+              title="Click to filter by Pending Review"
+            >
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700">Pending Review</p>
               <p className="text-2xl font-black text-amber-800 mt-1">{statsMeta.pendingCount}</p>
             </div>
-            <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 shadow-xs">
+
+            <div
+              onClick={() => handleStatCardClick("Verified")}
+              className={`p-4 rounded-2xl border transition cursor-pointer hover:shadow-md ${
+                filterStatus === "Verified" ? "bg-emerald-100 border-emerald-400 ring-2 ring-emerald-500/20" : "bg-emerald-50/70 border-emerald-200/80 hover:border-emerald-300"
+              }`}
+              title="Click to filter by Approved & Valid"
+            >
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Approved & Valid</p>
               <p className="text-2xl font-black text-emerald-800 mt-1">{statsMeta.verifiedCount}</p>
             </div>
-            <div className="p-4 bg-rose-50/70 rounded-2xl border border-rose-200/80 shadow-xs">
+
+            <div
+              onClick={() => handleStatCardClick("Rejected")}
+              className={`p-4 rounded-2xl border transition cursor-pointer hover:shadow-md ${
+                filterStatus === "Rejected" ? "bg-rose-100 border-rose-400 ring-2 ring-rose-500/20" : "bg-rose-50/70 border-rose-200/80 hover:border-rose-300"
+              }`}
+              title="Click to filter by Rejected"
+            >
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-rose-700">Rejected</p>
               <p className="text-2xl font-black text-rose-800 mt-1">{statsMeta.rejectedCount}</p>
             </div>
-            <div className="p-4 bg-slate-100/70 rounded-2xl border border-slate-300/80 shadow-xs col-span-2 sm:col-span-1">
+
+            <div
+              onClick={() => handleStatCardClick("Expired")}
+              className={`p-4 rounded-2xl border transition cursor-pointer hover:shadow-md col-span-2 sm:col-span-1 ${
+                filterStatus === "Expired" ? "bg-slate-200 border-slate-400 ring-2 ring-slate-500/20" : "bg-slate-100/70 border-slate-300/80 hover:border-slate-400"
+              }`}
+              title="Click to filter by Expired (1-Month)"
+            >
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600">Expired (1-Mo)</p>
               <p className="text-2xl font-black text-slate-700 mt-1">{statsMeta.expiredCount}</p>
             </div>
           </div>
 
           {/* Filters & Search Toolbar */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div id="verification-history-list" className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
