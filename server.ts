@@ -132,7 +132,31 @@ async function startServer() {
       if (!user) {
         return res.status(404).json({ error: "Authenticated user profile not found" });
       }
+
+      const reqSessionToken = req.headers["x-session-token"] || req.query.sessionToken;
+      if (user.activeSessionToken && reqSessionToken && reqSessionToken !== user.activeSessionToken) {
+        return res.status(401).json({ error: "CONCURRENT_LOGIN_LOGOUT", message: "Account logged in on another device." });
+      }
+
       res.json({ user: sanitizeUser(user) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/auth/session-check', authMiddleware, async (req: any, res: any) => {
+    try {
+      const user = await User.findOne({ $or: [{ userId: req.user.id }, { _id: req.user.id }, { email: req.user.email }] });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const reqSessionToken = req.headers["x-session-token"] || req.query.sessionToken;
+      if (user.activeSessionToken && reqSessionToken && reqSessionToken !== user.activeSessionToken) {
+        return res.status(401).json({ error: "CONCURRENT_LOGIN_LOGOUT", message: "Account logged in on another device." });
+      }
+
+      res.json({ active: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -1434,7 +1458,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
             department: department || (userRole === 'master_admin' ? 'Master Control' : (userRole === 'coordinator' ? 'Engineering' : 'Computer Science')),
             preferredDomain: preferredDomain || "Artificial Intelligence",
-            year: year || "3",
+            year: year || "1",
             status: initialStatus,
             registrationDate: new Date()
           });
@@ -1568,10 +1592,22 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         console.warn("Activity log warning:", logErr);
       }
 
+      // Generate single active device session token lock
+      const activeSessionToken = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      user.activeSessionToken = activeSessionToken;
+      await user.save();
+
+      // Force logout any existing socket connection for this user on other devices
+      try {
+        io.to(`user_${user.userId}`).emit("force_logout", {
+          message: "Your account was logged in from another device."
+        });
+      } catch (sErr) {}
+
       // Issue JWT
       const secretKey = JWT_SECRET || "trackflow_secure_jwt_secret_production_fallback_2026";
       const token = jwt.sign({ id: user.userId, role: user.role, email: user.email }, secretKey, { expiresIn: "7d" });
-      res.json({ token, user: sanitizeUser(user) });
+      res.json({ token, activeSessionToken, user: sanitizeUser(user) });
     } catch (e: any) {
       console.error("Login endpoint uncaught exception:", e);
       res.status(500).json({ error: e.message || "Internal server error during login processing" });
@@ -1611,6 +1647,47 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+
+  // Delete Student User Endpoint (Authorized for Master Admin and Coordinator)
+  app.delete("/api/users/:id", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
+    try {
+      const targetId = req.params.id;
+      const user = await User.findOne({ $or: [{ userId: targetId }, { _id: targetId }] });
+      if (!user) {
+        return res.status(404).json({ error: "User profile not found." });
+      }
+
+      await User.findOneAndDelete({ $or: [{ userId: targetId }, { _id: targetId }] });
+
+      // Clean up student from linked projects
+      try {
+        const userProjects = await Project.find({ teamMembers: targetId });
+        for (const proj of userProjects) {
+          proj.teamMembers = (proj.teamMembers || []).filter((m: string) => m !== targetId);
+          if (proj.teamLeader === targetId) {
+            proj.teamLeader = proj.teamMembers[0] || "";
+          }
+          await proj.save();
+        }
+      } catch (pErr) {}
+
+      // Log activity
+      try {
+        await new ActivityLog({
+          userId: req.user.id,
+          userName: req.user.name || "Admin",
+          action: "DELETE_USER",
+          entity: "USER",
+          entityId: targetId,
+          timestamp: new Date()
+        }).save();
+      } catch (logErr) {}
+
+      res.json({ success: true, message: `Student profile ${user.name} removed permanently.` });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
   app.get("/api/users/students", async (req, res) => {
     try {
@@ -2518,7 +2595,7 @@ Do not include markdown tags. Return only raw JSON string.`;
           role: role || "student",
           avatar: avatar || `https://avatar.vercel.sh/${cleanEmail}`,
           department: department || "Computer Science",
-          year: year || "3",
+          year: year || "1",
           registerNumber: registerNumber || `7140${Math.floor(100000 + Math.random() * 900000)}`,
           phone: phone || "",
           section: section || "A",
@@ -4492,6 +4569,63 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
+  // Real-Time Chat REST Endpoints
+  app.get("/api/messages", async (req, res) => {
+    try {
+      const { projectId } = req.query;
+      let query: any = {};
+      if (projectId && projectId !== "global") {
+        query.projectId = String(projectId);
+      } else {
+        query.$or = [{ projectId: "" }, { projectId: { $exists: false } }, { projectId: "global" }];
+      }
+      const messages = await Message.find(query).sort({ createdAt: 1 });
+      res.json({
+        messages: messages.map((m: any) => ({
+          id: String(m._id || m.id),
+          ...(typeof m.toObject === "function" ? m.toObject() : m)
+        }))
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const { user, userId, text, projectId } = req.body;
+      if (!text || !text.trim()) {
+        return res.status(400).json({ error: "Message text is required" });
+      }
+      const cleanText = text.trim();
+      const pId = (projectId && projectId !== "global") ? projectId : "";
+
+      const msg = new Message({
+        user: user || "User",
+        userId: userId || "usr-anon",
+        text: cleanText,
+        projectId: pId,
+        createdAt: new Date()
+      });
+      await msg.save();
+
+      const formattedMsg = {
+        id: String(msg._id || msg.id),
+        ...(typeof msg.toObject === "function" ? msg.toObject() : msg)
+      };
+
+      if (pId) {
+        io.to(pId).emit("receive_message", formattedMsg);
+      } else {
+        io.emit("receive_message_global", formattedMsg);
+      }
+
+      res.json({ success: true, message: formattedMsg });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Delete Message Endpoint (WhatsApp style deletion)
   app.delete("/api/messages/:id", authMiddleware, async (req: any, res: any) => {
     try {
@@ -4518,6 +4652,14 @@ Do not include markdown tags. Return only raw JSON string.`;
   io.on("connection", (socket) => {
     console.log("A user connected", socket.id);
     
+    socket.on("register_user_session", ({ userId, sessionToken }) => {
+      if (userId) {
+        socket.join(`user_${userId}`);
+        socket.data.userId = userId;
+        socket.data.sessionToken = sessionToken;
+      }
+    });
+
     socket.on("join_project", (projectId) => {
       socket.join(projectId);
       console.log(`User joined project room: ${projectId}`);
@@ -4531,7 +4673,7 @@ Do not include markdown tags. Return only raw JSON string.`;
     socket.on("send_message", async (data) => {
       try {
         const cleanText = (data.text || "").trim();
-        const pId = data.projectId || "";
+        const pId = (data.projectId && data.projectId !== "global") ? data.projectId : "";
         if (!cleanText) return;
 
         // Check if message was saved via API in the last 4 seconds
@@ -4548,18 +4690,18 @@ Do not include markdown tags. Return only raw JSON string.`;
             user: data.user,
             userId: data.userId,
             text: cleanText,
-            projectId: pId
+            projectId: pId,
+            createdAt: new Date()
           });
           await msg.save();
-          await notifyMessageRecipients(data.userId, data.user, cleanText, pId);
         }
 
         if (msg) {
           const formattedMsg = { id: String(msg._id || msg.id), ...(typeof msg.toObject === 'function' ? msg.toObject() : msg) };
           if (pId) {
-            socket.to(pId).emit("receive_message", formattedMsg);
+            io.to(pId).emit("receive_message", formattedMsg);
           } else {
-            socket.broadcast.emit("receive_message_global", formattedMsg);
+            io.emit("receive_message_global", formattedMsg);
           }
         }
       } catch (err) {}

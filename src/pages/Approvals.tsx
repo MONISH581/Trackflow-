@@ -70,7 +70,7 @@ export default function Approvals() {
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200/40">
-                      Year {request.year} - Sec {request.section || 'A'}
+                      Year {request.year}
                     </span>
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/40">
                       {request.preferredDomain || 'AI'}

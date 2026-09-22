@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "../store.ts";
 import { Bell, Menu, Check, Search, Calendar as CalendarIcon } from "lucide-react";
 
@@ -9,6 +9,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuToggle }: HeaderProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { notifications, markNotificationRead, currentUser } = useStore();
   const [showNotifs, setShowNotifs] = React.useState(false);
 
@@ -140,14 +141,18 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         </div>
 
         {/* User avatar indicator */}
-        <div className="flex items-center gap-3 pl-3 border-l border-slate-200/60">
+        <div
+          onClick={() => navigate("/profile")}
+          className="flex items-center gap-3 pl-3 border-l border-slate-200/60 cursor-pointer hover:opacity-85 transition group"
+          title="Click to view your profile"
+        >
           <img
             src={currentUser?.avatar}
             alt={currentUser?.name}
-            className="w-10 h-10 rounded-xl ring-2 ring-indigo-500/20 object-cover shadow-xs"
+            className="w-10 h-10 rounded-xl ring-2 ring-indigo-500/20 group-hover:ring-indigo-500/50 object-cover shadow-xs transition-all"
           />
           <div className="hidden xl:block text-left">
-            <p className="text-xs font-black text-slate-900 truncate">{currentUser?.name}</p>
+            <p className="text-xs font-black text-slate-900 group-hover:text-indigo-600 truncate transition">{currentUser?.name}</p>
             <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">
               {currentUser?.department || "General Lab"}
             </p>

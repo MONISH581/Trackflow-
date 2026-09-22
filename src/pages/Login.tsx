@@ -18,7 +18,7 @@ export default function Login() {
   const [lab, setLab] = React.useState("Artificial Intelligence and Research Lab");
   const [preferredDomain, setPreferredDomain] = React.useState("Artificial Intelligence");
   const [department, setDepartment] = React.useState("Computer Science");
-  const [year, setYear] = React.useState("3");
+  const [year, setYear] = React.useState("1");
 
   const [showSplash, setShowSplash] = React.useState(() => {
     return !sessionStorage.getItem("trackflow_splash_shown");

@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "../store.ts";
-import { Users, FileText, ChevronDown, ChevronUp, Calendar, Github, Link2, ClipboardCheck, Crown, FolderPlus } from "lucide-react";
+import { Users, FileText, ChevronDown, ChevronUp, Calendar, Github, Link2, ClipboardCheck, Crown, FolderPlus, Trash2, AlertTriangle, X } from "lucide-react";
 
 interface Record {
   student: {
@@ -35,7 +35,7 @@ interface Record {
 }
 
 export default function StudentRecords() {
-  const { fetchStudentRecords, projects, fetchProjects, updateProject, currentUser } = useStore();
+  const { fetchStudentRecords, projects, fetchProjects, updateProject, deleteUser, currentUser } = useStore();
   const [records, setRecords] = React.useState<Record[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [expandedRecord, setExpandedRecord] = React.useState<string | null>(null);
@@ -45,6 +45,7 @@ export default function StudentRecords() {
   const [selectedProjectId, setSelectedProjectId] = React.useState("");
   const [asLeader, setAsLeader] = React.useState(false);
   const [savingAssign, setSavingAssign] = React.useState(false);
+  const [deletingStudent, setDeletingStudent] = React.useState<Record['student'] | null>(null);
 
   React.useEffect(() => {
     fetchProjects();
@@ -178,9 +179,24 @@ export default function StudentRecords() {
                       </div>
                     </div>
 
-                    <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-800 shrink-0">
-                      {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {(currentUser?.role === "coordinator" || currentUser?.role === "master_admin") && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingStudent(student);
+                          }}
+                          className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition shrink-0"
+                          title="Remove Student account from TrackFlow"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-800 shrink-0">
+                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -426,6 +442,54 @@ export default function StudentRecords() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Student Confirmation Modal */}
+      {deletingStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
+                <AlertTriangle className="w-4 h-4" />
+                <span>Remove Student Account?</span>
+              </div>
+              <button
+                onClick={() => setDeletingStudent(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed font-sans">
+              Are you sure you want to remove <span className="font-bold text-slate-900">{deletingStudent.name}</span> ({deletingStudent.email}) from TrackFlow? This action is permanent and authorized for Admins and Master Admins.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDeletingStudent(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!deletingStudent) return;
+                  const ok = await deleteUser(deletingStudent.id);
+                  if (ok) {
+                    const updated = await fetchStudentRecords();
+                    setRecords(updated);
+                  }
+                  setDeletingStudent(null);
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md transition flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Confirm Remove</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

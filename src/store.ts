@@ -127,6 +127,7 @@ export interface HackathonInfo {
   tn_eligibility?: string;
   mode?: string;
   location?: string;
+  tags?: string[];
 
   parent_ministry?: string;
   department?: string;
@@ -309,6 +310,7 @@ export interface MessageInfo {
   text: string;
   projectId: string;
   createdAt?: string;
+  status?: "sending" | "sent";
 }
 
 export function dedupeClientMessages(list: MessageInfo[]): MessageInfo[] {
@@ -376,6 +378,7 @@ export interface OpportunityInfo {
   submittedBy?: string;
   submittedByName?: string;
   approved?: boolean;
+  status?: string;
   event_type?: string;
   government_level?: string;
   tn_eligibility?: string;
@@ -527,9 +530,11 @@ export const API_BASE = "";
 
 export function getAuthHeaders(extraHeaders: Record<string, string> = {}) {
   const token = typeof window !== "undefined" ? localStorage.getItem("trackflow_token") : null;
+  const sessionToken = typeof window !== "undefined" ? localStorage.getItem("trackflow_session_token") : null;
   return {
     "Content-Type": "application/json",
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    ...(sessionToken ? { "X-Session-Token": sessionToken } : {}),
     ...extraHeaders,
   };
 }
@@ -598,6 +603,9 @@ export const useStore = create<AppState>((set, get) => ({
       if (data.token) {
         localStorage.setItem("trackflow_token", data.token);
       }
+      if (data.activeSessionToken) {
+        localStorage.setItem("trackflow_session_token", data.activeSessionToken);
+      }
       
       get().addToast(`Logged in successfully as ${user.name}`, "success");
       
@@ -632,15 +640,16 @@ export const useStore = create<AppState>((set, get) => ({
     if (user?.userId) {
       fetch(`${API_BASE}/api/logout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ userId: user.userId })
       }).catch(() => {});
     }
     get().disconnectSocket();
     localStorage.removeItem("trackflow_user");
     localStorage.removeItem("trackflow_token");
+    localStorage.removeItem("trackflow_session_token");
     set({ currentUser: null, activeProject: null, projects: [], tasks: [], notifications: [], messages: [] });
-    get().addToast("Logged out & checked out of lab successfully", "info");
+    get().addToast("Logged out successfully", "info");
   },
 
   updateProfile: async (userId, data) => {
@@ -683,11 +692,16 @@ export const useStore = create<AppState>((set, get) => ({
     if (token) {
       try {
         const res = await fetch(`${API_BASE}/api/auth/me`, {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          }
+          headers: getAuthHeaders()
         });
+        if (res.status === 401) {
+          const errData = await res.json().catch(() => ({}));
+          if (errData.error === "CONCURRENT_LOGIN_LOGOUT") {
+            get().logout();
+            get().addToast("🔒 Logged out: Your account was logged in on another device.", "info");
+            return;
+          }
+        }
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
@@ -1406,34 +1420,42 @@ export const useStore = create<AppState>((set, get) => ({
 
     const tempId = `msg-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const cleanText = text.trim();
+    const pId = (projectId && projectId !== "global") ? projectId : "";
     const newMsg: MessageInfo = {
       id: tempId,
       _id: tempId,
       user: user.name,
       userId: user.userId,
       text: cleanText,
-      projectId: projectId || "",
-      createdAt: new Date().toISOString()
+      projectId: pId,
+      createdAt: new Date().toISOString(),
+      status: 'sending'
     };
 
     // Instant Optimistic local update (0ms UI render for sender)
     set((state) => ({ messages: dedupeClientMessages([...state.messages, newMsg]) }));
 
-    // Persist to database asynchronously & broadcast once via API
+    // Send via active socket connection for real-time peer delivery
+    const { socket } = get();
+    if (socket && socket.connected) {
+      socket.emit("send_message", newMsg);
+    }
+
+    // Persist to database asynchronously & update confirmed status
     try {
       const response = await fetch(`${API_BASE}/api/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           user: user.name,
           userId: user.userId,
           text: cleanText,
-          projectId: projectId || "",
+          projectId: pId,
         }),
       });
       const data = await response.json();
       if (response.ok && data.message) {
-        const savedMsg = data.message;
+        const savedMsg = { ...data.message, status: 'sent' as const };
         set((state) => ({
           messages: dedupeClientMessages(state.messages.map((m) => (m.id === tempId || m._id === tempId ? savedMsg : m)))
         }));
@@ -1486,18 +1508,27 @@ export const useStore = create<AppState>((set, get) => ({
     socket.on("connect", () => {
       console.log("Socket connected client side");
       const user = get().currentUser;
-      if (user && user.role === "student") {
-        // Fetch project and join project room
-        fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`)
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.projects && data.projects.length > 0) {
-              const projectId = data.projects[0]._id || data.projects[0].id;
-              socket.emit("join_project", projectId);
-            }
-          })
-          .catch(() => {});
+      const sessionToken = localStorage.getItem("trackflow_session_token") || "";
+      if (user) {
+        socket.emit("register_user_session", { userId: user.userId, sessionToken });
+        if (user.role === "student") {
+          fetch(`${API_BASE}/api/projects?role=student&userId=${user.userId}`)
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.projects && data.projects.length > 0) {
+                const projectId = data.projects[0]._id || data.projects[0].id;
+                socket.emit("join_project", projectId);
+              }
+            })
+            .catch(() => {});
+        }
       }
+    });
+
+    socket.on("force_logout", (data) => {
+      console.warn("Forced logout event received:", data);
+      get().logout();
+      get().addToast("🔒 Logged out: Your account was logged in on another device.", "info");
     });
 
     socket.on("receive_message", (msg) => {
