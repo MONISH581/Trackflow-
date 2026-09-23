@@ -15,6 +15,7 @@ import {
   Cpu,
   Github,
   Link2,
+  Trash2,
 } from "lucide-react";
 
 interface CommitInfo {
@@ -258,6 +259,15 @@ export default function ProjectDetails() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       await uploadFile(currentProjectId, file);
+    }
+  };
+
+  const handleRemoveFile = async (fileUrl: string) => {
+    if (!project || !window.confirm("Are you sure you want to remove this file?")) return;
+    const newFiles = project.files?.filter(f => f.url !== fileUrl) || [];
+    const success = await updateProject(currentProjectId, { files: newFiles });
+    if (success) {
+      setProject({ ...project, files: newFiles });
     }
   };
 
@@ -975,15 +985,24 @@ export default function ProjectDetails() {
                         {new Date(file.uploadedAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <a
-                      href={file.url.startsWith('/') ? `${API_BASE}${file.url}` : file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-lg font-bold border border-slate-200"
-                    >
-                      Download
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={file.url.startsWith('/') ? `${API_BASE}${file.url}` : file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-lg font-bold border border-slate-200"
+                      >
+                        Download
+                      </a>
+                      <button
+                        onClick={() => handleRemoveFile(file.url)}
+                        className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 rounded-lg border border-rose-200 transition-colors"
+                        title="Remove file"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (

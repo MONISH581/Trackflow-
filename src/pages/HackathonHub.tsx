@@ -110,8 +110,8 @@ export default function HackathonHub() {
       });
       const json = await res.json();
       if (res.ok) {
-        setPaginatedRegistrations(json.data || []);
-        setPaginationMeta(json.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
+        setPaginatedRegistrations(json.registrations || json.data || []);
+        setPaginationMeta(json.pagination || { page: json.page || 1, limit: json.limit || 20, total: json.total || 0, totalPages: json.totalPages || 1 });
         setStatsMeta(json.stats || { totalCount: 0, pendingCount: 0, verifiedCount: 0, rejectedCount: 0, expiredCount: 0 });
       }
     } catch (err) {

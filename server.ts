@@ -3534,6 +3534,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       if (req.body.extensionStatus !== undefined) project.extensionStatus = req.body.extensionStatus;
       if (req.body.requestedExtensionDays !== undefined) project.requestedExtensionDays = req.body.requestedExtensionDays;
       if (req.body.extensionReason !== undefined) project.extensionReason = req.body.extensionReason;
+      if (req.body.files !== undefined) project.files = req.body.files;
 
       await project.save();
       io.emit("project_updated", { projectId: project._id, project });
