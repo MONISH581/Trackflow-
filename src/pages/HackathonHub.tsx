@@ -968,11 +968,11 @@ export default function HackathonHub() {
                       {/* Middle: Proof Thumbnail */}
                       <div className="flex items-center gap-3 shrink-0">
                         <div
-                          onClick={() => openLightbox(reg.screenshotUrl, reg.hackathonName, reg.studentName, reg.department, reg.validUntil)}
+                          onClick={() => openLightbox(getAbsoluteImageUrl(reg.screenshotUrl), reg.hackathonName, reg.studentName, reg.department, reg.validUntil)}
                           className="relative w-20 h-14 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 group cursor-pointer shadow-xs hover:border-indigo-400 transition"
                           title="Click to view full image in lightbox"
                         >
-                          <img src={reg.screenshotUrl} alt="Proof Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          <img src={getAbsoluteImageUrl(reg.screenshotUrl)} alt="Proof Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition" />
                           <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-slate-950/40 flex items-center justify-center text-white transition">
                             <ImageIcon className="w-4 h-4" />
                           </div>
@@ -980,7 +980,7 @@ export default function HackathonHub() {
 
                         <button
                           type="button"
-                          onClick={() => openLightbox(reg.screenshotUrl, reg.hackathonName, reg.studentName, reg.department, reg.validUntil)}
+                          onClick={() => openLightbox(getAbsoluteImageUrl(reg.screenshotUrl), reg.hackathonName, reg.studentName, reg.department, reg.validUntil)}
                           className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                         >
                           <ImageIcon className="w-3.5 h-3.5" />
