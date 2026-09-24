@@ -725,7 +725,7 @@ export default function Dashboard() {
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 overflow-hidden">
               <span className="text-xs text-slate-500 font-semibold truncate max-w-full sm:max-w-xs">
-                GitHub Repo: <span className="text-slate-800 font-mono font-bold truncate inline-block max-w-[180px] sm:max-w-[220px] align-bottom" title={project.githubRepo || "Not linked"}>{project.githubRepo || "Not linked"}</span>
+                GitHub Repo: <span className="text-slate-800 font-mono font-bold truncate inline-block max-w-[min(100%,_180px)] sm:max-w-[min(100%,_220px)] align-bottom" title={project.githubRepo || "Not linked"}>{project.githubRepo || "Not linked"}</span>
               </span>
               <Link
                 to="/project-hub"

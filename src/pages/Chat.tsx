@@ -233,11 +233,11 @@ export default function Chat() {
                     <p className="leading-relaxed whitespace-pre-wrap font-sans">{msg.text}</p>
                     <div className="flex items-center justify-between gap-2 mt-1.5 pt-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] block leading-none ${isOwnMessage ? 'text-blue-200' : 'text-slate-400'}`}>
+                        <span className={`text-xs block leading-none ${isOwnMessage ? 'text-blue-200' : 'text-slate-400'}`}>
                           {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         {isOwnMessage && (
-                          <span className="text-[10px] text-blue-200 flex items-center gap-0.5" title={msg.status === 'sending' ? 'Sending message...' : 'Sent successfully'}>
+                          <span className="text-xs text-blue-200 flex items-center gap-0.5" title={msg.status === 'sending' ? 'Sending message...' : 'Sent successfully'}>
                             {msg.status === 'sending' ? (
                               <Clock className="w-2.5 h-2.5 animate-spin" />
                             ) : (

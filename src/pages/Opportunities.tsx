@@ -812,7 +812,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
         {/* Floating Platform Source Badge Overlay */}
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/20 text-white shadow-md">
           <Globe className="w-3 h-3 text-cyan-400 shrink-0" />
-          <span className="text-[11px] font-black tracking-wider uppercase text-cyan-200">
+          <span className="text-xs font-black tracking-wider uppercase text-cyan-200">
             {getPlatformSource(opp)}
           </span>
         </div>
