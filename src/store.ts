@@ -504,6 +504,7 @@ interface AppState {
   // Notifications
   fetchNotifications: () => Promise<void>;
   markNotificationRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 
   // Chat
   fetchMessages: (projectId?: string) => Promise<void>;
@@ -724,6 +725,7 @@ export const useStore = create<AppState>((set, get) => ({
       try {
         const parsed = JSON.parse(savedUser);
         set({ currentUser: parsed });
+        get().fetchNotifications();
       } catch (e) {}
     }
 
@@ -1534,7 +1536,7 @@ export const useStore = create<AppState>((set, get) => ({
     const user = get().currentUser;
     if (!user) return;
     try {
-      const response = await fetch(`${API_BASE}/api/notifications?userId=${user.userId}`);
+      const response = await fetch(`${API_BASE}/api/notifications?userId=${encodeURIComponent(user.userId)}&role=${encodeURIComponent(user.role || '')}`);
       const data = await response.json();
       set({ notifications: data.notifications || [] });
     } catch (e) {}
@@ -1547,6 +1549,20 @@ export const useStore = create<AppState>((set, get) => ({
         notifications: state.notifications.map((n) =>
           n.id === notificationId || n._id === notificationId ? { ...n, read: true } : n
         ),
+      }));
+    } catch (e) {}
+  },
+
+  markAllNotificationsRead: async () => {
+    const user = get().currentUser;
+    try {
+      await fetch(`${API_BASE}/api/notifications/read-all`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.userId })
+      });
+      set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, read: true }))
       }));
     } catch (e) {}
   },

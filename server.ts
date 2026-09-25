@@ -4624,13 +4624,39 @@ Do not include markdown tags. Return only raw JSON string.`;
 
   app.get("/api/notifications", async (req, res) => {
     try {
-      const { userId, type } = req.query;
+      const { userId, role, type } = req.query;
       let query: any = {};
-      if (userId) query.userId = String(userId);
+      
+      if (userId) {
+        const userIdStr = String(userId);
+        const userRoleStr = role ? String(role) : "";
+        query.$or = [
+          { userId: userIdStr },
+          { userId: "all" },
+          { userId: "ALL" },
+          { userId: { $exists: false } },
+          { userId: null },
+          ...(userRoleStr ? [{ userId: userRoleStr }, { targetRole: userRoleStr }] : [])
+        ];
+      }
       if (type) query.type = String(type);
 
-      const notifs = await Notification.find(query).sort({ createdAt: -1 });
+      const notifs = await Notification.find(query).sort({ createdAt: -1 }).limit(50);
       res.json({ notifications: notifs.map(n => ({ id: n._id, ...n.toObject() })) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/notifications/read-all", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (userId) {
+        await Notification.updateMany({ userId }, { read: true });
+      } else {
+        await Notification.updateMany({}, { read: true });
+      }
+      res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

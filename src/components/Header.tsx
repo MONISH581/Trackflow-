@@ -10,8 +10,14 @@ interface HeaderProps {
 export default function Header({ onMenuToggle }: HeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { notifications, markNotificationRead, currentUser } = useStore();
+  const { notifications, fetchNotifications, markNotificationRead, markAllNotificationsRead, currentUser } = useStore();
   const [showNotifs, setShowNotifs] = React.useState(false);
+
+  React.useEffect(() => {
+    if (currentUser?.userId) {
+      fetchNotifications();
+    }
+  }, [currentUser?.userId, fetchNotifications]);
 
   const unreadNotifications = notifications.filter((n) => !n.read);
 
@@ -70,7 +76,13 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="relative">
           <button
-            onClick={() => setShowNotifs(!showNotifs)}
+            onClick={() => {
+              const next = !showNotifs;
+              setShowNotifs(next);
+              if (next) {
+                fetchNotifications();
+              }
+            }}
             className={`p-2.5 rounded-xl border transition-all min-w-[min(100%,_40px)] min-h-[40px] flex items-center justify-center cursor-pointer ${
               unreadNotifications.length > 0
                 ? "bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm"
@@ -91,7 +103,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                 className="fixed inset-0 z-40"
                 onClick={() => setShowNotifs(false)}
               />
-              <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto mt-2 sm:mt-3 z-50 w-auto sm:w-[min(100%,_340px)] rounded-2xl bg-white border border-slate-200/90 p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+              <div className="fixed inset-x-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full mt-2 z-50 w-[calc(100vw-24px)] sm:w-80 md:w-96 rounded-2xl bg-white border border-slate-200/90 p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <h3 className="font-extrabold text-sm text-slate-900">Notifications</h3>
@@ -99,11 +111,19 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                       {unreadNotifications.length}
                     </span>
                   </div>
+                  {unreadNotifications.length > 0 && (
+                    <button
+                      onClick={() => markAllNotificationsRead()}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {notifications.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-400">
+                    <div className="py-8 text-center text-xs text-slate-400 font-medium">
                       No new notifications right now.
                     </div>
                   ) : (
@@ -137,7 +157,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                                 e.stopPropagation();
                                 markNotificationRead(notif._id || notif.id);
                               }}
-                              className="p-1 rounded-md bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition cursor-pointer"
+                              className="p-1 rounded-md bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition cursor-pointer shrink-0"
                               title="Mark read"
                             >
                               <Check className="w-3 h-3" />
