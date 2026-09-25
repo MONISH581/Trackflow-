@@ -4,7 +4,8 @@ import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
 import { 
   Sparkles, Calendar, Upload, CheckCircle2, Clock, XCircle, ExternalLink, ShieldCheck, 
   Plus, X, Image as ImageIcon, Star, Heart, UserCheck, Search, Trophy, Globe, Layers, 
-  Flame, Zap, RefreshCw, ZoomIn, ZoomOut, RotateCw, Download, Filter, ChevronLeft, ChevronRight 
+  Flame, Zap, RefreshCw, ZoomIn, ZoomOut, RotateCw, Download, Filter, ChevronLeft, ChevronRight,
+  Edit3, Trash2
 } from "lucide-react";
 
 const FEATURED_PLATFORMS = [
@@ -58,6 +59,8 @@ export default function HackathonHub() {
     fetchHackathons,
     refreshLiveHackathons,
     createHackathon,
+    updateHackathon,
+    deleteHackathon,
     registerHackathonWithProof,
     fetchHackathonRegistrations,
     verifyHackathonRegistration,
@@ -73,6 +76,14 @@ export default function HackathonHub() {
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [editingHackathon, setEditingHackathon] = useState<HackathonInfo | null>(null);
+  const [editHackForm, setEditHackForm] = useState({
+    name: "",
+    organizer: "",
+    description: "",
+    domain: "",
+    registrationLink: "",
+  });
 
   // Lightbox Image Viewer Modal State
   const [lightboxModal, setLightboxModal] = useState<{
@@ -663,6 +674,40 @@ export default function HackathonHub() {
                         >
                           <Upload className="w-3.5 h-3.5" />
                           <span>{userRegistration ? "Re-proof" : "Upload Proof"}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {isTeacher && (
+                      <div className="flex items-center gap-2 pt-2.5 border-t border-slate-100 mt-2.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingHackathon(h);
+                            setEditHackForm({
+                              name: h.name,
+                              organizer: h.organizer,
+                              description: h.description,
+                              domain: h.domain,
+                              registrationLink: h.registrationLink,
+                            });
+                          }}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3 h-3 text-slate-500" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (window.confirm(`Are you sure you want to delete hackathon "${h.name}"?`)) {
+                              await deleteHackathon(hId);
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 transition flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-600" />
+                          <span>Delete</span>
                         </button>
                       </div>
                     )}
@@ -1361,6 +1406,102 @@ export default function HackathonHub() {
             onClick={(e) => e.stopPropagation()}
           >
             Touch or click background, or tap close button to return
+          </div>
+        </div>
+      )}
+
+      {/* Edit Hackathon Modal */}
+      {editingHackathon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-base font-bold text-slate-800">Edit Hackathon Details</h3>
+              <button onClick={() => setEditingHackathon(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const ok = await updateHackathon(
+                  editingHackathon.id || editingHackathon._id || editingHackathon.hackathonId,
+                  editHackForm
+                );
+                if (ok) {
+                  setEditingHackathon(null);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Hackathon Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={editHackForm.name}
+                  onChange={(e) => setEditHackForm({ ...editHackForm, name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Organizer</label>
+                <input
+                  type="text"
+                  value={editHackForm.organizer}
+                  onChange={(e) => setEditHackForm({ ...editHackForm, organizer: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Registration Link *</label>
+                <input
+                  type="url"
+                  required
+                  value={editHackForm.registrationLink}
+                  onChange={(e) => setEditHackForm({ ...editHackForm, registrationLink: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Domain / Category</label>
+                <input
+                  type="text"
+                  value={editHackForm.domain}
+                  onChange={(e) => setEditHackForm({ ...editHackForm, domain: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={editHackForm.description}
+                  onChange={(e) => setEditHackForm({ ...editHackForm, description: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingHackathon(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

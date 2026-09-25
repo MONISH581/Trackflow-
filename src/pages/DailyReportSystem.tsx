@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useStore, DailyReportInfo } from "../store.ts";
-import { ClipboardCheck, History, Send, GitCommit, Link as LinkIcon, Search, Copy, Check } from "lucide-react";
+import { ClipboardCheck, History, Send, GitCommit, Link as LinkIcon, Search, Copy, Check, Trash2 } from "lucide-react";
 
 export default function DailyReportSystem() {
-  const { currentUser, activeProject, projects, submitDailyReport, fetchDailyReports, fetchStudentDailyReportHistory, connectGithubRepo, addToast } = useStore();
+  const { currentUser, activeProject, projects, submitDailyReport, deleteDailyReport, fetchDailyReports, fetchStudentDailyReportHistory, connectGithubRepo, addToast } = useStore();
   
   // Coordinators default to viewing history (student reports)
   const [activeTab, setActiveTab] = useState<"submit" | "history">(currentUser?.role === "coordinator" ? "history" : "submit");
@@ -419,6 +419,23 @@ export default function DailyReportSystem() {
                         <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-full border border-emerald-200/60">
                           {report.progress}% Completed
                         </span>
+                        {(currentUser?.role === "coordinator" || currentUser?.role === "master_admin" || currentUser?.userId === report.studentId) && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm("Are you sure you want to delete this daily report entry?")) {
+                                const ok = await deleteDailyReport(report.id || report._id!);
+                                if (ok) {
+                                  setReportsHistory((prev) => prev.filter((r) => (r.id || r._id) !== (report.id || report._id)));
+                                }
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            title="Delete Daily Report"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 

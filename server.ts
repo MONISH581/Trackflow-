@@ -2247,6 +2247,49 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  app.put("/api/mentors/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const mentor = await Mentor.findOne({ $or: [{ _id: id }, { id }, { mentorId: id }] });
+      if (!mentor) return res.status(404).json({ error: "Mentor not found" });
+
+      const { name, email, phone, expertise, status } = req.body;
+      if (name !== undefined) mentor.name = name;
+      if (email !== undefined) mentor.email = email;
+      if (phone !== undefined) mentor.phone = phone;
+      if (expertise !== undefined) mentor.expertise = expertise;
+      if (status !== undefined) mentor.status = status;
+
+      await mentor.save();
+      res.json({ success: true, mentor });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/mentors/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const mentor = await Mentor.findOne({ $or: [{ _id: id }, { id }, { mentorId: id }] });
+      if (!mentor) return res.status(404).json({ error: "Mentor not found" });
+
+      const targetId = mentor._id || mentor.id;
+      await Mentor.findByIdAndDelete(targetId);
+
+      // Unassign mentor from projects
+      const projects = await Project.find({ mentorId: mentor.mentorId || targetId });
+      for (const p of projects) {
+        p.mentorId = "";
+        p.mentorName = "";
+        await p.save();
+      }
+
+      res.json({ success: true, message: "Mentor deleted successfully" });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/projects/:id/assign-mentor", async (req, res) => {
     try {
       const { mentorId } = req.body;
@@ -3174,6 +3217,49 @@ Do not include markdown tags. Return only raw JSON string.`;
       await hackathon.save();
 
       res.json({ success: true, hackathon: { id: hackathon._id, ...hackathon.toObject() } });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/hackathons/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const hackathon = await Hackathon.findOne({ $or: [{ _id: id }, { id }, { hackathonId: id }] });
+      if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
+
+      const { name, organizer, description, domain, startDate, endDate, registrationDeadline, registrationLink, status } = req.body;
+      if (name !== undefined) hackathon.name = name;
+      if (organizer !== undefined) hackathon.organizer = organizer;
+      if (description !== undefined) hackathon.description = description;
+      if (domain !== undefined) hackathon.domain = domain;
+      if (startDate !== undefined) hackathon.startDate = startDate;
+      if (endDate !== undefined) hackathon.endDate = endDate;
+      if (registrationDeadline !== undefined) hackathon.registrationDeadline = registrationDeadline;
+      if (registrationLink !== undefined) hackathon.registrationLink = registrationLink;
+      if (status !== undefined) hackathon.status = status;
+
+      await hackathon.save();
+      res.json({ success: true, hackathon });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/hackathons/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const hackathon = await Hackathon.findOne({ $or: [{ _id: id }, { id }, { hackathonId: id }] });
+      if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
+
+      const targetId = hackathon._id || hackathon.id;
+      await Hackathon.findByIdAndDelete(targetId);
+
+      // Clean up linked registrations and interests
+      await HackathonRegistration.deleteMany({ hackathonId: targetId });
+      await HackathonInterest.deleteMany({ hackathonId: targetId });
+
+      res.json({ success: true, message: "Hackathon deleted successfully" });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -4518,6 +4604,19 @@ Do not include markdown tags. Return only raw JSON string.`;
       }
 
       res.json({ success: true, task });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/tasks/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const task = await Task.findOne({ $or: [{ _id: id }, { id }] });
+      if (!task) return res.status(404).json({ error: "Task not found" });
+
+      await Task.findByIdAndDelete(task._id || id);
+      res.json({ success: true, message: "Task deleted successfully" });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

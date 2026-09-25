@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore, TaskInfo, ProjectInfo, UserInfo, API_BASE } from "../store.ts";
-import { Plus, CheckCircle, Clock, AlertCircle, Calendar, PlusCircle, ArrowRight, UserPlus } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertCircle, Calendar, PlusCircle, ArrowRight, UserPlus, Edit3, Trash2, X } from "lucide-react";
 
 export default function Tasks() {
   const {
@@ -10,6 +10,7 @@ export default function Tasks() {
     fetchProjects,
     createTask,
     updateTask,
+    deleteTask,
     currentUser,
     fetchApprovedStudents,
   } = useStore();
@@ -25,7 +26,12 @@ export default function Tasks() {
   const [projectId, setProjectId] = React.useState("");
   const [priority, setPriority] = React.useState<"low" | "medium" | "high">("medium");
   const [estimatedHours, setEstimatedHours] = React.useState(0);
-  const [creating, setCreating] = React.useState(false);
+  const [editingTask, setEditingTask] = React.useState<TaskInfo | null>(null);
+  const [editTitle, setEditTitle] = React.useState("");
+  const [editDate, setEditDate] = React.useState("");
+  const [editPriority, setEditPriority] = React.useState<"low" | "medium" | "high">("medium");
+  const [editHours, setEditHours] = React.useState(0);
+  const [updating, setUpdating] = React.useState(false);
 
   React.useEffect(() => {
     fetchProjects();
@@ -122,12 +128,12 @@ export default function Tasks() {
           <span>Est: {task.estimatedHours} hrs</span>
         </div>
 
-        {/* Task movements action bar */}
-        <div className="flex gap-2 pt-2">
+        {/* Task movements & edit/delete action bar */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 mt-2">
           {task.status === "Not Started" && (
             <button
               onClick={() => moveTask(task.id || task._id || "", "In Progress")}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-blue-50 hover:bg-blue-100/80 text-blue-600 border border-blue-200/50 rounded-lg text-xs font-bold transition"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 bg-blue-50 hover:bg-blue-100/80 text-blue-600 border border-blue-200/50 rounded-lg text-xs font-bold transition"
             >
               <span>Start Task</span>
               <ArrowRight className="w-3 h-3" />
@@ -136,12 +142,46 @@ export default function Tasks() {
           {task.status === "In Progress" && (
             <button
               onClick={() => moveTask(task.id || task._id || "", "Completed")}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition"
             >
               <CheckCircle className="w-3 h-3" />
               <span>Complete Task</span>
             </button>
           )}
+          {task.status === "Completed" && (
+            <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5" /> Done
+            </span>
+          )}
+
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingTask(task);
+                setEditTitle(task.title);
+                setEditDate(task.date || "");
+                setEditPriority(task.priority || "medium");
+                setEditHours(task.estimatedHours || 0);
+              }}
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+              title="Edit Task"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm(`Are you sure you want to delete task "${task.title}"?`)) {
+                  await deleteTask(task.id || task._id!);
+                }
+              }}
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              title="Delete Task"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -365,6 +405,121 @@ export default function Tasks() {
                   className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition shadow-lg shadow-blue-500/10"
                 >
                   {creating ? "Generating..." : "Generate"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-[94vw] sm:max-w-md glass-card p-6 border border-blue-200/40 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-800">Edit Task Details</h3>
+              <button
+                onClick={() => setEditingTask(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setUpdating(true);
+                const success = await updateTask(editingTask.id || editingTask._id!, {
+                  title: editTitle,
+                  date: editDate,
+                  priority: editPriority,
+                  estimatedHours: editHours,
+                });
+                setUpdating(false);
+                if (success) {
+                  setEditingTask(null);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Task Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl glass-input text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl glass-input text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                    Est. Hours
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editHours}
+                    onChange={(e) => setEditHours(Number(e.target.value))}
+                    className="w-full px-4 py-2.5 rounded-xl glass-input text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Task Priority
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setEditPriority(p)}
+                      className={`py-2 rounded-lg text-xs font-bold uppercase transition ${
+                        editPriority === p
+                          ? "bg-blue-600 border border-blue-500 text-white shadow-sm"
+                          : "bg-white border border-slate-200 text-slate-500 hover:border-slate-300"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => setEditingTask(null)}
+                  className="flex-1 py-2.5 px-4 bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-800 rounded-xl text-xs font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition shadow-lg shadow-blue-500/10"
+                >
+                  {updating ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </form>

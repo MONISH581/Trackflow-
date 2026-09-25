@@ -439,6 +439,8 @@ interface AppState {
   // Mentors
   fetchMentors: () => Promise<void>;
   createMentor: (mentorData: Partial<MentorInfo>) => Promise<boolean>;
+  updateMentor: (mentorId: string, mentorData: Partial<MentorInfo>) => Promise<boolean>;
+  deleteMentor: (mentorId: string) => Promise<boolean>;
   assignMentorToProject: (projectId: string, mentorId: string) => Promise<boolean>;
 
   // GitHub Integration
@@ -466,6 +468,7 @@ interface AppState {
   fetchDailyReports: (projectId: string) => Promise<DailyReportInfo[]>;
   fetchStudentDailyReportHistory: (studentId: string) => Promise<DailyReportInfo[]>;
   submitDailyReport: (reportData: Partial<DailyReportInfo>) => Promise<boolean>;
+  deleteDailyReport: (reportId: string) => Promise<boolean>;
   checkDailyReportSubmittedToday: (studentId: string) => Promise<boolean>;
   analyzeProject: (projectData: any, githubStats: any) => Promise<string>;
   approveProjectMilestone: (projectId: string, milestone: number) => Promise<boolean>;
@@ -479,6 +482,8 @@ interface AppState {
   fetchHackathons: () => Promise<void>;
   refreshLiveHackathons: () => Promise<boolean>;
   createHackathon: (hackathonData: Partial<HackathonInfo>) => Promise<boolean>;
+  updateHackathon: (hackathonId: string, hackathonData: Partial<HackathonInfo>) => Promise<boolean>;
+  deleteHackathon: (hackathonId: string) => Promise<boolean>;
   registerHackathonWithProof: (hackathonId: string, studentId: string, screenshotFile: File) => Promise<boolean>;
   fetchHackathonRegistrations: (studentId?: string) => Promise<void>;
   verifyHackathonRegistration: (registrationId: string, status: "Verified" | "Rejected", reason?: string) => Promise<boolean>;
@@ -494,6 +499,7 @@ interface AppState {
   fetchTasks: () => Promise<void>;
   createTask: (taskData: Partial<TaskInfo>) => Promise<boolean>;
   updateTask: (taskId: string, updates: Partial<TaskInfo>) => Promise<boolean>;
+  deleteTask: (taskId: string) => Promise<boolean>;
 
   // Notifications
   fetchNotifications: () => Promise<void>;
@@ -826,6 +832,41 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  updateMentor: async (mentorId, mentorData) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/mentors/${mentorId}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(mentorData),
+      });
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || "Failed to update mentor");
+      get().addToast("Mentor updated successfully", "success");
+      get().fetchMentors();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to update mentor", "error");
+      return false;
+    }
+  },
+
+  deleteMentor: async (mentorId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/mentors/${mentorId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || "Failed to delete mentor");
+      get().addToast("Mentor deleted successfully", "success");
+      get().fetchMentors();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to delete mentor", "error");
+      return false;
+    }
+  },
+
   assignMentorToProject: async (projectId, mentorId) => {
     try {
       const response = await fetch(`${API_BASE}/api/projects/${projectId}/assign-mentor`, {
@@ -900,6 +941,41 @@ export const useStore = create<AppState>((set, get) => ({
       return true;
     } catch (e: any) {
       get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  updateHackathon: async (hackathonId, hackathonData) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/hackathons/${hackathonId}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(hackathonData),
+      });
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || "Failed to update hackathon");
+      get().addToast("Hackathon updated successfully", "success");
+      get().fetchHackathons();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to update hackathon", "error");
+      return false;
+    }
+  },
+
+  deleteHackathon: async (hackathonId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/hackathons/${hackathonId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || "Failed to delete hackathon");
+      get().addToast("Hackathon deleted successfully", "success");
+      get().fetchHackathons();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to delete hackathon", "error");
       return false;
     }
   },
@@ -1433,6 +1509,23 @@ export const useStore = create<AppState>((set, get) => ({
       return true;
     } catch (e: any) {
       get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  deleteTask: async (taskId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || "Failed to delete task");
+      get().addToast("Task deleted successfully", "success");
+      get().fetchTasks();
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to delete task", "error");
       return false;
     }
   },

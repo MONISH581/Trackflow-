@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useStore, MentorInfo, ProjectInfo } from "../store.ts";
-import { Users, Plus, Award, Mail, Phone, Briefcase, CheckCircle, ShieldAlert, X } from "lucide-react";
+import { Users, Plus, Award, Mail, Phone, Briefcase, CheckCircle, ShieldAlert, X, Edit3, Trash2 } from "lucide-react";
 
 export default function MentorManagement() {
-  const { currentUser, mentors, projects, fetchMentors, createMentor, assignMentorToProject, fetchProjects } = useStore();
+  const { currentUser, mentors, projects, fetchMentors, createMentor, updateMentor, deleteMentor, assignMentorToProject, fetchProjects } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProjectInfo | null>(null);
   const [selectedMentorId, setSelectedMentorId] = useState("");
 
+  const [editingMentor, setEditingMentor] = useState<MentorInfo | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    expertise: "Artificial Intelligence & ML",
+  });
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -127,6 +134,39 @@ export default function MentorManagement() {
                       </span>
                     </div>
                   </div>
+
+                  {(currentUser?.role === "coordinator" || currentUser?.role === "master_admin") && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingMentor(mentor);
+                          setEditFormData({
+                            name: mentor.name,
+                            email: mentor.email,
+                            phone: mentor.phone || "",
+                            expertise: mentor.expertise || "Artificial Intelligence & ML",
+                          });
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        title="Edit Mentor"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (window.confirm(`Are you sure you want to delete mentor "${mentor.name}"?`)) {
+                            await deleteMentor(mentor.id || mentor._id || mentor.mentorId);
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        title="Delete Mentor"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-600">
@@ -296,6 +336,95 @@ export default function MentorManagement() {
                   className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-500/20 transition"
                 >
                   Confirm Assignment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Mentor Modal */}
+      {editingMentor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-lg font-bold text-slate-800">Edit Mentor Details</h3>
+              <button onClick={() => setEditingMentor(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const ok = await updateMentor(editingMentor.id || editingMentor._id || editingMentor.mentorId, editFormData);
+                if (ok) {
+                  setEditingMentor(null);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Mentor Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Primary Expertise Domain</label>
+                <select
+                  value={editFormData.expertise}
+                  onChange={(e) => setEditFormData({ ...editFormData, expertise: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Artificial Intelligence & ML">Artificial Intelligence & ML</option>
+                  <option value="Cyber Security / Cloud Computing">Cyber Security / Cloud Computing</option>
+                  <option value="AR/VR & Game Dev">AR/VR & Game Dev</option>
+                  <option value="IoT & Embedded Systems">IoT & Embedded Systems</option>
+                  <option value="PCB & VLSI Design">PCB & VLSI Design</option>
+                  <option value="Robotics & Automation">Robotics & Automation</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingMentor(null)}
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-500/20 transition"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
