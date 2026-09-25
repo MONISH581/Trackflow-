@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { useStore, ProjectInfo, UserInfo, API_BASE } from "../store.ts";
 import { StudentSelector } from "../components/StudentSelector.tsx";
+import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
 import {
   Plus,
   Search,
@@ -34,7 +35,7 @@ export default function Projects() {
   const [deptFilter, setDeptFilter] = React.useState("All");
   const [showCreateModal, setShowCreateModal] = React.useState(false);
   const [newTitle, setNewTitle] = React.useState("");
-  const [newDept, setNewDept] = React.useState("Computer Science");
+  const [newDept, setNewDept] = React.useState<string>(OFFICIAL_DEPARTMENTS[0]);
   const [students, setStudents] = React.useState<UserInfo[]>([]);
   const [newLeaderId, setNewLeaderId] = React.useState("");
   const [newMemberIds, setNewMemberIds] = React.useState<string[]>([]);
@@ -61,14 +62,7 @@ export default function Projects() {
     }
   };
 
-  const departments = [
-    "Computer Science",
-    "Information Technology",
-    "Artificial Intelligence",
-    "Electronics & Communication",
-    "Mechanical Engineering",
-    "Civil Engineering",
-  ];
+
 
   const findStudentDetails = (idOrName: string) => {
     if (!idOrName) return "";
@@ -84,7 +78,11 @@ export default function Projects() {
 
   const filteredProjects = projects.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = deptFilter === "All" || p.department === deptFilter;
+    if (deptFilter === "All") return matchesSearch;
+    if (!p.department) return false;
+    const pDept = p.department.toLowerCase().trim();
+    const filterDept = deptFilter.toLowerCase().trim();
+    const matchesDept = pDept === filterDept || pDept.includes(filterDept) || filterDept.includes(pDept);
     return matchesSearch && matchesDept;
   });
 
@@ -128,8 +126,8 @@ export default function Projects() {
             onChange={(e) => setDeptFilter(e.target.value)}
             className="w-full sm:w-auto px-4 py-2.5 rounded-xl glass-input text-sm cursor-pointer"
           >
-            <option value="All" className="bg-white">All Departments</option>
-            {departments.map((d) => (
+            <option value="All" className="bg-white">All Departments ({OFFICIAL_DEPARTMENTS.length})</option>
+            {OFFICIAL_DEPARTMENTS.map((d) => (
               <option key={d} value={d} className="bg-white">
                 {d}
               </option>
@@ -383,7 +381,7 @@ export default function Projects() {
                   onChange={(e) => setNewDept(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl glass-input text-sm cursor-pointer text-slate-800 bg-white"
                 >
-                  {departments.map((d) => (
+                  {OFFICIAL_DEPARTMENTS.map((d) => (
                     <option key={d} value={d} className="bg-white">
                       {d}
                     </option>

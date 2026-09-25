@@ -1,5 +1,6 @@
 import React from "react";
 import { useStore, UserInfo } from "../store.ts";
+import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
 import {
   ClipboardCheck,
   Search,
@@ -54,18 +55,9 @@ export default function Attendance() {
   // Quick Register States
   const [regName, setRegName] = React.useState("");
   const [regEmail, setRegEmail] = React.useState("");
-  const [regDept, setRegDept] = React.useState("Computer Science");
+  const [regDept, setRegDept] = React.useState<string>(OFFICIAL_DEPARTMENTS[0]);
   const [regYear, setRegYear] = React.useState("1");
   const [registering, setRegistering] = React.useState(false);
-
-  const departments = [
-    "Computer Science",
-    "Information Technology",
-    "Artificial Intelligence",
-    "Electronics & Communication",
-    "Mechanical Engineering",
-    "Civil Engineering",
-  ];
 
   const loadData = async () => {
     setLoading(true);
@@ -833,7 +825,7 @@ export default function Attendance() {
                     onChange={(e) => setRegDept(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
                   >
-                    {departments.map((dept) => (
+                    {OFFICIAL_DEPARTMENTS.map((dept) => (
                       <option key={dept} value={dept}>
                         {dept}
                       </option>

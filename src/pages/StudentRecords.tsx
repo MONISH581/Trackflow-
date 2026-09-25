@@ -1,6 +1,7 @@
 import React from "react";
 import { useStore } from "../store.ts";
-import { Users, FileText, ChevronDown, ChevronUp, Calendar, Github, Link2, ClipboardCheck, Crown, FolderPlus, Trash2, AlertTriangle, X } from "lucide-react";
+import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
+import { Users, FileText, ChevronDown, ChevronUp, Calendar, Github, Link2, ClipboardCheck, Crown, FolderPlus, Trash2, AlertTriangle, X, Filter } from "lucide-react";
 
 interface Record {
   student: {
@@ -39,6 +40,7 @@ export default function StudentRecords() {
   const [records, setRecords] = React.useState<Record[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [expandedRecord, setExpandedRecord] = React.useState<string | null>(null);
+  const [selectedDept, setSelectedDept] = React.useState<string>("All");
 
   // Quick Assignment Modal State
   const [assigningStudent, setAssigningStudent] = React.useState<Record['student'] | null>(null);
@@ -87,6 +89,14 @@ export default function StudentRecords() {
     setAsLeader(false);
   };
 
+  const filteredRecords = records.filter((r) => {
+    if (selectedDept === "All") return true;
+    if (!r.student.department) return false;
+    const studentDept = r.student.department.toLowerCase();
+    const filterDept = selectedDept.toLowerCase();
+    return studentDept === filterDept || studentDept.includes(filterDept) || filterDept.includes(studentDept);
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -97,24 +107,46 @@ export default function StudentRecords() {
 
   return (
     <div className="space-y-6 text-left">
-      <div>
-        <h2 className="text-xl font-bold text-slate-800 tracking-tight font-sans">Student Records & Daily Logs</h2>
-        <p className="text-sm text-slate-500">
-          Track academic standing, project attachments, and daily submissions for all approved students.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight font-sans">Student Records & Daily Logs</h2>
+          <p className="text-sm text-slate-500">
+            Track academic standing, project attachments, and daily submissions for all approved students.
+          </p>
+        </div>
+
+        {/* Department Filter Bar */}
+        <div className="flex items-center gap-2 bg-white/80 p-1.5 rounded-xl border border-blue-200/50 shadow-2xs">
+          <Filter className="w-4 h-4 text-blue-600 ml-2" />
+          <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Filter Dept:</span>
+          <select
+            value={selectedDept}
+            onChange={(e) => setSelectedDept(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 cursor-pointer max-w-[240px]"
+          >
+            <option value="All">All Departments ({records.length})</option>
+            {OFFICIAL_DEPARTMENTS.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {records.length === 0 ? (
+      {filteredRecords.length === 0 ? (
         <div className="glass-card p-5 sm:p-8 text-center border border-blue-200/40 max-w-xl mx-auto space-y-3">
           <Users className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400 mx-auto" />
           <h3 className="text-sm sm:text-base font-bold text-slate-800">No Student Records Found</h3>
           <p className="text-xs sm:text-sm text-slate-500">
-            Once students register and are approved by the coordinator, they will appear here.
+            {records.length === 0
+              ? "Once students register and are approved by the coordinator, they will appear here."
+              : `No student records found matching "${selectedDept}".`}
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {records.map(({ student, project, lastReportDate, dailyReports, attendanceLogs }) => {
+          {filteredRecords.map(({ student, project, lastReportDate, dailyReports, attendanceLogs }) => {
             const isExpanded = expandedRecord === student.id;
             return (
               <div
