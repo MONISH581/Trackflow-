@@ -1771,6 +1771,111 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
+  app.put("/api/users/:id", async (req: any, res: any) => {
+    try {
+      const targetId = req.params.id;
+      const user = await User.findOne({ $or: [{ userId: targetId }, { _id: targetId }] });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const {
+        name,
+        email,
+        department,
+        phone,
+        avatar,
+        githubUsername,
+        githubToken,
+        password,
+        registerNumber,
+        year,
+        lab,
+        preferredDomain,
+        status,
+        accountStatus,
+        role
+      } = req.body;
+
+      if (name !== undefined) user.name = name;
+      if (email !== undefined && email.trim()) {
+        const cleanEmail = email.toLowerCase().trim();
+        if (cleanEmail !== user.email) {
+          const existing = await User.findOne({ email: cleanEmail });
+          if (existing && existing.userId !== user.userId && existing._id !== user._id) {
+            return res.status(400).json({ error: "Email address is already in use by another account." });
+          }
+          user.email = cleanEmail;
+        }
+      }
+      if (department !== undefined) user.department = department;
+      if (phone !== undefined) user.phone = phone;
+      if (avatar !== undefined) user.avatar = avatar;
+      if (githubUsername !== undefined) user.githubUsername = githubUsername;
+      if (githubToken !== undefined) user.githubToken = githubToken;
+      if (registerNumber !== undefined) user.registerNumber = registerNumber;
+      if (year !== undefined) user.year = year;
+      if (lab !== undefined) user.lab = lab;
+      if (preferredDomain !== undefined) user.preferredDomain = preferredDomain;
+      if (status !== undefined) user.status = status;
+      if (accountStatus !== undefined) user.accountStatus = accountStatus;
+      if (role !== undefined) user.role = role;
+
+      if (password && typeof password === 'string' && password.trim().length > 0) {
+        if (password.trim().length < 6) {
+          return res.status(400).json({ error: "Password must be at least 6 characters long." });
+        }
+        user.passwordHash = await bcrypt.hash(password.trim(), 10);
+      }
+
+      await user.save();
+
+      res.json({
+        success: true,
+        message: "Profile updated successfully",
+        user: sanitizeUser(user)
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/users/quick-student", async (req: any, res: any) => {
+    try {
+      const { name, email, department, year } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const cleanEmail = email.toLowerCase().trim();
+      let existing = await User.findOne({ email: cleanEmail });
+      if (existing) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+
+      const passwordHash = await bcrypt.hash("student123", 10);
+      const newUser = new User({
+        userId: `student-${Date.now()}`,
+        name: name || "Student",
+        email: cleanEmail,
+        department: department || "Computer Science and Engineering",
+        year: year || "3",
+        role: "student",
+        status: "approved",
+        accountStatus: "ACTIVE",
+        passwordHash,
+        avatar: `https://avatar.vercel.sh/${cleanEmail}`,
+        registrationDate: new Date()
+      });
+      await newUser.save();
+
+      res.json({ success: true, user: sanitizeUser(newUser) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+
   // Approvals endpoints
   app.get("/api/approvals", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req, res) => {
     try {

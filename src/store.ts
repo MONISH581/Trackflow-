@@ -687,19 +687,19 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/users/${userId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
-      const resData = await response.json();
+      const resData = await safeJson(response, {});
       if (!response.ok) {
-        throw new Error(resData.error || "Update failed");
+        throw new Error(resData.error || resData.message || "Update failed");
       }
       set({ currentUser: resData.user });
       localStorage.setItem("trackflow_user", JSON.stringify(resData.user));
       get().addToast("Profile updated successfully", "success");
       return true;
     } catch (e: any) {
-      get().addToast(e.message, "error");
+      get().addToast(e.message || "Failed to update profile", "error");
       return false;
     }
   },
@@ -1072,15 +1072,15 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/users/quick-student`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(studentData)
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to add student");
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || data.message || "Failed to add student");
       get().addToast("Student profile created and approved successfully", "success");
       return true;
     } catch (e: any) {
-      get().addToast(e.message, "error");
+      get().addToast(e.message || "Failed to add student", "error");
       return false;
     } finally {
       get().setLoading(false);
