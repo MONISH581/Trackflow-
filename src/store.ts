@@ -450,8 +450,16 @@ interface AppState {
   fetchStudentRecords: () => Promise<any[]>;
 
   // Attendance & Lab Access
-  fetchApprovedStudents: () => Promise<UserInfo[]>;
-  quickAddStudent: (studentData: { name: string; email: string; department: string; year: string }) => Promise<boolean>;
+  quickAddStudent: (studentData: {
+    name: string;
+    email: string;
+    department: string;
+    year: string;
+    registerNumber?: string;
+    lab?: string;
+    section?: string;
+    password?: string;
+  }) => Promise<boolean>;
   fetchAttendance: (date: string) => Promise<any[]>;
   saveAttendance: (date: string, records: Array<{ studentId: string; status: string }>) => Promise<boolean>;
   fetchActiveLabAccess: () => Promise<any[]>;

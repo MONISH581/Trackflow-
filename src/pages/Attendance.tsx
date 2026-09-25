@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore, UserInfo } from "../store.ts";
-import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
+import { OFFICIAL_DEPARTMENTS, OFFICIAL_LABS } from "../constants/departments.ts";
 import {
   ClipboardCheck,
   Search,
@@ -55,8 +55,12 @@ export default function Attendance() {
   // Quick Register States
   const [regName, setRegName] = React.useState("");
   const [regEmail, setRegEmail] = React.useState("");
+  const [regRegisterNumber, setRegRegisterNumber] = React.useState("");
   const [regDept, setRegDept] = React.useState<string>(OFFICIAL_DEPARTMENTS[0]);
   const [regYear, setRegYear] = React.useState("1");
+  const [regLab, setRegLab] = React.useState<string>(OFFICIAL_LABS[0]);
+  const [regSection, setRegSection] = React.useState("A");
+  const [regPassword, setRegPassword] = React.useState("");
   const [registering, setRegistering] = React.useState(false);
 
   const loadData = async () => {
@@ -169,18 +173,26 @@ export default function Attendance() {
     const success = await quickAddStudent({
       name: regName,
       email: regEmail,
+      registerNumber: regRegisterNumber,
       department: regDept,
       year: regYear,
+      lab: regLab,
+      section: regSection,
+      password: regPassword,
     });
     if (success) {
       // Reset form
       setRegName("");
       setRegEmail("");
-      setRegDept("Computer Science");
+      setRegRegisterNumber("");
+      setRegDept(OFFICIAL_DEPARTMENTS[0]);
       setRegYear("1");
+      setRegLab(OFFICIAL_LABS[0]);
+      setRegSection("A");
+      setRegPassword("");
       // Reload students
       loadData();
-      // Switch back to attendance or lab check-in
+      // Switch back to attendance sheet view
       setActiveTab("sheet");
     }
     setRegistering(false);
@@ -784,23 +796,39 @@ export default function Attendance() {
             </div>
 
             <form onSubmit={handleQuickRegister} className="space-y-4 relative z-10">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter student full name"
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Full Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter student full name"
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Register Number <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 732724CS001"
+                    value={regRegisterNumber}
+                    onChange={(e) => setRegRegisterNumber(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Email Address
+                  Email Address <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -850,10 +878,58 @@ export default function Attendance() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Assigned Laboratory
+                  </label>
+                  <select
+                    value={regLab}
+                    onChange={(e) => setRegLab(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+                  >
+                    {OFFICIAL_LABS.map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Section / Division
+                  </label>
+                  <select
+                    value={regSection}
+                    onChange={(e) => setRegSection(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="A">Section A</option>
+                    <option value="B">Section B</option>
+                    <option value="C">Section C</option>
+                    <option value="D">Section D</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Initial Login Password
+                </label>
+                <input
+                  type="text"
+                  placeholder="Default password if empty: student123"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
               <button
                 type="submit"
-                disabled={registering || !regName || !regEmail}
-                className="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all duration-200 shadow-md shadow-blue-500/10 glow-btn flex items-center justify-center gap-1.5"
+                disabled={registering || !regName || !regEmail || !regRegisterNumber}
+                className="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all duration-200 shadow-md shadow-blue-500/10 glow-btn flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 {registering ? (
                   <>Registering Student...</>

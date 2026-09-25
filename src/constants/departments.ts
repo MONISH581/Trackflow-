@@ -15,4 +15,15 @@ export const OFFICIAL_DEPARTMENTS = [
   "Mechanical Engineering"
 ] as const;
 
+export const OFFICIAL_LABS = [
+  "Artificial Intelligence and Research Lab",
+  "Cyber Security / Cloud Computing Lab",
+  "AR/VR Lab",
+  "IoT (Internet of Things) Lab",
+  "PCB Lab",
+  "Robotics Lab",
+  "VLSI Lab"
+] as const;
+
 export type DepartmentType = typeof OFFICIAL_DEPARTMENTS[number];
+export type LabType = typeof OFFICIAL_LABS[number];

@@ -1842,7 +1842,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
   app.post("/api/users/quick-student", async (req: any, res: any) => {
     try {
-      const { name, email, department, year } = req.body;
+      const { name, email, department, year, registerNumber, lab, section, password } = req.body;
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
@@ -1853,13 +1853,17 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         return res.status(400).json({ error: "User with this email already exists" });
       }
 
-      const passwordHash = await bcrypt.hash("student123", 10);
+      const rawPass = password && password.trim() ? password.trim() : "student123";
+      const passwordHash = await bcrypt.hash(rawPass, 10);
       const newUser = new User({
         userId: `student-${Date.now()}`,
         name: name || "Student",
         email: cleanEmail,
+        registerNumber: registerNumber ? registerNumber.trim().toUpperCase() : undefined,
         department: department || "Computer Science and Engineering",
-        year: year || "3",
+        year: year || "1",
+        lab: lab || "Artificial Intelligence and Research Lab",
+        section: section || "A",
         role: "student",
         status: "approved",
         accountStatus: "ACTIVE",
