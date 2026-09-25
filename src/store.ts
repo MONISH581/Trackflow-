@@ -460,6 +460,7 @@ interface AppState {
   fetchProjects: () => Promise<void>;
   createProject: (name: string, department: string, domain?: string, mentorId?: string, teamLeader?: string, teamMembers?: string[]) => Promise<ProjectInfo | null>;
   updateProject: (projectId: string, updates: Partial<ProjectInfo>) => Promise<boolean>;
+  deleteProject: (projectId: string) => Promise<boolean>;
   uploadFile: (projectId: string, file: File) => Promise<boolean>;
   fetchAbstractHistory: (projectId: string) => Promise<any[]>;
   fetchDailyReports: (projectId: string) => Promise<DailyReportInfo[]>;
@@ -1215,6 +1216,27 @@ export const useStore = create<AppState>((set, get) => ({
       return true;
     } catch (e: any) {
       get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  deleteProject: async (projectId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || data.message || "Failed to delete project");
+
+      get().addToast(data.message || "Project workspace deleted successfully", "success");
+      set((state) => ({
+        projects: state.projects.filter((p) => p.id !== projectId && p._id !== projectId),
+        activeProject: (state.activeProject?.id === projectId || state.activeProject?._id === projectId) ? null : state.activeProject,
+      }));
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to delete project workspace", "error");
       return false;
     }
   },

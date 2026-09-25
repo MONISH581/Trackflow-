@@ -4014,6 +4014,32 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
+  app.delete("/api/projects/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const proj = await Project.findOne({ $or: [{ _id: id }, { id }] });
+      if (!proj) {
+        return res.status(404).json({ error: "Project workspace not found" });
+      }
+
+      const targetId = proj._id || proj.id;
+      await Project.findByIdAndDelete(targetId);
+
+      // Clean up linked data
+      await Task.deleteMany({ projectId: targetId });
+      await DailyReport.deleteMany({ projectId: targetId });
+      await Message.deleteMany({ projectId: targetId });
+      await GitHubRepo.deleteMany({ projectId: targetId });
+      await AbstractHistory.deleteMany({ projectId: targetId });
+      await MilestonePresentation.deleteMany({ projectId: targetId });
+      await ProjectExtension.deleteMany({ projectId: targetId });
+
+      res.json({ success: true, message: `Project workspace ${proj.name} deleted successfully.` });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 
   app.put("/api/projects/:id", async (req, res) => {
     try {

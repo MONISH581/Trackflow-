@@ -40,6 +40,7 @@ export default function ProjectDetails() {
     projects,
     currentUser,
     updateProject,
+    deleteProject,
     uploadFile,
     fetchAbstractHistory,
     submitDailyReport,
@@ -471,6 +472,25 @@ export default function ProjectDetails() {
             >
               <Cpu className="w-4.5 h-4.5" />
               <span>{analyzing ? "AI Auditing..." : "Gemini AI Health Audit"}</span>
+            </button>
+          )}
+
+          {(currentUser?.role === "coordinator" || currentUser?.role === "master_admin") && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm(`Are you sure you want to delete project workspace "${project.name}"? This action cannot be undone.`)) {
+                  const success = await deleteProject(currentProjectId);
+                  if (success) {
+                    window.location.hash = "#/projects";
+                  }
+                }
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl text-sm transition-all shadow-sm"
+              title="Delete Project Workspace"
+            >
+              <Trash2 className="w-4.5 h-4.5" />
+              <span>Delete Workspace</span>
             </button>
           )}
         </div>

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   UserCheck,
   User,
+  Trash2,
 } from "lucide-react";
 
 export default function Projects() {
@@ -22,6 +23,7 @@ export default function Projects() {
     projects,
     fetchProjects,
     createProject,
+    deleteProject,
     fetchApprovedStudents,
     currentUser,
     approveProjectMilestone,
@@ -310,17 +312,36 @@ export default function Projects() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 mt-2">
                   <span className="text-xs text-slate-400 font-semibold">
-                    Workspace #{project.id ? project.id.slice(-6) : "NEW"}
+                    Workspace #{project.id ? (project.id.length > 6 ? project.id.slice(-6) : project.id) : "NEW"}
                   </span>
-                  <Link
-                    to={`/projects/${project.id || project._id}`}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold transition-colors text-xs"
-                  >
-                    Open Workspace Hub
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    {(currentUser?.role === "coordinator" || currentUser?.role === "master_admin") && (
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (window.confirm(`Are you sure you want to delete project workspace "${project.name}"? This action cannot be undone.`)) {
+                            await deleteProject(project.id || project._id!);
+                          }
+                        }}
+                        className="flex items-center gap-1 text-rose-600 hover:text-rose-700 font-bold transition-colors text-xs bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200/60"
+                        title="Delete Project Workspace"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    )}
+                    <Link
+                      to={`/projects/${project.id || project._id}`}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold transition-colors text-xs"
+                    >
+                      Open Workspace Hub
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
