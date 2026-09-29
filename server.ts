@@ -277,6 +277,13 @@ async function startServer() {
     private static dbFilePath = path.join(process.cwd(), "uploads", "db_store.json");
     private static isLoaded = false;
 
+    private getMongoId(id: any) {
+      if (typeof id === 'string' && /^[a-fA-F0-9]{24}$/.test(id)) {
+        return new mongoose.Types.ObjectId(id);
+      }
+      return id;
+    }
+
     private static loadFromDisk() {
       if (FirestoreCollection.isLoaded) return;
       FirestoreCollection.isLoaded = true;
@@ -497,7 +504,7 @@ async function startServer() {
       if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
         try {
           const cleanData = this.sanitizeForFirestore(docData);
-          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: id }, { $set: cleanData }, { upsert: true });
+          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: this.getMongoId(id) }, { $set: cleanData }, { upsert: true });
         } catch (mErr) {
           console.warn(`MongoDB write warning on ${this.collectionName}:`, mErr);
         }
@@ -571,7 +578,7 @@ async function startServer() {
       if (!id) return null;
       if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
         try {
-          const doc = await mongoose.connection.db.collection(this.collectionName).findOne({ _id: id } as any);
+          const doc = await mongoose.connection.db.collection(this.collectionName).findOne({ _id: this.getMongoId(id) } as any);
           if (doc) return this.formatDoc(doc._id.toString(), doc);
         } catch (e) {}
       } else if (firestoreDb) {
@@ -602,7 +609,7 @@ async function startServer() {
       if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
         try {
           const cleanData = this.sanitizeForFirestore(updatedData);
-          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: doc._id }, { $set: cleanData }, { upsert: true });
+          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: this.getMongoId(doc._id) }, { $set: cleanData }, { upsert: true });
         } catch (e) {}
       } else if (firestoreDb) {
         const cleanData = this.sanitizeForFirestore(updatedData);
@@ -1561,6 +1568,15 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           }
         }
 
+        if (name) user.name = name;
+        if (avatar) user.avatar = avatar;
+        if (department) user.department = department;
+        if (registerNumber) user.registerNumber = registerNumber;
+        if (phone) user.phone = phone;
+        if (section) user.section = section;
+        if (lab) user.lab = lab;
+        if (preferredDomain) user.preferredDomain = preferredDomain;
+        if (year && user.role === 'student') user.year = year;
         if (!user.userId) user.userId = user._id || user.id || `user-${Date.now()}`;
         await user.save();
       }
