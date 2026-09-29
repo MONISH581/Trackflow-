@@ -1487,7 +1487,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           department: department || "Computer Science and Engineering",
           preferredDomain: preferredDomain || "Artificial Intelligence",
           year: year || "1",
-          status: 'approved',
+          status: requestedRole === 'COORDINATOR' ? 'pending' : 'approved',
           registrationDate: new Date()
         });
         await user.save();
@@ -1497,6 +1497,9 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         }
         if (user.accountStatus === 'LOCKED') {
           return res.status(403).json({ error: "Your account is locked. Please contact the administrator.", code: "ACCOUNT_LOCKED" });
+        }
+        if (user.status === 'pending') {
+          return res.status(403).json({ error: "Your account is pending approval from the Master Admin.", code: "ACCOUNT_PENDING" });
         }
 
         const userRole = (user.role || '').toUpperCase();
