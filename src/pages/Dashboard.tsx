@@ -645,7 +645,7 @@ export default function Dashboard() {
           <div className="space-y-2 max-w-xl z-10">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-200 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
-                Learner Workspace &bull; {currentUser.department || "Lab Core"}
+                Learner Workspace &bull; {currentUser.department || "Department Not Assigned"}
               </span>
               <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
                 dailyReportStatus === "Submitted"

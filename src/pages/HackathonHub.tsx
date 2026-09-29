@@ -1000,7 +1000,7 @@ export default function HackathonHub() {
                             {reg.registerNumber || "Reg No N/A"}
                           </span>
                           <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
-                            {reg.department || "SIET Department"}
+                            {reg.department || "Department Not Assigned"}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500">{reg.studentEmail}</p>

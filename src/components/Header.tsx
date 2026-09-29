@@ -188,7 +188,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
           <div className="hidden xl:block text-left">
             <p className="text-xs font-black text-slate-900 group-hover:text-indigo-600 truncate transition">{currentUser?.name}</p>
             <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">
-              {currentUser?.department || "General Lab"}
+              {currentUser?.department || "Department Not Assigned"}
             </p>
           </div>
         </div>

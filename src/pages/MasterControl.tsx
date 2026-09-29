@@ -159,7 +159,7 @@ export default function MasterControl() {
                     <h4 className="font-extrabold text-sm text-slate-900 truncate">{teacher.name}</h4>
                     <p className="text-xs text-slate-500 truncate">{teacher.email}</p>
                     <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                      {teacher.department || "Teacher"}
+                      {teacher.department || "Department Not Assigned"}
                     </span>
                   </div>
                 </div>
