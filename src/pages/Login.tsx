@@ -19,7 +19,7 @@ export default function Login() {
   const [section, setSection] = React.useState("A");
   const [lab, setLab] = React.useState("Artificial Intelligence and Research Lab");
   const [preferredDomain, setPreferredDomain] = React.useState("Artificial Intelligence");
-  const [department, setDepartment] = React.useState<string>(OFFICIAL_DEPARTMENTS[0]);
+  const [department, setDepartment] = React.useState<string>("");
   const [year, setYear] = React.useState("1");
   const [showSessionModal, setShowSessionModal] = React.useState(false);
   const [sessionModalMsg, setSessionModalMsg] = React.useState("");
@@ -701,6 +701,7 @@ export default function Login() {
                       onChange={(e) => setDepartment(e.target.value)}
                       className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs cursor-pointer focus:outline-none focus:border-blue-600 focus:bg-white"
                     >
+                      <option value="" disabled>Select your department</option>
                       {OFFICIAL_DEPARTMENTS.map((dept) => (
                         <option key={dept} value={dept}>
                           {dept}

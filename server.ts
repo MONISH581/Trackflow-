@@ -1492,7 +1492,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           role: requestedRole,
           accountStatus: 'ACTIVE',
           avatar: avatar || `https://avatar.vercel.sh/${requestedRole === 'coordinator' ? 'coordinator' : 'student'}`,
-          department: department || "Computer Science and Engineering",
+          department: department || "",
           preferredDomain: preferredDomain || "Artificial Intelligence",
           year: year || "1",
           status: requestedRole === 'coordinator' ? 'pending' : 'approved',
