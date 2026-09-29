@@ -1561,15 +1561,6 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           }
         }
 
-        if (name) user.name = name;
-        if (avatar) user.avatar = avatar;
-        if (department) user.department = department;
-        if (registerNumber) user.registerNumber = registerNumber;
-        if (phone) user.phone = phone;
-        if (section) user.section = section;
-        if (lab) user.lab = lab;
-        if (preferredDomain) user.preferredDomain = preferredDomain;
-        if (year && user.role === 'student') user.year = year;
         if (!user.userId) user.userId = user._id || user.id || `user-${Date.now()}`;
         await user.save();
       }
