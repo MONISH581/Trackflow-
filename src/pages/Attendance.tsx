@@ -73,10 +73,10 @@ export default function Attendance() {
       const attData = await fetchAttendance(selectedDate);
       const sheet: Record<string, "Present" | "Absent"> = {};
       
-      // Default all loaded students to Present first
+      // Default all loaded students to Absent first
       studentList.forEach((s: any) => {
         const identifier = s.userId || s.id || s._id;
-        sheet[identifier] = "Present";
+        sheet[identifier] = "Absent";
       });
       
       // Override with saved records
@@ -207,7 +207,7 @@ export default function Attendance() {
     const headers = ["Register Number", "Student Name", "Email Address", "Department", "Academic Year", "Assigned Lab", "Attendance Date", "Status"];
     const rows = students.map((s: any) => {
       const identifier = s.userId || s.id || s._id;
-      const status = attendanceSheet[identifier] || "Present";
+      const status = attendanceSheet[identifier] || "Absent";
       return [
         `"${s.registerNumber || 'N/A'}"`,
         `"${s.name || ''}"`,
@@ -243,7 +243,7 @@ export default function Attendance() {
 
     const tableRows = students.map((s: any, index: number) => {
       const identifier = s.userId || s.id || s._id;
-      const status = attendanceSheet[identifier] || "Present";
+      const status = attendanceSheet[identifier] || "Absent";
       if (status === "Present") presentCount++;
       else absentCount++;
 
@@ -336,7 +336,7 @@ export default function Attendance() {
   const presentCount = students.filter(s => {
 
     const identifier = s.userId || s.id || s._id;
-    return (attendanceSheet[identifier] || "Present") === "Present";
+    return (attendanceSheet[identifier] || "Absent") === "Present";
   }).length;
 
   const absentCount = students.length - presentCount;
@@ -344,7 +344,7 @@ export default function Attendance() {
 
   const filteredAttendanceStudents = students.filter(s => {
     const identifier = s.userId || s.id || s._id;
-    const status = attendanceSheet[identifier] || "Present";
+    const status = attendanceSheet[identifier] || "Absent";
 
     const matchesSearch = s.name.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
       s.email.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
@@ -606,7 +606,7 @@ export default function Attendance() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAttendanceStudents.map((s: any) => {
                 const identifier = s.userId || s.id || s._id;
-                const status = attendanceSheet[identifier] || "Present";
+                const status = attendanceSheet[identifier] || "Absent";
                 return (
                   <div
                     key={identifier}

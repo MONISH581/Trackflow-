@@ -1613,7 +1613,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
               date: todayStr,
               firstLoginTime: new Date(),
               lastLogoutTime: new Date(),
-              status: "PRESENT"
+              status: "Absent"
             }).save();
           } else {
             existingAtt.lastLogoutTime = new Date();
