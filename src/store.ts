@@ -465,6 +465,7 @@ interface AppState {
   
   // Student Records
   fetchStudentRecords: () => Promise<any[]>;
+  fetchApprovedStudents: () => Promise<any[]>;
 
   // Attendance & Lab Access
   quickAddStudent: (studentData: {
@@ -1509,6 +1510,22 @@ export const useStore = create<AppState>((set, get) => ({
       return true;
     } catch (e: any) {
       get().addToast(e.message, "error");
+      return false;
+    }
+  },
+
+  deleteDailyReport: async (reportId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/daily-reports/${reportId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await safeJson(response, {});
+      if (!response.ok) throw new Error(data.error || "Failed to delete daily report");
+      get().addToast("Daily report deleted successfully", "success");
+      return true;
+    } catch (e: any) {
+      get().addToast(e.message || "Failed to delete daily report", "error");
       return false;
     }
   },

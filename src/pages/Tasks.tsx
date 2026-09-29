@@ -32,6 +32,7 @@ export default function Tasks() {
   const [editPriority, setEditPriority] = React.useState<"low" | "medium" | "high">("medium");
   const [editHours, setEditHours] = React.useState(0);
   const [updating, setUpdating] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
 
   React.useEffect(() => {
     fetchProjects();

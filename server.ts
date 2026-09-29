@@ -3400,7 +3400,7 @@ Do not include markdown tags. Return only raw JSON string.`;
 
   // Atomic Verification Approval/Rejection with 1-Month Calendar Validity
   // INTERNAL ADMIN/MASTER MAPPING API - STRICTLY ROLE PROTECTED
-  app.get("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req, res) => {
+  app.get("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
     try {
       const { studentId, hackathonId } = req.query;
       let query: any = {};
@@ -3414,7 +3414,7 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
-  app.post("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req, res) => {
+  app.post("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
     try {
       const { studentId, hackathonId, projectId, teamId, currentRoundId, internalStatus, internalProgress, coordinatorRemarks, masterRemarks } = req.body;
       
@@ -4399,6 +4399,19 @@ Do not include markdown tags. Return only raw JSON string.`;
       }
 
       res.json({ success: true, report });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/daily-reports/:id", authMiddleware, async (req: any, res: any) => {
+    try {
+      const report = await DailyReport.findById(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "Daily report not found" });
+      }
+      await DailyReport.findOneAndDelete({ _id: req.params.id });
+      res.json({ success: true, message: "Daily report deleted" });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
