@@ -204,6 +204,11 @@ export default function Login() {
       return;
     }
 
+    if (role === "coordinator" && !email.toLowerCase().trim().endsWith("@siet.ac.in")) {
+      addToast("Please use your official institutional email ending with @siet.ac.in.", "error");
+      return;
+    }
+
     if (mode === "signup") {
       if (password !== confirmPassword) {
         addToast("Passwords do not match.", "error");
@@ -579,8 +584,8 @@ export default function Login() {
                   role === "student"
                     ? "e.g. student@srishakthi.ac.in"
                     : role === "coordinator"
-                    ? "e.g. coordinator@srishakthi.ac.in"
-                    : "e.g. master@srishakthi.ac.in"
+                    ? "e.g. coordinator@siet.ac.in"
+                    : "e.g. master@siet.ac.in"
                 }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

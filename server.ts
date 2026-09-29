@@ -17,7 +17,7 @@ import fs from "fs";
 import multer from "multer";
 import axios from "axios";
 
-// Adjust Socket.io keep‑alive to avoid premature disconnects
+// Adjust Socket.io keepâ€‘alive to avoid premature disconnects
 const socketOptions = {
   pingInterval: 25000, // send ping every 25s
   pingTimeout: 5000,   // consider dead after 5s no pong
@@ -1442,86 +1442,78 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       }
 
       const cleanEmail = email.toLowerCase().trim();
+      const requestedRole = (role || 'STUDENT').toUpperCase();
 
-      // Enforce student college email rule
-      if (role === 'student') {
-        if (!isValidStudentEmail(cleanEmail)) {
-          return res.status(400).json({ error: "Please use your official Sri Shakthi student email address." });
+      if (isSignup) {
+        if (requestedRole === 'MASTER_ADMIN') {
+          return res.status(403).json({ error: "Public Master Admin registration is disabled." });
+        }
+        if (requestedRole === 'COORDINATOR') {
+          const emailRegex = /^[A-Za-z0-9._%+-]+@siet\.ac\.in$/;
+          if (!emailRegex.test(cleanEmail)) {
+            return res.status(400).json({ error: "Please use your official institutional email ending with @siet.ac.in." });
+          }
+        }
+        if (requestedRole === 'STUDENT') {
+          if (!cleanEmail.endsWith('@srishakthi.ac.in')) {
+            return res.status(400).json({ error: "Access Denied: Only official Sri Shakthi email addresses (@srishakthi.ac.in) are permitted for students." });
+          }
         }
       }
 
-      let userRole = role || 'student';
-      if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in') {
-        userRole = 'master_admin';
-      }
-
-      if (isSignup && (role === 'master_admin' || userRole === 'master_admin')) {
-        return res.status(403).json({ error: "Public Master Admin registration is disabled. Master Admin accounts can only be provisioned by existing administrators." });
-      }
       let user = await User.findOne({ email: cleanEmail });
 
-      if (isSignup && user) {
-        return res.status(400).json({ error: "An account with this email address already exists. Please log in.", code: "ACCOUNT_ALREADY_EXISTS" });
-      }
-
-      if (!user) {
-        if (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in') {
-          // Auto-provision Master Admin on demand
-          const passwordHash = await bcrypt.hash(password || "password123", 10);
-          user = new User({
-            userId: "master-sathish",
-            name: name || "Master Sathish",
-            email: cleanEmail,
-            passwordHash,
-            role: "master_admin",
-            status: "approved",
-            accountStatus: "ACTIVE",
-            department: "Master Control",
-            avatar: "https://avatar.vercel.sh/sathish",
-            registrationDate: new Date()
-          });
-          await user.save();
-        } else if (!isSignup) {
-          return res.status(404).json({ error: "No account found with this email address. Please register first.", code: "ACCOUNT_NOT_FOUND" });
-        } else {
-          if (!password || password.length < 6) {
-            return res.status(400).json({ error: "Password must be at least 6 characters." });
-          }
-          const passwordHash = await bcrypt.hash(password, 10);
-          const initialStatus = (userRole === 'master_admin') ? 'approved' : 'pending';
-
-          user = new User({
-            userId: userRole === 'master_admin' ? `master-${Date.now()}` : (userRole === 'coordinator' ? `coord-${Date.now()}` : `student-${Date.now()}`),
-            name: name || (userRole === 'master_admin' ? 'Master Sathish' : (userRole === 'coordinator' ? 'Teacher / Coordinator' : 'New Student')),
-            registerNumber: registerNumber || "",
-            phone: phone || "",
-            section: section || "A",
-            lab: lab || OFFICIAL_LABS[0],
-            email: cleanEmail,
-            passwordHash,
-            role: userRole,
-            accountStatus: 'ACTIVE',
-            avatar: avatar || `https://avatar.vercel.sh/${userRole === 'master_admin' ? 'sathish' : (userRole === 'coordinator' ? 'sarah' : 'student')}`,
-            department: department || "Computer Science and Engineering",
-            preferredDomain: preferredDomain || "Artificial Intelligence",
-            year: year || "1",
-            status: initialStatus,
-            registrationDate: new Date()
-          });
-          await user.save();
+      if (isSignup) {
+        if (user) {
+          return res.status(400).json({ error: "An account with this email address already exists. Please log in.", code: "ACCOUNT_ALREADY_EXISTS" });
         }
+        if (!password || password.length < 6) {
+          return res.status(400).json({ error: "Password must be at least 6 characters." });
+        }
+        const passwordHash = await bcrypt.hash(password, 10);
+        
+        user = new User({
+          userId: requestedRole === 'COORDINATOR' ? `coord-${Date.now()}` : `student-${Date.now()}`,
+          name: name || (requestedRole === 'COORDINATOR' ? 'Coordinator' : 'New Student'),
+          registerNumber: registerNumber || "",
+          phone: phone || "",
+          section: section || "A",
+          lab: lab || (typeof OFFICIAL_LABS !== 'undefined' ? OFFICIAL_LABS[0] : "AI"),
+          email: cleanEmail,
+          passwordHash,
+          role: requestedRole,
+          accountStatus: 'ACTIVE',
+          avatar: avatar || `https://avatar.vercel.sh/${requestedRole === 'COORDINATOR' ? 'coordinator' : 'student'}`,
+          department: department || "Computer Science and Engineering",
+          preferredDomain: preferredDomain || "Artificial Intelligence",
+          year: year || "1",
+          status: 'approved',
+          registrationDate: new Date()
+        });
+        await user.save();
       } else {
+        if (!user) {
+          return res.status(401).json({ error: "Invalid email or password.", code: "INVALID_CREDENTIALS" });
+        }
         if (user.accountStatus === 'LOCKED') {
-          return res.status(403).json({ error: "Your TrackFlow account is currently locked. Please contact your coordinator for permission.", code: "ACCOUNT_LOCKED" });
+          return res.status(403).json({ error: "Your account is locked. Please contact the administrator.", code: "ACCOUNT_LOCKED" });
         }
 
-        // Verify password
+        const userRole = (user.role || '').toUpperCase();
+        if (userRole !== requestedRole) {
+          if (requestedRole === 'MASTER_ADMIN') {
+            return res.status(403).json({ error: "Invalid Master Control credentials." });
+          } else if (requestedRole === 'STUDENT') {
+            return res.status(403).json({ error: "Please use the Student login." });
+          }
+          return res.status(403).json({ error: "Access Denied." });
+        }
+
         if (!password) {
           return res.status(400).json({ error: "Password is required." });
         }
 
         let isMatch = false;
-        const isMasterAdminEmail = (cleanEmail === 'sathish@srishakthi.ac.in' || cleanEmail === 'master@srishakthi.ac.in');
         const currentHash = user.passwordHash || user.password;
         
         if (currentHash && typeof currentHash === "string" && currentHash.startsWith("$2")) {
@@ -1537,16 +1529,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           await user.save();
         }
 
-        if (!isMatch && isMasterAdminEmail && (password === "password123" || !currentHash)) {
-          isMatch = true;
-          user.passwordHash = await bcrypt.hash(password, 10);
-          user.role = 'master_admin';
-          user.status = 'approved';
-          user.accountStatus = 'ACTIVE';
-          await user.save();
-        }
-
         if (!isMatch) {
+          if (requestedRole === 'MASTER_ADMIN') {
+             return res.status(401).json({ error: "Invalid Master Control credentials." });
+          }
           return res.status(401).json({ error: "Invalid email or password.", code: "INVALID_CREDENTIALS" });
         }
 
@@ -2367,7 +2353,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
       res.json({
         success: true,
-        message: "✓ GitHub repository connected successfully.",
+        message: "âœ“ GitHub repository connected successfully.",
         github: {
           repositoryUrl: cleanUrl,
           repositoryName,
@@ -2727,6 +2713,49 @@ Do not include markdown tags. Return only raw JSON string.`;
     try {
       const oppCount = await Opportunity.countDocuments();
       console.log(`[TrackFlow Server] Initial startup check: Database contains ${oppCount} opportunities.`);
+      
+      try {
+        const cleanupResult = await User.deleteMany({
+          $or: [
+            { role: 'COORDINATOR' },
+            { role: 'ADMIN' },
+            { role: 'coordinator' },
+            { role: 'admin' }
+          ]
+        });
+        console.log(`[TrackFlow Server] Auth Cleanup: Removed ${cleanupResult.deletedCount} obsolete admin/coordinator accounts.`);
+
+        const masterEmail = (process.env.MASTER_EMAIL || "sathish@siet.ac.in").toLowerCase().trim();
+        const masterPassword = process.env.MASTER_PASSWORD || "password123";
+        let masterUser = await User.findOne({ email: masterEmail });
+        if (!masterUser) {
+          const passwordHash = await bcrypt.hash(masterPassword, 10);
+          masterUser = new User({
+            userId: "master-sathish",
+            name: "Sathish",
+            email: masterEmail,
+            passwordHash,
+            role: "MASTER_ADMIN",
+            status: "approved",
+            accountStatus: "ACTIVE",
+            department: "Master Control",
+            avatar: "https://avatar.vercel.sh/sathish",
+            registrationDate: new Date()
+          });
+          await masterUser.save();
+          console.log(`[TrackFlow Server] Master Control initialized for ${masterEmail}`);
+        } else {
+          masterUser.role = "MASTER_ADMIN";
+          masterUser.name = "Sathish";
+          if (!masterUser.passwordHash) {
+             masterUser.passwordHash = await bcrypt.hash(masterPassword, 10);
+          }
+          await masterUser.save();
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      }
+
       if (oppCount < 10) {
         console.log("Database low on opportunities. Running initial seed...");
         await seedDemoData();
@@ -2774,60 +2803,6 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   };
   runStartupJobs();
-
-  // Authentication endpoints
-  app.post("/api/login", async (req, res) => {
-    try {
-      const { email, password, name, role, avatar, department, year, registerNumber, phone, section, lab, preferredDomain, isSignup } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-      }
-
-      const cleanEmail = email.toLowerCase().trim();
-
-      // Enforce student college email rule
-      if (role === "student") {
-        if (!cleanEmail.endsWith("@srishakthi.ac.in")) {
-          return res.status(400).json({ error: "Access Denied: Only official Sri Shakthi email addresses (@srishakthi.ac.in) are permitted for students." });
-        }
-      }
-
-      let user = await User.findOne({ email: cleanEmail });
-      if (isSignup) {
-        if (user) {
-          return res.status(400).json({ error: "User already exists with this email." });
-        }
-        user = new User({
-          userId: `usr-${Date.now()}`,
-          name: name || email.split("@")[0],
-          email: cleanEmail,
-          passwordHash: password,
-          role: role || "student",
-          avatar: avatar || `https://avatar.vercel.sh/${cleanEmail}`,
-          department: department || "Computer Science",
-          year: year || "1",
-          registerNumber: registerNumber || `7140${Math.floor(100000 + Math.random() * 900000)}`,
-          phone: phone || "",
-          section: section || "A",
-          lab: lab || "Full Stack",
-          preferredDomain: preferredDomain || "Web Development",
-          status: role === "student" ? "approved" : "pending",
-          accountStatus: "ACTIVE",
-          registrationDate: new Date()
-        });
-        await user.save();
-        return res.json({ user, message: role === "student" ? "Account created!" : "Account created! Pending coordinator approval." });
-      }
-
-      if (!user) {
-        return res.status(404).json({ error: "No account found with this email. Please sign up first." });
-      }
-
-      res.json({ user });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
 
   // Hackathons & Proof Verification Endpoints
   app.get("/api/hackathons", async (req, res) => {
@@ -3446,7 +3421,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       // Notify student with structured metadata for target routing
       await new Notification({
         userId: reg.studentId,
-        title: verificationStatus === 'Verified' ? 'Hackathon Proof Verified ✓' : 'Hackathon Proof Rejected ✗',
+        title: verificationStatus === 'Verified' ? 'Hackathon Proof Verified âœ“' : 'Hackathon Proof Rejected âœ—',
         message: verificationStatus === 'Verified'
           ? `Your registration proof for "${reg.hackathonName}" has been verified! Valid until ${addOneCalendarMonth(now).toLocaleDateString()}.`
           : `Your registration screenshot for "${reg.hackathonName}" was rejected: ${rejectionReason || 'Please upload valid proof screenshot.'}`,
