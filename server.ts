@@ -2725,15 +2725,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       console.log(`[TrackFlow Server] Initial startup check: Database contains ${oppCount} opportunities.`);
       
       try {
-        const cleanupResult = await User.deleteMany({
-          $or: [
-            { role: 'COORDINATOR' },
-            { role: 'ADMIN' },
-            { role: 'coordinator' },
-            { role: 'admin' }
-          ]
-        });
-        console.log(`[TrackFlow Server] Auth Cleanup: Removed ${cleanupResult.deletedCount} obsolete admin/coordinator accounts.`);
+        // Obsolete admin/coordinator accounts have been removed. (Cleanup logic removed to prevent deleting new valid coordinators on restart)
 
         const masterEmail = (process.env.MASTER_EMAIL || "sathish@siet.ac.in").toLowerCase().trim();
         const masterPassword = process.env.MASTER_PASSWORD || "password123";
