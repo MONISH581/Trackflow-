@@ -216,18 +216,18 @@ export default function OpportunityDetails() {
           <div className="glass-card p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 shadow-sm text-left">
             {activeTab === "details" && (
               <div className="space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
                   <ClipboardList className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   Opportunity Overview
                 </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                   {opp.description}
                 </p>
                 <div className="pt-4 space-y-2">
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Skills / Focus Tags</h4>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-200">Skills / Focus Tags</h4>
                   <div className="flex flex-wrap gap-1.5">
                     {opp.tags.map((tag, idx) => (
-                      <span key={idx} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-400 font-bold rounded-lg border border-slate-200/40 dark:border-slate-700/40">
+                      <span key={idx} className="px-2.5 py-1 bg-slate-800 dark:bg-slate-800 text-xs text-white dark:text-slate-300 font-bold rounded-lg border border-slate-700/40 dark:border-slate-700/40">
                         #{tag}
                       </span>
                     ))}
@@ -242,7 +242,7 @@ export default function OpportunityDetails() {
                   <Target className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   Eligibility Criteria & Requirements
                 </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                   {opp.eligibility || "No academic or geographical restrictions have been configured. Open to all students pursuing undergraduate, graduate, or engineering programs."}
                 </p>
                 <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl flex gap-3 text-xs">
@@ -261,14 +261,14 @@ export default function OpportunityDetails() {
                     <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     Participation Guidelines & Rules
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                     {opp.rules || "General contest and participation rules apply. Plagiarism of pre-existing codes, projects, or papers is strictly prohibited. Teams must submit original work created during the timeline."}
                   </p>
                 </div>
 
                 <div className="space-y-3 pt-2">
                   <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Judging & Evaluation Criteria</h4>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                     {opp.judgingCriteria || "Evaluations will be scored based on technical difficulty, originality, presentation, and impact of the solution."}
                   </p>
                 </div>
@@ -346,8 +346,8 @@ export default function OpportunityDetails() {
           {/* Quick Registration Card */}
           <div className="glass-card p-6 border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5 shadow-sm text-left">
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Milestone Deadline</span>
-              <h4 className="text-slate-800 dark:text-slate-100 font-bold text-sm flex items-center gap-1">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Milestone Deadline</span>
+              <h4 className="text-slate-900 dark:text-slate-100 font-bold text-sm flex items-center gap-1">
                 <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>Apply Before {new Date(opp.registrationDeadline).toLocaleDateString()}</span>
               </h4>
@@ -355,20 +355,20 @@ export default function OpportunityDetails() {
 
             <div className="space-y-3.5 pt-2 text-xs">
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">Registration Fee</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{opp.freeOrPaid}</span>
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">Registration Fee</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-200">{opp.freeOrPaid}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">Prize Pool / Stipend</span>
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">Prize Pool / Stipend</span>
                 <span className="font-extrabold text-blue-600 dark:text-blue-400 truncate max-w-[min(100%,_150px)]">{formatPrizePoolToINR(opp.prizePool)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">Skill Level Req</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{opp.difficulty}</span>
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">Skill Level Req</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-200">{opp.difficulty}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">Audience Scope</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{opp.targetAudience}</span>
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">Audience Scope</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-200">{opp.targetAudience}</span>
               </div>
             </div>
 
