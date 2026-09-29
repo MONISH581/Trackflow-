@@ -1442,19 +1442,19 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       }
 
       const cleanEmail = email.toLowerCase().trim();
-      const requestedRole = (role || 'STUDENT').toUpperCase();
+      const requestedRole = (role || 'student').toLowerCase();
 
       if (isSignup) {
-        if (requestedRole === 'MASTER_ADMIN') {
+        if (requestedRole === 'master_admin') {
           return res.status(403).json({ error: "Public Master Admin registration is disabled." });
         }
-        if (requestedRole === 'COORDINATOR') {
+        if (requestedRole === 'coordinator') {
           const emailRegex = /^[A-Za-z0-9._%+-]+@siet\.ac\.in$/;
           if (!emailRegex.test(cleanEmail)) {
             return res.status(400).json({ error: "Please use your official institutional email ending with @siet.ac.in." });
           }
         }
-        if (requestedRole === 'STUDENT') {
+        if (requestedRole === 'student') {
           if (!cleanEmail.endsWith('@srishakthi.ac.in')) {
             return res.status(400).json({ error: "Access Denied: Only official Sri Shakthi email addresses (@srishakthi.ac.in) are permitted for students." });
           }
@@ -1473,8 +1473,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         const passwordHash = await bcrypt.hash(password, 10);
         
         user = new User({
-          userId: requestedRole === 'COORDINATOR' ? `coord-${Date.now()}` : `student-${Date.now()}`,
-          name: name || (requestedRole === 'COORDINATOR' ? 'Coordinator' : 'New Student'),
+          userId: requestedRole === 'coordinator' ? `coord-${Date.now()}` : `student-${Date.now()}`,
+          name: name || (requestedRole === 'coordinator' ? 'Coordinator' : 'New Student'),
           registerNumber: registerNumber || "",
           phone: phone || "",
           section: section || "A",
@@ -1483,11 +1483,11 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           passwordHash,
           role: requestedRole,
           accountStatus: 'ACTIVE',
-          avatar: avatar || `https://avatar.vercel.sh/${requestedRole === 'COORDINATOR' ? 'coordinator' : 'student'}`,
+          avatar: avatar || `https://avatar.vercel.sh/${requestedRole === 'coordinator' ? 'coordinator' : 'student'}`,
           department: department || "Computer Science and Engineering",
           preferredDomain: preferredDomain || "Artificial Intelligence",
           year: year || "1",
-          status: requestedRole === 'COORDINATOR' ? 'pending' : 'approved',
+          status: requestedRole === 'coordinator' ? 'pending' : 'approved',
           registrationDate: new Date()
         });
         await user.save();
@@ -1502,11 +1502,11 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           return res.status(403).json({ error: "Your account is pending approval from the Master Admin.", code: "ACCOUNT_PENDING" });
         }
 
-        const userRole = (user.role || '').toUpperCase();
+        const userRole = (user.role || '').toLowerCase();
         if (userRole !== requestedRole) {
-          if (requestedRole === 'MASTER_ADMIN') {
+          if (requestedRole === 'master_admin') {
             return res.status(403).json({ error: "Invalid Master Control credentials." });
-          } else if (requestedRole === 'STUDENT') {
+          } else if (requestedRole === 'student') {
             return res.status(403).json({ error: "Please use the Student login." });
           }
           return res.status(403).json({ error: "Access Denied." });
@@ -1533,7 +1533,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         }
 
         if (!isMatch) {
-          if (requestedRole === 'MASTER_ADMIN') {
+          if (requestedRole === 'master_admin') {
              return res.status(401).json({ error: "Invalid Master Control credentials." });
           }
           return res.status(401).json({ error: "Invalid email or password.", code: "INVALID_CREDENTIALS" });
@@ -2738,7 +2738,7 @@ Do not include markdown tags. Return only raw JSON string.`;
             name: "Sathish",
             email: masterEmail,
             passwordHash,
-            role: "MASTER_ADMIN",
+            role: "master_admin",
             status: "approved",
             accountStatus: "ACTIVE",
             department: "Master Control",
@@ -2748,7 +2748,7 @@ Do not include markdown tags. Return only raw JSON string.`;
           await masterUser.save();
           console.log(`[TrackFlow Server] Master Control initialized for ${masterEmail}`);
         } else {
-          masterUser.role = "MASTER_ADMIN";
+          masterUser.role = "master_admin";
           masterUser.name = "Sathish";
           if (!masterUser.passwordHash) {
              masterUser.passwordHash = await bcrypt.hash(masterPassword, 10);
