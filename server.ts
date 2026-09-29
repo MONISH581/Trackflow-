@@ -732,6 +732,7 @@ async function startServer() {
   const DailyReport = createModelWrapper("daily_reports");
   const Hackathon = createModelWrapper("hackathons");
   const HackathonRegistration = createModelWrapper("hackathon_registrations");
+  const HackathonMapping = createModelWrapper("hackathon_mappings");
   const HackathonInterest = createModelWrapper("hackathon_interests");
   const AbstractHistory = createModelWrapper("abstract_histories");
   const Attendance = createModelWrapper("attendances");
@@ -3398,6 +3399,66 @@ Do not include markdown tags. Return only raw JSON string.`;
   });
 
   // Atomic Verification Approval/Rejection with 1-Month Calendar Validity
+  // INTERNAL ADMIN/MASTER MAPPING API - STRICTLY ROLE PROTECTED
+  app.get("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req, res) => {
+    try {
+      const { studentId, hackathonId } = req.query;
+      let query: any = {};
+      if (studentId) query.studentId = String(studentId);
+      if (hackathonId) query.hackathonId = String(hackathonId);
+      
+      const mappings = await HackathonMapping.find(query);
+      res.json({ success: true, mappings });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req, res) => {
+    try {
+      const { studentId, hackathonId, projectId, teamId, currentRoundId, internalStatus, internalProgress, coordinatorRemarks, masterRemarks } = req.body;
+      
+      if (!studentId || !hackathonId) {
+        return res.status(400).json({ error: "studentId and hackathonId are required" });
+      }
+
+      let mapping = await HackathonMapping.findOne({ studentId, hackathonId });
+      
+      if (mapping) {
+        if (projectId !== undefined) mapping.projectId = projectId;
+        if (teamId !== undefined) mapping.teamId = teamId;
+        if (currentRoundId !== undefined) mapping.currentRoundId = currentRoundId;
+        if (internalStatus !== undefined) mapping.internalStatus = internalStatus;
+        if (internalProgress !== undefined) mapping.internalProgress = internalProgress;
+        if (coordinatorRemarks !== undefined) mapping.coordinatorRemarks = coordinatorRemarks;
+        if (req.user.role === 'master_admin' && masterRemarks !== undefined) mapping.masterRemarks = masterRemarks;
+        
+        mapping.updatedAt = new Date();
+        await mapping.save();
+      } else {
+        mapping = new HackathonMapping({
+          id: `map-${Date.now()}`,
+          studentId,
+          hackathonId,
+          projectId: projectId || "",
+          teamId: teamId || "",
+          currentRoundId: currentRoundId || "",
+          internalStatus: internalStatus || "Mapped",
+          internalProgress: internalProgress || 0,
+          coordinatorRemarks: coordinatorRemarks || "",
+          masterRemarks: req.user.role === 'master_admin' ? (masterRemarks || "") : "",
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        await mapping.save();
+      }
+      
+      res.json({ success: true, mapping });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.put("/api/hackathons/registrations/:id/verify", async (req, res) => {
     try {
       const { verificationStatus, rejectionReason, coordinatorId, coordinatorName } = req.body; // 'Verified' | 'Rejected'

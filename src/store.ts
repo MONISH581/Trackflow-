@@ -164,6 +164,22 @@ export interface HackathonRegistrationInfo {
   rejectionReason?: string;
 }
 
+export interface HackathonMappingInfo {
+  id?: string;
+  _id?: string;
+  studentId: string;
+  hackathonId: string;
+  projectId?: string;
+  teamId?: string;
+  currentRoundId?: string;
+  internalStatus?: string;
+  internalProgress?: number;
+  coordinatorRemarks?: string;
+  masterRemarks?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface HackathonInterestInfo {
   id?: string;
   _id?: string;
@@ -407,6 +423,7 @@ interface AppState {
   mentors: MentorInfo[];
   hackathons: HackathonInfo[];
   hackathonRegistrations: HackathonRegistrationInfo[];
+  hackathonMappings: HackathonMappingInfo[];
   hackathonInterests: HackathonInterestInfo[];
   activityAnalytics: ActivityAnalyticsInfo[];
   tasks: TaskInfo[];
@@ -495,6 +512,8 @@ interface AppState {
   registerHackathonWithProof: (hackathonId: string, studentId: string, screenshotFile: File) => Promise<boolean>;
   fetchHackathonRegistrations: (studentId?: string) => Promise<void>;
   verifyHackathonRegistration: (registrationId: string, status: "Verified" | "Rejected", reason?: string) => Promise<boolean>;
+  fetchHackathonMappings: (studentId?: string, hackathonId?: string) => Promise<HackathonMappingInfo[]>;
+  updateHackathonMapping: (mappingData: Partial<HackathonMappingInfo>) => Promise<boolean>;
   expressHackathonInterest: (hackathonId: string, studentId: string) => Promise<boolean>;
   fetchHackathonInterests: (studentId?: string) => Promise<void>;
 
@@ -579,6 +598,7 @@ export const useStore = create<AppState>((set, get) => ({
   mentors: [],
   hackathons: [],
   hackathonRegistrations: [],
+  hackathonMappings: [],
   hackathonInterests: [],
   activityAnalytics: [],
   tasks: [],
@@ -1070,6 +1090,49 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+
+  fetchHackathonMappings: async (studentId?: string, hackathonId?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (studentId) params.append("studentId", studentId);
+      if (hackathonId) params.append("hackathonId", hackathonId);
+      
+      const res = await fetch(`${API_BASE}/api/hackathons/mappings?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await safeJson(res, { mappings: [] });
+      if (res.ok) {
+        set({ hackathonMappings: data.mappings });
+        return data.mappings;
+      }
+      return [];
+    } catch (err: any) {
+      console.error(err);
+      return [];
+    }
+  },
+
+  updateHackathonMapping: async (mappingData) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/hackathons/mappings`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(mappingData)
+      });
+      const data = await safeJson(res, {});
+      if (res.ok) {
+        get().addToast("Hackathon mapping updated successfully", "success");
+        // Re-fetch mappings if needed, or caller handles it
+        return true;
+      }
+      get().addToast(data.error || "Failed to update mapping", "error");
+      return false;
+    } catch (err: any) {
+      console.error(err);
+      get().addToast("An error occurred while updating mapping", "error");
+      return false;
+    }
+  },
 
   fetchHackathonInterests: async (studentId) => {
     try {

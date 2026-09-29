@@ -2,6 +2,7 @@ import React from "react";
 import { useStore } from "../store.ts";
 import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
 import { Users, FileText, ChevronDown, ChevronUp, Calendar, Github, Link2, ClipboardCheck, Crown, FolderPlus, Trash2, AlertTriangle, X, Filter } from "lucide-react";
+import StudentHackathonMapping from "../components/StudentHackathonMapping.tsx";
 
 interface Record {
   student: {
@@ -286,6 +287,9 @@ export default function StudentRecords() {
                     )}
 
 
+
+                    {/* Hackathon Mappings (Admin/Coordinator Only) */}
+                    <StudentHackathonMapping studentId={student.id} projectId={project?.id} />
 
                     {/* Attendance Log Section */}
                     {dailyReports && (
