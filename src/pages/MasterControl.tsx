@@ -1,5 +1,5 @@
 import React from "react";
-import { useStore } from "../store.ts";
+import { useStore, HackathonMappingInfo } from "../store.ts";
 import {
   Shield,
   Users,
@@ -17,16 +17,42 @@ import {
   UserCheck,
   X,
   Mail,
-  ShieldCheck
+  ShieldCheck,
+  Target,
+  Award,
+  Calendar,
+  Layers,
+  Flag,
+  Search,
+  Edit3,
+  Save,
+  CheckCircle2
 } from "lucide-react";
 
 export default function MasterControl() {
-  const { fetchMasterControlOverview, fetchMasterUsers, addMasterAdmin, approveCoordinator, deleteUser, lockStudentUser, unlockStudentUser, addToast } = useStore();
+  const { 
+    currentUser, 
+    fetchMasterControlOverview, 
+    fetchMasterUsers, 
+    fetchHackathonMappings,
+    updateHackathonMapping,
+    addMasterAdmin, 
+    approveCoordinator, 
+    deleteUser, 
+    addToast 
+  } = useStore();
 
   const [overview, setOverview] = React.useState<any>(null);
   const [usersData, setUsersData] = React.useState<any>(null);
+  const [mappings, setMappings] = React.useState<HackathonMappingInfo[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedLab, setSelectedLab] = React.useState<string | "ALL">("ALL");
+  const [mappingsSearch, setMappingsSearch] = React.useState("");
+
+  // Master Remark Inline Edit State
+  const [editingMappingKey, setEditingMappingKey] = React.useState<string | null>(null);
+  const [masterRemarkDraft, setMasterRemarkDraft] = React.useState("");
+  const [savingRemark, setSavingRemark] = React.useState(false);
 
   // New Master Form State
   const [newMasterName, setNewMasterName] = React.useState("");
@@ -34,7 +60,7 @@ export default function MasterControl() {
   const [addingMaster, setAddingMaster] = React.useState(false);
 
   // Directory filter state
-  const [directoryRole, setDirectoryRole] = React.useState<"masters" | "coordinators" | "pending" | "students">("pending");
+  const [directoryRole, setDirectoryRole] = React.useState<"pending" | "coordinators" | "masters" | "students" | "hackathons">("pending");
 
   const OFFICIAL_LABS = [
     "Artificial Intelligence and Research Lab",
@@ -46,18 +72,35 @@ export default function MasterControl() {
     "VLSI Lab"
   ];
 
+  // Strictly Master Admin Only
+  if (currentUser?.role !== 'master_admin') {
+    return (
+      <div className="p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-sm max-w-lg mx-auto mt-12 space-y-3">
+        <Shield className="w-12 h-12 text-rose-500 mx-auto" />
+        <h3 className="text-lg font-black text-slate-900">Access Denied</h3>
+        <p className="text-xs text-slate-500">Master Control is strictly restricted to Master Admin accounts.</p>
+      </div>
+    );
+  }
+
   const loadData = async () => {
     setLoading(true);
     const data = await fetchMasterControlOverview();
     if (data) setOverview(data);
     const uData = await fetchMasterUsers();
     if (uData) setUsersData(uData);
+    const mData = await fetchHackathonMappings(undefined, undefined, selectedLab === "ALL" ? undefined : selectedLab);
+    if (mData) setMappings(mData);
     setLoading(false);
   };
 
   React.useEffect(() => {
     loadData();
   }, []);
+
+  React.useEffect(() => {
+    fetchHackathonMappings(undefined, undefined, selectedLab === "ALL" ? undefined : selectedLab).then(setMappings);
+  }, [selectedLab]);
 
   const handleAddMaster = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,12 +134,27 @@ export default function MasterControl() {
     }
   };
 
+  const handleSaveMasterRemark = async (studentId: string, hackathonId: string) => {
+    setSavingRemark(true);
+    const success = await updateHackathonMapping({
+      studentId,
+      hackathonId,
+      masterRemarks: masterRemarkDraft
+    });
+    if (success) {
+      setEditingMappingKey(null);
+      const updated = await fetchHackathonMappings(undefined, undefined, selectedLab === "ALL" ? undefined : selectedLab);
+      setMappings(updated);
+    }
+    setSavingRemark(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[280px] sm:min-h-[450px]">
         <div className="flex items-center gap-3 text-slate-600 font-semibold text-sm">
           <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-          Loading Master Control Live Directory...
+          Loading Master Control Live Directory & 7-Lab Overview...
         </div>
       </div>
     );
@@ -106,6 +164,21 @@ export default function MasterControl() {
   const approvedTeachers = usersData?.coordinators || [];
   const mastersList = usersData?.masters || [];
   const studentsList = usersData?.students || [];
+
+  const filteredMappings = mappings.filter(m => {
+    const matchLab = selectedLab === "ALL" || m.studentLab === selectedLab;
+    if (!matchLab) return false;
+    if (!mappingsSearch.trim()) return true;
+    const q = mappingsSearch.toLowerCase();
+    return (
+      (m.studentName || "").toLowerCase().includes(q) ||
+      (m.studentEmail || "").toLowerCase().includes(q) ||
+      (m.registerNumber || "").toLowerCase().includes(q) ||
+      (m.hackathonName || "").toLowerCase().includes(q) ||
+      (m.teamId || "").toLowerCase().includes(q) ||
+      (m.projectName || "").toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-6 text-left">
@@ -119,7 +192,7 @@ export default function MasterControl() {
           </div>
           <h1 className="text-3xl font-black tracking-tight">TrackFlow AI – 7 Lab Command Center</h1>
           <p className="text-xs text-slate-300 mt-1 max-w-xl">
-            Authorize Teacher/Admin access, assign Master credentials, manage enrollment, and oversee live lab projects.
+            Authorize Teacher/Admin access, assign Master credentials, manage enrollment, and oversee 7-lab hackathon mappings.
           </p>
         </div>
 
@@ -129,6 +202,217 @@ export default function MasterControl() {
         >
           Refresh Live Metrics
         </button>
+      </div>
+
+      {/* 7-LAB HACKATHON & STUDENT MAPPING COMMAND CENTER */}
+      <div className="glass-card bg-white p-6 rounded-3xl border border-purple-200 shadow-sm space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                <Target className="w-4 h-4" />
+              </div>
+              <h2 className="text-lg font-black text-slate-900">7-Lab Hackathon Mapping & Tracking Command</h2>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Strict Master-only visibility: monitor student teams, mapped projects, round progressions, deadlines, and issue strategic Master remarks.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search student, team, event..."
+                value={mappingsSearch}
+                onChange={(e) => setMappingsSearch(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 w-56"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Lab Filter Selector */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button
+            onClick={() => setSelectedLab("ALL")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+              selectedLab === "ALL"
+                ? "bg-purple-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            All 7 Labs ({mappings.length})
+          </button>
+          {OFFICIAL_LABS.map((lab) => {
+            const count = mappings.filter(m => m.studentLab === lab).length;
+            return (
+              <button
+                key={lab}
+                onClick={() => setSelectedLab(lab)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 flex items-center gap-1.5 ${
+                  selectedLab === lab
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <span>{lab.replace(" Lab", "")}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  selectedLab === lab ? "bg-purple-700 text-purple-100" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Hackathon Mappings Cards Grid */}
+        {filteredMappings.length === 0 ? (
+          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-1">
+            <Target className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-xs text-slate-500 font-bold">No internal hackathon mappings found for this selection.</p>
+            <p className="text-[11px] text-slate-400">Coordinators can map approved student participants via Student Records.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredMappings.map((m) => {
+              const mappingKey = `${m.studentId}-${m.hackathonId}`;
+              const isEditingRemark = editingMappingKey === mappingKey;
+
+              return (
+                <div 
+                  key={mappingKey} 
+                  className="p-4 bg-gradient-to-br from-white via-purple-50/20 to-slate-50 border border-purple-200 rounded-2xl space-y-3 shadow-sm hover:shadow-md transition"
+                >
+                  <div className="flex justify-between items-start gap-2 border-b border-purple-100/70 pb-2">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full inline-block mb-1">
+                        {m.studentLab || "Lab Unassigned"}
+                      </span>
+                      <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                        {m.studentName || m.studentId}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 truncate">{m.registerNumber ? `Reg: ${m.registerNumber}` : m.studentEmail}</p>
+                    </div>
+
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                      m.approvalStatus === 'Verified' || m.approvalStatus === 'Approved'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {m.approvalStatus || 'Approved'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-800 font-bold">
+                      <Award className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+                      <span className="truncate">{m.hackathonName || "Hackathon Event"}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Team:</span>
+                        <span className="font-bold text-slate-700">{m.teamId || "Unassigned"}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Project:</span>
+                        <span className="font-bold text-slate-700 truncate block">{m.projectName || "Not Linked"}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Round:</span>
+                        <span className="font-bold text-slate-700">{m.currentRoundId || "Round 1"} ({m.roundStatus || "In Progress"})</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Deadline:</span>
+                        <span className="font-bold text-slate-700">{m.roundDeadline || "Not Set"}</span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="pt-2">
+                      <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1">
+                        <span>Internal Progress</span>
+                        <span className="text-purple-700 font-extrabold">{m.internalProgress || 0}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-purple-600 rounded-full" 
+                          style={{ width: `${m.internalProgress || 0}%` }} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Coordinator Follow-up & Remarks */}
+                    {m.coordinatorRemarks && (
+                      <div className="pt-1.5 border-t border-slate-100 text-[11px]">
+                        <span className="text-slate-400 font-bold flex items-center gap-1">
+                          <Flag className="w-3 h-3 text-slate-400" /> Coord Remark:
+                        </span>
+                        <p className="text-slate-700 bg-white p-2 rounded-lg border border-slate-200 mt-1 line-clamp-2">
+                          {m.coordinatorRemarks}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Master Remarks Section with Direct Edit */}
+                    <div className="pt-2 border-t border-purple-100/70">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[11px] font-black text-purple-700 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-purple-600" /> Master Remark:
+                        </span>
+                        {!isEditingRemark && (
+                          <button
+                            onClick={() => {
+                              setEditingMappingKey(mappingKey);
+                              setMasterRemarkDraft(m.masterRemarks || "");
+                            }}
+                            className="text-[10px] font-bold text-purple-600 hover:text-purple-800 flex items-center gap-0.5 underline"
+                          >
+                            <Edit3 className="w-2.5 h-2.5" /> Edit
+                          </button>
+                        )}
+                      </div>
+
+                      {isEditingRemark ? (
+                        <div className="space-y-1.5 mt-1">
+                          <textarea
+                            className="w-full border border-purple-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
+                            rows={2}
+                            value={masterRemarkDraft}
+                            onChange={(e) => setMasterRemarkDraft(e.target.value)}
+                            placeholder="Enter Master Sathish strategic directive..."
+                          />
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => setEditingMappingKey(null)}
+                              className="px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 rounded"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              disabled={savingRemark}
+                              onClick={() => handleSaveMasterRemark(m.studentId, m.hackathonId)}
+                              className="px-2.5 py-1 text-[11px] bg-purple-600 hover:bg-purple-700 text-white font-bold rounded flex items-center gap-1"
+                            >
+                              <Save className="w-3 h-3" /> Save
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-purple-950 font-medium text-[11px] bg-purple-50 p-2 rounded-lg border border-purple-200">
+                          {m.masterRemarks || <span className="text-purple-400 italic">No master remark recorded yet. Click Edit to add.</span>}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Pending Teacher / Admin Registrations Alert Box */}
@@ -413,11 +697,11 @@ export default function MasterControl() {
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase">Locked Users</span>
-            <AlertTriangle className="w-4 h-4 text-rose-600" />
+            <span className="text-xs font-bold uppercase">Hackathons</span>
+            <Target className="w-4 h-4 text-purple-600" />
           </div>
-          <p className="text-2xl font-extrabold text-rose-600">{overview?.lockedStudents || 0}</p>
-          <span className="text-xs text-rose-600 font-bold">Access Restricted</span>
+          <p className="text-2xl font-extrabold text-purple-700">{mappings.length}</p>
+          <span className="text-xs text-purple-600 font-bold">Tracked Mappings</span>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">

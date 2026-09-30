@@ -117,7 +117,7 @@ export default function App() {
           <main className="flex-1 p-3 sm:p-5 lg:p-7 w-full max-w-7xl mx-auto overflow-y-auto overflow-x-hidden">
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/master-control" element={<MasterControl />} />
+              <Route path="/master-control" element={currentUser.role === "master_admin" ? <MasterControl /> : <Navigate to="/" replace />} />
               <Route path="/daily-reports" element={<DailyReportSystem />} />
               <Route path="/hackathons" element={<HackathonHub />} />
               

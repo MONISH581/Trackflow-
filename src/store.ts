@@ -168,14 +168,25 @@ export interface HackathonMappingInfo {
   id?: string;
   _id?: string;
   studentId: string;
+  studentName?: string;
+  studentEmail?: string;
+  registerNumber?: string;
+  studentLab?: string;
+  studentDepartment?: string;
   hackathonId: string;
+  hackathonName?: string;
   projectId?: string;
+  projectName?: string;
   teamId?: string;
   currentRoundId?: string;
+  roundStatus?: string;
+  roundDeadline?: string;
   internalStatus?: string;
   internalProgress?: number;
+  coordinatorFollowUp?: string;
   coordinatorRemarks?: string;
   masterRemarks?: string;
+  approvalStatus?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -513,7 +524,7 @@ interface AppState {
   registerHackathonWithProof: (hackathonId: string, studentId: string, screenshotFile: File) => Promise<boolean>;
   fetchHackathonRegistrations: (studentId?: string) => Promise<void>;
   verifyHackathonRegistration: (registrationId: string, status: "Verified" | "Rejected", reason?: string) => Promise<boolean>;
-  fetchHackathonMappings: (studentId?: string, hackathonId?: string) => Promise<HackathonMappingInfo[]>;
+  fetchHackathonMappings: (studentId?: string, hackathonId?: string, lab?: string) => Promise<HackathonMappingInfo[]>;
   updateHackathonMapping: (mappingData: Partial<HackathonMappingInfo>) => Promise<boolean>;
   expressHackathonInterest: (hackathonId: string, studentId: string) => Promise<boolean>;
   fetchHackathonInterests: (studentId?: string) => Promise<void>;
@@ -1040,7 +1051,9 @@ export const useStore = create<AppState>((set, get) => ({
   fetchHackathonRegistrations: async (studentId) => {
     try {
       const query = studentId ? `?studentId=${studentId}` : "";
-      const response = await fetch(`${API_BASE}/api/hackathons/registrations${query}`);
+      const response = await fetch(`${API_BASE}/api/hackathons/registrations${query}`, {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       set({ hackathonRegistrations: data.registrations || [] });
     } catch (e) {}
@@ -1051,7 +1064,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/hackathons/registrations/${registrationId}/verify`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ verificationStatus: status, rejectionReason: reason, coordinatorId: user?.userId }),
       });
       const data = await response.json();
@@ -1069,7 +1082,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/hackathons/${hackathonId}/interest`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ studentId }),
       });
       const data = await response.json();
@@ -1092,11 +1105,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
 
-  fetchHackathonMappings: async (studentId?: string, hackathonId?: string) => {
+  fetchHackathonMappings: async (studentId?: string, hackathonId?: string, lab?: string) => {
     try {
       const params = new URLSearchParams();
       if (studentId) params.append("studentId", studentId);
       if (hackathonId) params.append("hackathonId", hackathonId);
+      if (lab && lab !== "ALL") params.append("lab", lab);
       
       const res = await fetch(`${API_BASE}/api/hackathons/mappings?${params.toString()}`, {
         headers: getAuthHeaders()
@@ -1123,7 +1137,6 @@ export const useStore = create<AppState>((set, get) => ({
       const data = await safeJson(res, {});
       if (res.ok) {
         get().addToast("Hackathon mapping updated successfully", "success");
-        // Re-fetch mappings if needed, or caller handles it
         return true;
       }
       get().addToast(data.error || "Failed to update mapping", "error");
@@ -1138,7 +1151,9 @@ export const useStore = create<AppState>((set, get) => ({
   fetchHackathonInterests: async (studentId) => {
     try {
       const query = studentId ? `?studentId=${studentId}` : "";
-      const response = await fetch(`${API_BASE}/api/hackathons/interests${query}`);
+      const response = await fetch(`${API_BASE}/api/hackathons/interests${query}`, {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       set({ hackathonInterests: data.interests || [] });
     } catch (e) {}
@@ -1240,7 +1255,9 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchAttendance: async (date) => {
     try {
-      const response = await fetch(`${API_BASE}/api/attendance?date=${date}`);
+      const response = await fetch(`${API_BASE}/api/attendance?date=${date}`, {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       return data.attendance || [];
     } catch (e) {
@@ -1257,7 +1274,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/api/attendance`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ date, records, markedBy: user.userId })
       });
       const data = await response.json();

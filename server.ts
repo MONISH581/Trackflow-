@@ -2118,19 +2118,29 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   });
 
-  // Attendance endpoints
-  app.get("/api/attendance", async (req, res) => {
+  // Attendance endpoints - Role-based isolation & Admin/Coordinator controlled
+  app.get("/api/attendance", authMiddleware, async (req: any, res: any) => {
     try {
-      const { date } = req.query;
+      const { date, studentId } = req.query;
       if (!date) return res.status(400).json({ error: "Date is required" });
-      const attendance = await Attendance.find({ date: String(date) });
+      
+      let query: any = { date: String(date) };
+      // Student isolation: students can ONLY view their own official attendance
+      if (req.user.role === 'student') {
+        const studentIdentifier = req.user.id || req.user.userId;
+        query.studentId = studentIdentifier;
+      } else if (studentId) {
+        query.studentId = String(studentId);
+      }
+
+      const attendance = await Attendance.find(query);
       res.json({ attendance });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  app.post("/api/attendance", async (req, res) => {
+  app.post("/api/attendance", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
     try {
       const { date, records, markedBy } = req.body;
       if (!date || !records) {
@@ -2140,7 +2150,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       for (const rec of records) {
         await Attendance.findOneAndUpdate(
           { studentId: rec.studentId, date },
-          { status: rec.status, markedBy },
+          { status: rec.status, markedBy: markedBy || req.user.name || "Coordinator" },
           { upsert: true }
         );
       }
@@ -3164,11 +3174,17 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
-  app.get("/api/hackathons/interests", async (req, res) => {
+  app.get("/api/hackathons/interests", authMiddleware, async (req: any, res: any) => {
     try {
       const { studentId } = req.query;
       let query: any = {};
-      if (studentId) query.studentId = String(studentId);
+      
+      // Student isolation: students can only see their own expressed interests
+      if (req.user.role === 'student') {
+        query.studentId = String(req.user.id || req.user.userId);
+      } else if (studentId) {
+        query.studentId = String(studentId);
+      }
 
       const interests = await HackathonInterest.find(query).sort({ expressedAt: -1 });
       res.json({ interests: interests.map(i => ({ id: i._id, ...i.toObject() })) });
@@ -3320,11 +3336,18 @@ Do not include markdown tags. Return only raw JSON string.`;
   });
 
   // GET Hackathon Registrations with Pagination, Search & Filters
-  app.get("/api/hackathons/registrations", async (req, res) => {
+  // Student isolation enforced via authMiddleware
+  app.get("/api/hackathons/registrations", authMiddleware, async (req: any, res: any) => {
     try {
       const { studentId, page = "1", limit = "25", status, department, search } = req.query;
       let query: any = {};
-      if (studentId) query.studentId = String(studentId);
+      
+      // Strict Student Data Isolation: students may only access their own registrations
+      if (req.user.role === 'student') {
+        query.studentId = String(req.user.id || req.user.userId);
+      } else if (studentId) {
+        query.studentId = String(studentId);
+      }
       if (department && department !== "ALL") query.department = String(department);
 
       let allRegistrations = await HackathonRegistration.find(query).sort({ registrationDate: -1 });
@@ -3398,17 +3421,59 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
-  // Atomic Verification Approval/Rejection with 1-Month Calendar Validity
-  // INTERNAL ADMIN/MASTER MAPPING API - STRICTLY ROLE PROTECTED
+  // INTERNAL ADMIN/MASTER MAPPING API - STRICTLY ROLE PROTECTED (Coordinators + Master Only)
   app.get("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
     try {
-      const { studentId, hackathonId } = req.query;
+      const { studentId, hackathonId, lab } = req.query;
       let query: any = {};
       if (studentId) query.studentId = String(studentId);
       if (hackathonId) query.hackathonId = String(hackathonId);
       
-      const mappings = await HackathonMapping.find(query);
-      res.json({ success: true, mappings });
+      const rawMappings = await HackathonMapping.find(query);
+
+      // Resolve original data by ID without database duplication
+      const enrichedMappings = await Promise.all(rawMappings.map(async (m: any) => {
+        const item = typeof m.toObject === 'function' ? m.toObject() : { ...m };
+        item.id = String(m._id || m.id);
+
+        const student = await User.findOne({ $or: [{ userId: m.studentId }, { _id: m.studentId }] });
+        if (student) {
+          item.studentName = student.name;
+          item.studentEmail = student.email;
+          item.registerNumber = student.registerNumber || "";
+          item.studentLab = student.lab || "";
+          item.studentDepartment = student.department || "";
+        }
+
+        const hackathon = await Hackathon.findOne({ $or: [{ hackathonId: m.hackathonId }, { _id: m.hackathonId }] });
+        if (hackathon) {
+          item.hackathonName = hackathon.name;
+        }
+
+        if (m.projectId) {
+          const project = await Project.findOne({ $or: [{ _id: m.projectId }, { id: m.projectId }, { projectId: m.projectId }] });
+          if (project) {
+            item.projectName = project.title;
+          }
+        }
+
+        const registration = await HackathonRegistration.findOne({ studentId: m.studentId, hackathonId: m.hackathonId });
+        if (registration) {
+          item.approvalStatus = registration.verificationStatus;
+          if (!item.hackathonName && registration.hackathonName) {
+            item.hackathonName = registration.hackathonName;
+          }
+        }
+
+        return item;
+      }));
+
+      let filtered = enrichedMappings;
+      if (lab && lab !== "ALL") {
+        filtered = filtered.filter(m => m.studentLab === lab);
+      }
+
+      res.json({ success: true, mappings: filtered });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -3416,7 +3481,20 @@ Do not include markdown tags. Return only raw JSON string.`;
 
   app.post("/api/hackathons/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
     try {
-      const { studentId, hackathonId, projectId, teamId, currentRoundId, internalStatus, internalProgress, coordinatorRemarks, masterRemarks } = req.body;
+      const { 
+        studentId, 
+        hackathonId, 
+        projectId, 
+        teamId, 
+        currentRoundId, 
+        roundStatus,
+        roundDeadline,
+        internalStatus, 
+        internalProgress, 
+        coordinatorFollowUp,
+        coordinatorRemarks, 
+        masterRemarks 
+      } = req.body;
       
       if (!studentId || !hackathonId) {
         return res.status(400).json({ error: "studentId and hackathonId are required" });
@@ -3428,8 +3506,11 @@ Do not include markdown tags. Return only raw JSON string.`;
         if (projectId !== undefined) mapping.projectId = projectId;
         if (teamId !== undefined) mapping.teamId = teamId;
         if (currentRoundId !== undefined) mapping.currentRoundId = currentRoundId;
+        if (roundStatus !== undefined) mapping.roundStatus = roundStatus;
+        if (roundDeadline !== undefined) mapping.roundDeadline = roundDeadline;
         if (internalStatus !== undefined) mapping.internalStatus = internalStatus;
         if (internalProgress !== undefined) mapping.internalProgress = internalProgress;
+        if (coordinatorFollowUp !== undefined) mapping.coordinatorFollowUp = coordinatorFollowUp;
         if (coordinatorRemarks !== undefined) mapping.coordinatorRemarks = coordinatorRemarks;
         if (req.user.role === 'master_admin' && masterRemarks !== undefined) mapping.masterRemarks = masterRemarks;
         
@@ -3443,8 +3524,11 @@ Do not include markdown tags. Return only raw JSON string.`;
           projectId: projectId || "",
           teamId: teamId || "",
           currentRoundId: currentRoundId || "",
+          roundStatus: roundStatus || "In Progress",
+          roundDeadline: roundDeadline || "",
           internalStatus: internalStatus || "Mapped",
           internalProgress: internalProgress || 0,
+          coordinatorFollowUp: coordinatorFollowUp || "None",
           coordinatorRemarks: coordinatorRemarks || "",
           masterRemarks: req.user.role === 'master_admin' ? (masterRemarks || "") : "",
           createdAt: new Date(),
@@ -3916,8 +4000,8 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
-  // Master Control 6-Lab Dashboard Metrics Endpoint
-  app.get("/api/master-control/overview", async (req, res) => {
+  // Master Control 7-Lab Dashboard Metrics Endpoint - Strictly Master Admin Only
+  app.get("/api/master-control/overview", authMiddleware, requireRole(['master_admin']), async (req: any, res: any) => {
     try {
       const allStudents = await User.find({ role: 'student' });
       const allCoordinators = await User.find({ role: 'coordinator' });

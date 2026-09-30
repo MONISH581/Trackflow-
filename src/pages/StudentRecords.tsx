@@ -289,7 +289,7 @@ export default function StudentRecords() {
 
 
                     {/* Hackathon Mappings (Admin/Coordinator Only) */}
-                    <StudentHackathonMapping studentId={student.id} projectId={project?.id} />
+                    <StudentHackathonMapping studentId={student.id} projectId={project?.id} projectName={project?.title} />
 
                     {/* Attendance Log Section */}
                     {dailyReports && (
