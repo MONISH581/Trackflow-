@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "../store.ts";
@@ -36,6 +37,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
     if (path === "/opportunities") return "Opportunities Hub";
     if (path === "/daily-reports") return "Daily Reports System";
     if (path === "/hackathons") return "Hackathon Proofs";
+    if (path.startsWith("/admin/command-center") || path.startsWith("/command-center")) return "360° Command Center";
     return "TrackFlow AI";
   };
 

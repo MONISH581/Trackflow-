@@ -23,6 +23,7 @@ import ActivityAnalytics from "./pages/ActivityAnalytics.tsx";
 import { X, AlertCircle, CheckCircle, Info } from "lucide-react";
 
 import MasterControl from "./pages/MasterControl.tsx";
+import CommandCenter from "./pages/CommandCenter.tsx";
 
 export default function App() {
   const { currentUser, toasts, removeToast, checkSession, logout } = useStore();
@@ -123,6 +124,8 @@ export default function App() {
               
               {currentUser.role === "coordinator" || currentUser.role === "master_admin" ? (
                 <>
+                  <Route path="/admin/command-center" element={<CommandCenter />} />
+                  <Route path="/command-center" element={<CommandCenter />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetails />} />
                   <Route path="/mentors" element={<MentorManagement />} />

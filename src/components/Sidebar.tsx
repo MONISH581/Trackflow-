@@ -13,6 +13,7 @@ import {
   Sparkles,
   ClipboardCheck,
   Compass,
+  Target,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -49,6 +50,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const coordinatorMenu: MenuItem[] = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
+    { name: "360° Command Center", path: "/admin/command-center", icon: Target },
     { name: "Projects", path: "/projects", icon: Briefcase },
     { name: "Mentors", path: "/mentors", icon: Users },
     { name: "Approvals", path: "/approvals", icon: ShieldCheck, badge: pendingCount },
@@ -76,6 +78,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const masterControlMenu: MenuItem[] = [
     { name: "Master Control", path: "/master-control", icon: ShieldCheck },
+    { name: "360° Command Center", path: "/admin/command-center", icon: Target },
     { name: "All Projects", path: "/projects", icon: Briefcase },
     { name: "Mentors", path: "/mentors", icon: Users },
     { name: "Approvals", path: "/approvals", icon: ShieldCheck, badge: pendingCount },

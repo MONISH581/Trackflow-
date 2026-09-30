@@ -191,6 +191,129 @@ export interface HackathonMappingInfo {
   updatedAt?: string;
 }
 
+export interface CommandCenterOverview {
+  kpis: {
+    totalStudents: number;
+    activeStudents: number;
+    totalProjects: number;
+    activeProjects: number;
+    totalTeams: number;
+    totalHackathons: number;
+    activeHackathons: number;
+    totalParticipants: number;
+    pendingVerification: number;
+    verifiedParticipants: number;
+    activeRounds: number;
+    completedRounds: number;
+    upcomingDeadlines: number;
+    atRiskItems: number;
+  };
+  labsSummary: Array<{
+    labName: string;
+    studentsCount: number;
+    projectsCount: number;
+    teamsCount: number;
+    participationsCount: number;
+    verifiedCount: number;
+    pendingCount: number;
+    activeProjectsCount: number;
+    atRiskCount: number;
+  }>;
+  attentionSummary: {
+    overdueRounds: number;
+    approachingDeadlines: number;
+    pendingVerifications: number;
+    lowProgress: number;
+  };
+}
+
+export interface CommandCenterMappingItem {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  registerNumber: string;
+  department: string;
+  lab: string;
+  year?: number | string;
+  verificationStatus: string;
+  hasProof: boolean;
+  registeredDate: string;
+  teamId?: string;
+  teamName?: string;
+  teamMembersCount?: number;
+  projectId?: string;
+  projectName?: string;
+  projectStatus?: string;
+  projectProgress?: number;
+  hackathonId: string;
+  hackathonName: string;
+  hackathonOrganizer?: string;
+  hackathonStatus?: string;
+  currentRoundId?: string;
+  currentRoundName?: string;
+  roundStatus?: string;
+  roundDeadline?: string;
+  internalStatus?: string;
+  internalProgress?: number;
+  coordinatorFollowUp?: string;
+  coordinatorRemarks?: string;
+  masterRemarks?: string;
+  lastUpdated?: string;
+  isAtRisk?: boolean;
+  atRiskReason?: string;
+}
+
+export interface CommandCenterAnalytics {
+  studentParticipation: Array<{ name: string; value: number }>;
+  hackathonParticipation: Array<{ name: string; count: number }>;
+  projectStatus: Array<{ name: string; count: number }>;
+  roundProgress: Array<{ name: string; count: number }>;
+  labDistribution: Array<{ name: string; students: number; projects: number; teams: number }>;
+  verificationFunnel: Array<{ stage: string; count: number }>;
+  deadlineOverview: Array<{ category: string; count: number }>;
+}
+
+export interface CommandCenterAttention {
+  summary: {
+    overdueRounds: number;
+    approachingDeadlines: number;
+    pendingVerifications: number;
+    lowProgress: number;
+  };
+  items: Array<{
+    type: "overdue_round" | "approaching_deadline" | "pending_verification" | "low_progress" | "team_without_project" | "incomplete_profile";
+    severity: "critical" | "high" | "medium";
+    title: string;
+    description: string;
+    studentId?: string;
+    studentName?: string;
+    hackathonId?: string;
+    hackathonName?: string;
+    projectId?: string;
+    projectName?: string;
+    lab?: string;
+    daysRemaining?: number;
+    progress?: number;
+  }>;
+}
+
+export interface CommandCenterDataQuality {
+  summary: {
+    totalIssues: number;
+    highSeverity: number;
+    mediumSeverity: number;
+  };
+  issues: Array<{
+    type: string;
+    severity: "high" | "medium" | "low";
+    entityType: "student" | "team" | "project" | "mapping";
+    entityId: string;
+    entityName: string;
+    issue: string;
+    suggestion: string;
+  }>;
+}
+
 export interface HackathonInterestInfo {
   id?: string;
   _id?: string;
@@ -576,6 +699,14 @@ interface AppState {
   addMasterAdmin: (name: string, email: string) => Promise<boolean>;
   approveCoordinator: (userId: string, approve: boolean) => Promise<boolean>;
   deleteUser: (userId: string) => Promise<boolean>;
+
+  // 360° Command Center Actions
+  fetchCommandCenterOverview: (lab?: string, department?: string) => Promise<CommandCenterOverview | null>;
+  fetchCommandCenterMappings: (filters?: string | Record<string, any>) => Promise<CommandCenterMappingItem[]>;
+  fetchCommandCenterAnalytics: (lab?: string) => Promise<CommandCenterAnalytics | null>;
+  fetchCommandCenterAttention: (lab?: string) => Promise<CommandCenterAttention | null>;
+  fetchCommandCenterDataQuality: (lab?: string) => Promise<CommandCenterDataQuality | null>;
+  fetchEntity360: (type: 'student' | 'project' | 'team' | 'hackathon', id: string) => Promise<any>;
 }
 
 
@@ -2232,6 +2363,102 @@ export const useStore = create<AppState>((set, get) => ({
       return false;
     } finally {
       get().setLoading(false);
+    }
+  },
+
+  fetchCommandCenterOverview: async (lab?: string, department?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (lab && lab !== "ALL") params.append("lab", lab);
+      if (department && department !== "ALL") params.append("department", department);
+      const res = await fetch(`${API_BASE}/api/admin/command-center/overview?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      return await safeJson(res, null);
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  fetchCommandCenterMappings: async (filters?: string | Record<string, any>) => {
+    try {
+      const params = new URLSearchParams();
+      if (typeof filters === "string") {
+        if (filters !== "ALL") params.append("lab", filters);
+      } else if (filters) {
+        Object.entries(filters).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== "" && v !== "ALL") {
+            params.append(k, String(v));
+          }
+        });
+      }
+      const res = await fetch(`${API_BASE}/api/admin/command-center/mappings?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await safeJson(res, { mappings: [], total: 0 });
+      return data?.mappings || [];
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  },
+
+  fetchCommandCenterAnalytics: async (lab?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (lab && lab !== "ALL") params.append("lab", lab);
+      const res = await fetch(`${API_BASE}/api/admin/command-center/analytics?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await safeJson(res, null);
+      return data?.analytics || data;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  fetchCommandCenterAttention: async (lab?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (lab && lab !== "ALL") params.append("lab", lab);
+      const res = await fetch(`${API_BASE}/api/admin/command-center/attention?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await safeJson(res, null);
+      return data?.attention || data;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  fetchCommandCenterDataQuality: async (lab?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (lab && lab !== "ALL") params.append("lab", lab);
+      const res = await fetch(`${API_BASE}/api/admin/command-center/data-quality?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await safeJson(res, null);
+      return data?.dataQuality || data;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  fetchEntity360: async (type: 'student' | 'project' | 'team' | 'hackathon', id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/command-center/entity-360/${type}/${encodeURIComponent(id)}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await safeJson(res, null);
+      return data?.data || data;
+    } catch (e) {
+      console.error(e);
+      return null;
     }
   },
 }));

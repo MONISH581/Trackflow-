@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { useStore, HackathonMappingInfo } from "../store.ts";
 import {
   Shield,
@@ -196,12 +197,22 @@ export default function MasterControl() {
           </p>
         </div>
 
-        <button
-          onClick={loadData}
-          className="self-start md:self-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase rounded-xl transition cursor-pointer shadow-lg shadow-blue-500/20"
-        >
-          Refresh Live Metrics
-        </button>
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+          <Link
+            to="/admin/command-center"
+            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs uppercase rounded-xl transition cursor-pointer shadow-lg shadow-purple-500/25 flex items-center gap-2"
+          >
+            <Target className="w-4 h-4 text-purple-200" />
+            <span>Open 360° Command Center</span>
+          </Link>
+
+          <button
+            onClick={loadData}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase rounded-xl transition cursor-pointer shadow-lg shadow-blue-500/20"
+          >
+            Refresh Live Metrics
+          </button>
+        </div>
       </div>
 
       {/* 7-LAB HACKATHON & STUDENT MAPPING COMMAND CENTER */}

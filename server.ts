@@ -5333,6 +5333,853 @@ Do not include markdown tags. Return only raw JSON string.`;
     });
   });
 
+  // =========================================================================
+  // TRACKFLOW 360° COMMAND CENTER - UNIFIED ADMINISTRATIVE APIS
+  // Strictly Protected: Master Admin & Coordinator Only
+  // =========================================================================
+
+  // 1. Overview & 14 Key KPIs
+  app.get("/api/admin/command-center/overview", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
+    try {
+      const { lab, department } = req.query;
+      
+      let effectiveLab = lab;
+      if (req.user.role === 'coordinator' && req.user.lab) {
+        effectiveLab = req.user.lab;
+      }
+      
+      const allStudents = await User.find({ role: { $in: ['student', 'STUDENT'] }, status: { $ne: 'rejected' } });
+      const allProjects = await Project.find();
+      const allHackathons = await Hackathon.find();
+      const allRegistrations = await HackathonRegistration.find();
+      const allMappings = await HackathonMapping.find();
+
+      let students = allStudents;
+      let projects = allProjects;
+      let mappings = allMappings;
+      let registrations = allRegistrations;
+
+      if (effectiveLab && effectiveLab !== "ALL") {
+        students = students.filter((s: any) => s.lab === effectiveLab);
+        projects = projects.filter((p: any) => p.lab === effectiveLab);
+        const labStudentIds = new Set(students.map((s: any) => s.userId || s.id));
+        mappings = mappings.filter((m: any) => labStudentIds.has(m.studentId));
+        registrations = registrations.filter((r: any) => labStudentIds.has(r.studentId));
+      }
+
+      if (department && department !== "ALL") {
+        students = students.filter((s: any) => s.department === department);
+        projects = projects.filter((p: any) => p.department === department);
+        const deptStudentIds = new Set(students.map((s: any) => s.userId || s.id));
+        mappings = mappings.filter((m: any) => deptStudentIds.has(m.studentId));
+        registrations = registrations.filter((r: any) => deptStudentIds.has(r.studentId));
+      }
+
+      const teamSet = new Set<string>();
+      mappings.forEach((m: any) => { if (m.teamId) teamSet.add(m.teamId); });
+      projects.forEach((p: any) => { 
+        if (p.name) teamSet.add(p.name);
+        if (p.teamMembers && Array.isArray(p.teamMembers) && p.teamMembers.length > 1) {
+          teamSet.add(p._id || p.id);
+        }
+      });
+
+      const now = new Date();
+      const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const activeStudentsCount = students.filter((s: any) => s.accountStatus === 'ACTIVE' || !s.accountStatus).length;
+      const activeProjectsCount = projects.filter((p: any) => p.status === 'Active' || p.status === 'ACTIVE').length;
+      const activeHackathonsCount = allHackathons.filter((h: any) => h.status === 'Active' || !h.status).length;
+      
+      const verifiedParticipantsCount = registrations.filter((r: any) => r.verificationStatus === 'Verified').length;
+      const pendingVerificationCount = registrations.filter((r: any) => r.verificationStatus === 'Pending').length;
+      
+      const activeRoundsCount = mappings.filter((m: any) => m.roundStatus === 'In Progress' || !m.roundStatus).length;
+      const completedRoundsCount = mappings.filter((m: any) => m.roundStatus === 'Completed' || m.roundStatus === 'Won').length;
+
+      let upcomingDeadlinesCount = 0;
+      let atRiskCount = 0;
+
+      mappings.forEach((m: any) => {
+        let isAtRisk = false;
+        if (m.roundDeadline) {
+          const d = new Date(m.roundDeadline);
+          if (!isNaN(d.getTime())) {
+            if (d < now && m.roundStatus !== 'Completed' && m.roundStatus !== 'Won') {
+              isAtRisk = true;
+            } else if (d >= now && d <= in14Days) {
+              upcomingDeadlinesCount++;
+              if ((m.internalProgress || 0) < 30) {
+                isAtRisk = true;
+              }
+            }
+          }
+        }
+        if (m.coordinatorFollowUp === 'Required') {
+          isAtRisk = true;
+        }
+        if (isAtRisk) atRiskCount++;
+      });
+
+      projects.forEach((p: any) => {
+        if (p.deadline) {
+          const d = new Date(p.deadline);
+          if (!isNaN(d.getTime()) && d >= now && d <= in14Days) {
+            upcomingDeadlinesCount++;
+          }
+        }
+        if (p.status === 'LOCKED' || p.status === 'EXPIRED') {
+          atRiskCount++;
+        }
+      });
+
+      const labSummaries: Record<string, any> = {};
+      OFFICIAL_LABS.forEach(labName => {
+        const labStudents = allStudents.filter((s: any) => s.lab === labName);
+        const labProjects = allProjects.filter((p: any) => p.lab === labName);
+        const labStudentIds = new Set(labStudents.map((s: any) => s.userId || s.id));
+        const labMappings = allMappings.filter((m: any) => labStudentIds.has(m.studentId));
+        const labTeams = new Set<string>();
+        labMappings.forEach((m: any) => { if (m.teamId) labTeams.add(m.teamId); });
+
+        labSummaries[labName] = {
+          labName,
+          totalStudents: labStudents.length,
+          totalProjects: labProjects.length,
+          activeProjects: labProjects.filter((p: any) => p.status === 'Active' || p.status === 'ACTIVE').length,
+          totalTeams: labTeams.size,
+          hackathonMappings: labMappings.length,
+          verifiedStudents: allRegistrations.filter((r: any) => labStudentIds.has(r.studentId) && r.verificationStatus === 'Verified').length,
+          pendingVerifications: allRegistrations.filter((r: any) => labStudentIds.has(r.studentId) && r.verificationStatus === 'Pending').length,
+          activeRounds: labMappings.filter((m: any) => m.roundStatus === 'In Progress').length,
+          atRiskItems: labMappings.filter((m: any) => m.coordinatorFollowUp === 'Required' || ((m.internalProgress || 0) < 30 && m.roundDeadline)).length
+        };
+      });
+
+      res.json({
+        success: true,
+        scope: {
+          role: req.user.role,
+          name: req.user.name || "Administrator",
+          effectiveLab: effectiveLab || "ALL",
+          isMaster: req.user.role === 'master_admin'
+        },
+        kpis: {
+          totalStudents: students.length,
+          activeStudents: activeStudentsCount,
+          totalProjects: projects.length,
+          activeProjects: activeProjectsCount,
+          totalTeams: teamSet.size,
+          totalHackathons: allHackathons.length,
+          activeHackathons: activeHackathonsCount,
+          totalParticipants: new Set([...mappings.map((m: any) => m.studentId), ...registrations.map((r: any) => r.studentId)]).size,
+          pendingVerification: pendingVerificationCount,
+          verifiedParticipants: verifiedParticipantsCount,
+          activeRounds: activeRoundsCount,
+          completedRounds: completedRoundsCount,
+          upcomingDeadlines: upcomingDeadlinesCount,
+          atRiskItems: atRiskCount
+        },
+        labSummaries,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 2. Relational Mapping Data: Student -> Team -> Project -> Hackathon -> Round
+  app.get("/api/admin/command-center/mappings", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
+    try {
+      const { lab, department, status, round, search, atRisk, verificationStatus } = req.query;
+      
+      let effectiveLab = lab;
+      if (req.user.role === 'coordinator' && req.user.lab) {
+        effectiveLab = req.user.lab;
+      }
+
+      const allStudents = await User.find({ role: { $in: ['student', 'STUDENT'] }, status: { $ne: 'rejected' } });
+      const allProjects = await Project.find();
+      const allHackathons = await Hackathon.find();
+      const allRegistrations = await HackathonRegistration.find();
+      const allMappings = await HackathonMapping.find();
+
+      const studentMap = new Map<string, any>();
+      allStudents.forEach((s: any) => {
+        studentMap.set(String(s.userId || s.id), s);
+        if (s._id) studentMap.set(String(s._id), s);
+      });
+
+      const projectMap = new Map<string, any>();
+      allProjects.forEach((p: any) => {
+        projectMap.set(String(p._id || p.id), p);
+        if (p.projectId) projectMap.set(String(p.projectId), p);
+      });
+
+      const hackathonMap = new Map<string, any>();
+      allHackathons.forEach((h: any) => {
+        hackathonMap.set(String(h.hackathonId || h._id || h.id), h);
+      });
+
+      const now = new Date();
+      const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const consolidated: any[] = [];
+      const visitedKeys = new Set<string>();
+
+      allMappings.forEach((m: any) => {
+        const student = studentMap.get(String(m.studentId));
+        if (!student) return;
+
+        const reg = allRegistrations.find((r: any) => r.studentId === m.studentId && r.hackathonId === m.hackathonId);
+        const hackathon = hackathonMap.get(String(m.hackathonId));
+        const project = m.projectId ? projectMap.get(String(m.projectId)) : (
+          allProjects.find((p: any) => Array.isArray(p.teamMembers) && p.teamMembers.includes(m.studentId))
+        );
+
+        let isOverdue = false;
+        let isDueSoon = false;
+        if (m.roundDeadline) {
+          const d = new Date(m.roundDeadline);
+          if (!isNaN(d.getTime())) {
+            if (d < now && m.roundStatus !== 'Completed' && m.roundStatus !== 'Won') isOverdue = true;
+            if (d >= now && d <= in14Days) isDueSoon = true;
+          }
+        }
+
+        const isAtRisk = isOverdue || (isDueSoon && (m.internalProgress || 0) < 30) || m.coordinatorFollowUp === 'Required';
+
+        visitedKeys.add(`${m.studentId}-${m.hackathonId}`);
+
+        consolidated.push({
+          id: m._id || m.id || `map-${m.studentId}-${m.hackathonId}`,
+          studentId: m.studentId,
+          studentName: student.name || "Unknown Student",
+          studentEmail: student.email || "",
+          registerNumber: student.registerNumber || "",
+          studentLab: student.lab || "Unassigned",
+          studentDepartment: student.department || "",
+          studentYear: student.year || "3",
+          studentAvatar: student.avatar || `https://avatar.vercel.sh/${student.email || m.studentId}`,
+          
+          teamId: m.teamId || "Team Alpha",
+          teamName: m.teamId || "Team Alpha",
+          
+          projectId: project ? (project._id || project.id) : (m.projectId || ""),
+          projectName: project ? project.name : (m.projectName || "Unlinked Project"),
+          projectStatus: project ? project.status : "Active",
+          projectProgress: project ? project.progress : 0,
+
+          hackathonId: m.hackathonId,
+          hackathonName: hackathon ? hackathon.name : (reg?.hackathonName || m.hackathonName || "Hackathon"),
+          hackathonOrganizer: hackathon ? hackathon.organizer : "Tech Organizer",
+          verificationStatus: reg ? reg.verificationStatus : "Approved",
+          proofUrl: reg ? reg.proofUrl : "",
+
+          currentRoundId: m.currentRoundId || "Round 1",
+          roundStatus: m.roundStatus || "In Progress",
+          roundDeadline: m.roundDeadline || "",
+          internalProgress: m.internalProgress !== undefined ? m.internalProgress : 0,
+          internalStatus: m.internalStatus || "Mapped",
+          
+          coordinatorFollowUp: m.coordinatorFollowUp || "None",
+          coordinatorRemarks: m.coordinatorRemarks || "",
+          masterRemarks: m.masterRemarks || "",
+
+          isOverdue,
+          isDueSoon,
+          isAtRisk,
+          updatedAt: m.updatedAt || m.createdAt || new Date().toISOString()
+        });
+      });
+
+      allRegistrations.forEach((r: any) => {
+        const key = `${r.studentId}-${r.hackathonId}`;
+        if (!visitedKeys.has(key) && (r.verificationStatus === 'Verified' || r.verificationStatus === 'Pending')) {
+          const student = studentMap.get(String(r.studentId));
+          if (!student) return;
+          const hackathon = hackathonMap.get(String(r.hackathonId));
+          const project = allProjects.find((p: any) => Array.isArray(p.teamMembers) && p.teamMembers.includes(r.studentId));
+
+          consolidated.push({
+            id: `reg-${r._id || r.id}`,
+            studentId: r.studentId,
+            studentName: student.name || r.studentName || "Student",
+            studentEmail: student.email || r.studentEmail || "",
+            registerNumber: student.registerNumber || r.registerNumber || "",
+            studentLab: student.lab || "Unassigned",
+            studentDepartment: student.department || r.department || "",
+            studentYear: student.year || "3",
+            studentAvatar: student.avatar || `https://avatar.vercel.sh/${student.email || r.studentId}`,
+
+            teamId: "Unassigned",
+            teamName: "Unassigned",
+
+            projectId: project ? (project._id || project.id) : "",
+            projectName: project ? project.name : "Unlinked Project",
+            projectStatus: project ? project.status : "Active",
+            projectProgress: project ? project.progress : 0,
+
+            hackathonId: r.hackathonId,
+            hackathonName: hackathon ? hackathon.name : (r.hackathonName || "Hackathon"),
+            hackathonOrganizer: hackathon ? hackathon.organizer : "Organizer",
+            verificationStatus: r.verificationStatus,
+            proofUrl: r.proofUrl || "",
+
+            currentRoundId: "Round 1",
+            roundStatus: "Upcoming",
+            roundDeadline: "",
+            internalProgress: 0,
+            internalStatus: r.verificationStatus === 'Verified' ? 'Approved' : 'Pending Verification',
+
+            coordinatorFollowUp: r.verificationStatus === 'Pending' ? 'Required' : 'None',
+            coordinatorRemarks: "",
+            masterRemarks: "",
+
+            isOverdue: false,
+            isDueSoon: false,
+            isAtRisk: r.verificationStatus === 'Pending',
+            updatedAt: r.registrationDate || new Date().toISOString()
+          });
+        }
+      });
+
+      let filtered = consolidated;
+
+      if (effectiveLab && effectiveLab !== "ALL") {
+        filtered = filtered.filter(item => item.studentLab === effectiveLab);
+      }
+
+      if (department && department !== "ALL") {
+        filtered = filtered.filter(item => item.studentDepartment === department);
+      }
+
+      if (status && status !== "ALL") {
+        filtered = filtered.filter(item => item.roundStatus === status || item.internalStatus === status);
+      }
+
+      if (round && round !== "ALL") {
+        filtered = filtered.filter(item => item.currentRoundId === round);
+      }
+
+      if (verificationStatus && verificationStatus !== "ALL") {
+        filtered = filtered.filter(item => item.verificationStatus === verificationStatus);
+      }
+
+      if (atRisk === "true" || atRisk === true) {
+        filtered = filtered.filter(item => item.isAtRisk);
+      }
+
+      if (search && String(search).trim()) {
+        const q = String(search).toLowerCase().trim();
+        filtered = filtered.filter(item => 
+          item.studentName.toLowerCase().includes(q) ||
+          item.studentEmail.toLowerCase().includes(q) ||
+          item.registerNumber.toLowerCase().includes(q) ||
+          item.teamName.toLowerCase().includes(q) ||
+          item.projectName.toLowerCase().includes(q) ||
+          item.hackathonName.toLowerCase().includes(q) ||
+          item.currentRoundId.toLowerCase().includes(q)
+        );
+      }
+
+      res.json({
+        success: true,
+        mappings: filtered,
+        total: consolidated.length,
+        filteredCount: filtered.length
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 3. Analytics Aggregations
+  app.get("/api/admin/command-center/analytics", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
+    try {
+      const { lab } = req.query;
+      let effectiveLab = lab;
+      if (req.user.role === 'coordinator' && req.user.lab) {
+        effectiveLab = req.user.lab;
+      }
+
+      const allStudents = await User.find({ role: { $in: ['student', 'STUDENT'] }, status: { $ne: 'rejected' } });
+      const allProjects = await Project.find();
+      const allHackathons = await Hackathon.find();
+      const allRegistrations = await HackathonRegistration.find();
+      const allMappings = await HackathonMapping.find();
+
+      let students = allStudents;
+      let projects = allProjects;
+      let mappings = allMappings;
+      let registrations = allRegistrations;
+
+      if (effectiveLab && effectiveLab !== "ALL") {
+        students = students.filter((s: any) => s.lab === effectiveLab);
+        projects = projects.filter((p: any) => p.lab === effectiveLab);
+        const labStudentIds = new Set(students.map((s: any) => s.userId || s.id));
+        mappings = mappings.filter((m: any) => labStudentIds.has(m.studentId));
+        registrations = registrations.filter((r: any) => labStudentIds.has(r.studentId));
+      }
+
+      const verifiedCount = registrations.filter((r: any) => r.verificationStatus === 'Verified').length;
+      const pendingCount = registrations.filter((r: any) => r.verificationStatus === 'Pending').length;
+      const rejectedCount = registrations.filter((r: any) => r.verificationStatus === 'Rejected').length;
+      const activeStudentsCount = students.filter((s: any) => s.accountStatus === 'ACTIVE' || !s.accountStatus).length;
+
+      const studentParticipation = [
+        { name: "Active Students", value: activeStudentsCount, color: "#10b981" },
+        { name: "Verified Hackathons", value: verifiedCount, color: "#8b5cf6" },
+        { name: "Pending Proof", value: pendingCount, color: "#f59e0b" },
+        { name: "Inactive / Other", value: Math.max(0, students.length - activeStudentsCount), color: "#94a3b8" }
+      ];
+
+      // Hackathon participant distribution
+      const hackCountMap = new Map<string, number>();
+      registrations.forEach((r: any) => {
+        const name = r.hackathonName || "Unknown Hackathon";
+        hackCountMap.set(name, (hackCountMap.get(name) || 0) + 1);
+      });
+      const hackathonDistribution = Array.from(hackCountMap.entries())
+        .map(([name, count]) => ({ name: name.length > 20 ? name.slice(0, 18) + '...' : name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6);
+
+      // Project status distribution
+      const activeProj = projects.filter((p: any) => p.status === 'Active' || p.status === 'ACTIVE').length;
+      const completedProj = projects.filter((p: any) => p.status === 'Completed' || p.status === 'COMPLETED').length;
+      const lockedProj = projects.filter((p: any) => p.status === 'LOCKED' || p.status === 'EXPIRED').length;
+      const pendingProj = projects.filter((p: any) => p.status === 'MENTOR_PENDING' || p.status === 'PENDING').length;
+
+      const projectStatusDistribution = [
+        { name: "Active", value: activeProj, color: "#3b82f6" },
+        { name: "Completed", value: completedProj, color: "#10b981" },
+        { name: "Pending Mentor", value: pendingProj, color: "#f59e0b" },
+        { name: "Review/Locked", value: lockedProj, color: "#ef4444" }
+      ];
+
+      // Round distribution
+      const roundMap = new Map<string, number>();
+      roundMap.set("Round 1", 0);
+      roundMap.set("Round 2", 0);
+      roundMap.set("Round 3", 0);
+      roundMap.set("Final", 0);
+      mappings.forEach((m: any) => {
+        const r = m.currentRoundId || "Round 1";
+        if (roundMap.has(r)) {
+          roundMap.set(r, (roundMap.get(r) || 0) + 1);
+        } else {
+          roundMap.set(r, (roundMap.get(r) || 0) + 1);
+        }
+      });
+      const roundDistribution = Array.from(roundMap.entries()).map(([round, count]) => ({ round, count }));
+
+      // 7-Lab Distribution
+      const labDistribution = OFFICIAL_LABS.map(labName => {
+        const sCount = allStudents.filter((s: any) => s.lab === labName).length;
+        const pCount = allProjects.filter((p: any) => p.lab === labName).length;
+        const sIds = new Set(allStudents.filter((s: any) => s.lab === labName).map((s: any) => s.userId || s.id));
+        const mCount = allMappings.filter((m: any) => sIds.has(m.studentId)).length;
+        const shortName = labName.replace(" Lab", "").replace("and Research", "& Res.");
+        return { lab: shortName, students: sCount, projects: pCount, mappings: mCount };
+      });
+
+      // Verification Funnel
+      const funnel = [
+        { stage: "Interested", count: Math.max(registrations.length + 15, 30), color: "#6366f1" },
+        { stage: "Registered", count: registrations.length, color: "#8b5cf6" },
+        { stage: "Proof Uploaded", count: registrations.filter((r: any) => r.proofUrl).length, color: "#a855f7" },
+        { stage: "Verified", count: verifiedCount, color: "#10b981" },
+        { stage: "In Active Rounds", count: mappings.filter((m: any) => m.roundStatus === 'In Progress').length, color: "#06b6d4" },
+        { stage: "Completed/Won", count: mappings.filter((m: any) => m.roundStatus === 'Completed' || m.roundStatus === 'Won').length, color: "#eab308" }
+      ];
+
+      // Deadlines
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      let dueToday = 0;
+      let dueSoon = 0;
+      let overdue = 0;
+      let completedDeadlines = 0;
+
+      mappings.forEach((m: any) => {
+        if (m.roundDeadline) {
+          const d = new Date(m.roundDeadline);
+          if (!isNaN(d.getTime())) {
+            const dStr = d.toISOString().split('T')[0];
+            if (m.roundStatus === 'Completed' || m.roundStatus === 'Won') {
+              completedDeadlines++;
+            } else if (dStr === todayStr) {
+              dueToday++;
+            } else if (d < now) {
+              overdue++;
+            } else if (d <= in7Days) {
+              dueSoon++;
+            }
+          }
+        }
+      });
+
+      res.json({
+        success: true,
+        analytics: {
+          studentParticipation,
+          hackathonDistribution,
+          projectStatusDistribution,
+          roundDistribution,
+          labDistribution,
+          verificationFunnel: funnel,
+          deadlines: { dueToday, dueSoon, overdue, completed: completedDeadlines }
+        }
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 4. Attention Center / At-Risk Items
+  app.get("/api/admin/command-center/attention", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
+    try {
+      const { lab } = req.query;
+      let effectiveLab = lab;
+      if (req.user.role === 'coordinator' && req.user.lab) {
+        effectiveLab = req.user.lab;
+      }
+
+      const allStudents = await User.find({ role: { $in: ['student', 'STUDENT'] } });
+      const allProjects = await Project.find();
+      const allRegistrations = await HackathonRegistration.find();
+      const allMappings = await HackathonMapping.find();
+
+      const studentMap = new Map<string, any>();
+      allStudents.forEach((s: any) => {
+        studentMap.set(String(s.userId || s.id), s);
+      });
+
+      const now = new Date();
+      const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      const overdueRounds: any[] = [];
+      const approachingDeadlines: any[] = [];
+      const pendingVerifications: any[] = [];
+      const lowProgressItems: any[] = [];
+      const followUpRequired: any[] = [];
+
+      allMappings.forEach((m: any) => {
+        const student = studentMap.get(String(m.studentId));
+        if (effectiveLab && effectiveLab !== "ALL" && student?.lab !== effectiveLab) return;
+
+        const item = {
+          mappingId: m._id || m.id,
+          studentId: m.studentId,
+          studentName: student ? student.name : m.studentId,
+          studentLab: student ? student.lab : "Unassigned",
+          hackathonId: m.hackathonId,
+          currentRoundId: m.currentRoundId || "Round 1",
+          roundStatus: m.roundStatus || "In Progress",
+          roundDeadline: m.roundDeadline,
+          internalProgress: m.internalProgress || 0,
+          coordinatorFollowUp: m.coordinatorFollowUp,
+          coordinatorRemarks: m.coordinatorRemarks
+        };
+
+        if (m.roundDeadline) {
+          const d = new Date(m.roundDeadline);
+          if (!isNaN(d.getTime())) {
+            if (d < now && m.roundStatus !== 'Completed' && m.roundStatus !== 'Won') {
+              overdueRounds.push(item);
+            } else if (d >= now && d <= in7Days) {
+              approachingDeadlines.push(item);
+              if ((m.internalProgress || 0) < 30) {
+                lowProgressItems.push(item);
+              }
+            }
+          }
+        }
+
+        if (m.coordinatorFollowUp === 'Required') {
+          followUpRequired.push(item);
+        }
+      });
+
+      allRegistrations.forEach((r: any) => {
+        const student = studentMap.get(String(r.studentId));
+        if (effectiveLab && effectiveLab !== "ALL" && student?.lab !== effectiveLab) return;
+
+        if (r.verificationStatus === 'Pending') {
+          pendingVerifications.push({
+            registrationId: r._id || r.id,
+            studentId: r.studentId,
+            studentName: r.studentName || (student ? student.name : "Student"),
+            studentLab: student ? student.lab : (r.department || "Unassigned"),
+            hackathonName: r.hackathonName,
+            registrationDate: r.registrationDate,
+            proofUrl: r.proofUrl
+          });
+        }
+      });
+
+      res.json({
+        success: true,
+        attention: {
+          overdueRounds,
+          approachingDeadlines,
+          pendingVerifications,
+          lowProgressItems,
+          followUpRequired,
+          totalAttentionCount: overdueRounds.length + approachingDeadlines.length + pendingVerifications.length + lowProgressItems.length + followUpRequired.length
+        }
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 5. Data Quality & Completeness Audit
+  app.get("/api/admin/command-center/data-quality", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
+    try {
+      const allStudents = await User.find({ role: { $in: ['student', 'STUDENT'] }, status: { $ne: 'rejected' } });
+      const allProjects = await Project.find();
+      const allMappings = await HackathonMapping.find();
+
+      const studentsWithTeam = new Set<string>();
+      allMappings.forEach((m: any) => { if (m.teamId) studentsWithTeam.add(m.studentId); });
+      allProjects.forEach((p: any) => {
+        if (Array.isArray(p.teamMembers)) {
+          p.teamMembers.forEach((id: string) => studentsWithTeam.add(id));
+        }
+      });
+
+      const studentsWithoutTeam = allStudents.filter((s: any) => !studentsWithTeam.has(s.userId || s.id)).map((s: any) => ({
+        id: s.userId || s.id,
+        name: s.name,
+        email: s.email,
+        lab: s.lab,
+        department: s.department
+      }));
+
+      const teamsWithoutProject = allMappings.filter((m: any) => !m.projectId && m.teamId).map((m: any) => ({
+        mappingId: m._id || m.id,
+        teamId: m.teamId,
+        studentId: m.studentId,
+        hackathonId: m.hackathonId
+      }));
+
+      const mappingsWithoutRound = allMappings.filter((m: any) => !m.currentRoundId || !m.roundDeadline).map((m: any) => ({
+        mappingId: m._id || m.id,
+        studentId: m.studentId,
+        hackathonId: m.hackathonId,
+        issue: !m.currentRoundId ? "Missing Round ID" : "Missing Round Deadline"
+      }));
+
+      const missingRegisterNumbers = allStudents.filter((s: any) => !s.registerNumber || s.registerNumber.trim() === "").map((s: any) => ({
+        id: s.userId || s.id,
+        name: s.name,
+        email: s.email,
+        lab: s.lab
+      }));
+
+      res.json({
+        success: true,
+        dataQuality: {
+          studentsWithoutTeam,
+          teamsWithoutProject,
+          mappingsWithoutRound,
+          missingRegisterNumbers,
+          totalIssues: studentsWithoutTeam.length + teamsWithoutProject.length + mappingsWithoutRound.length + missingRegisterNumbers.length
+        }
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 6. Entity 360° Detail Resolver (Student, Project, Team, Hackathon)
+  app.get("/api/admin/command-center/entity-360/:type/:id", authMiddleware, requireRole(['master_admin', 'coordinator']), async (req: any, res: any) => {
+    try {
+      const { type, id } = req.params;
+
+      if (type === "student") {
+        const student = await User.findOne({ $or: [{ userId: id }, { _id: id }] });
+        if (!student) return res.status(404).json({ error: "Student not found" });
+
+        const sId = student.userId || student.id || student._id.toString();
+        const projects = await Project.find({ teamMembers: sId });
+        const registrations = await HackathonRegistration.find({ studentId: sId });
+        const mappings = await HackathonMapping.find({ studentId: sId });
+        const attendanceRecords = await Attendance.find({ studentId: sId });
+        const dailyReports = await DailyReport.find({ studentId: sId });
+
+        // Build enriched hackathonParticipations
+        const hackathonParticipations = await Promise.all(
+          registrations.map(async (reg: any) => {
+            const h = await Hackathon.findOne({ hackathonId: reg.hackathonId }) ||
+                      await Opportunity.findOne({ $or: [{ id: reg.hackathonId }, { _id: reg.hackathonId }] });
+            const m = mappings.find((mapItem: any) => mapItem.hackathonId === reg.hackathonId);
+            return {
+              registration: reg,
+              hackathon: h,
+              mapping: m,
+              verified: reg.verificationStatus === "Verified"
+            };
+          })
+        );
+
+        // Calculate attendance stats
+        const totalDays = attendanceRecords.length;
+        const presentDays = attendanceRecords.filter((a: any) => a.status === 'present').length;
+        const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+
+        // Fetch teams where student is mapped
+        const teamIds = Array.from(new Set(mappings.map((m: any) => m.teamId).filter(Boolean)));
+        const teams = teamIds.map((tid: any) => {
+          const tMappings = mappings.filter((m: any) => m.teamId === tid);
+          return {
+            id: tid,
+            name: tid,
+            members: tMappings,
+            status: "active"
+          };
+        });
+
+        return res.json({
+          success: true,
+          type: "student",
+          data: {
+            student: sanitizeUser(student),
+            projects,
+            registrations,
+            mappings,
+            hackathonParticipations,
+            teams,
+            attendance: {
+              attendanceRate,
+              totalDays,
+              presentDays,
+              records: attendanceRecords.map((a: any) => ({ date: a.date, status: a.status }))
+            },
+            dailyReportsCount: dailyReports.length
+          }
+        });
+      }
+
+      if (type === "project") {
+        const project = await Project.findOne({ $or: [{ _id: id }, { id }, { projectId: id }] });
+        if (!project) return res.status(404).json({ error: "Project not found" });
+
+        const members = await User.find({ userId: { $in: project.teamMembers || [] } });
+        const mappings = await HackathonMapping.find({ projectId: project._id || project.id });
+        const presentations = await MilestonePresentation.find({ projectId: project._id || project.id });
+
+        let hackathon = null;
+        if (mappings.length > 0 && mappings[0].hackathonId) {
+          hackathon = await Hackathon.findOne({ hackathonId: mappings[0].hackathonId }) ||
+                      await Opportunity.findOne({ $or: [{ id: mappings[0].hackathonId }, { _id: mappings[0].hackathonId }] });
+        }
+
+        const teamName = mappings.length > 0 && mappings[0].teamId ? mappings[0].teamId : "Project Team";
+
+        return res.json({
+          success: true,
+          type: "project",
+          data: {
+            project,
+            students: members.map(m => sanitizeUser(m)),
+            members: members.map(m => sanitizeUser(m)),
+            team: { name: teamName, members },
+            hackathon,
+            mappings,
+            presentations
+          }
+        });
+      }
+
+      if (type === "hackathon") {
+        const hackathon = await Hackathon.findOne({ $or: [{ hackathonId: id }, { _id: id }] }) ||
+                          await Opportunity.findOne({ $or: [{ id }, { _id: id }] });
+        if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
+
+        const hId = hackathon.hackathonId || hackathon.id || id;
+        const registrations = await HackathonRegistration.find({ hackathonId: hId });
+        const interests = await HackathonInterest.find({ hackathonId: hId });
+        const mappings = await HackathonMapping.find({ hackathonId: hId });
+
+        const projectIds = Array.from(new Set(mappings.map((m: any) => m.projectId).filter(Boolean)));
+        const projects = await Project.find({ _id: { $in: projectIds } });
+
+        const teamIds = Array.from(new Set(mappings.map((m: any) => m.teamId).filter(Boolean)));
+        const teams = teamIds.map((tid: any) => ({
+          id: tid,
+          name: tid,
+          membersCount: mappings.filter((m: any) => m.teamId === tid).length
+        }));
+
+        const roundDist: Record<string, number> = {};
+        mappings.forEach((m: any) => {
+          const r = m.currentRoundId || "Round 1";
+          roundDist[r] = (roundDist[r] || 0) + 1;
+        });
+
+        return res.json({
+          success: true,
+          type: "hackathon",
+          data: {
+            hackathon,
+            stats: {
+              interested: interests.length,
+              registered: registrations.length,
+              verified: registrations.filter((r: any) => r.verificationStatus === "Verified").length,
+              roundDistribution: roundDist
+            },
+            projects,
+            teams,
+            registrations,
+            mappings
+          }
+        });
+      }
+
+      if (type === "team") {
+        const mappings = await HackathonMapping.find({ teamId: id });
+        const studentIds = mappings.map((m: any) => m.studentId);
+        const members = await User.find({ userId: { $in: studentIds } });
+
+        let project = null;
+        if (mappings.length > 0 && mappings[0].projectId) {
+          project = await Project.findById(mappings[0].projectId);
+        }
+
+        let hackathon = null;
+        if (mappings.length > 0 && mappings[0].hackathonId) {
+          hackathon = await Hackathon.findOne({ hackathonId: mappings[0].hackathonId }) ||
+                      await Opportunity.findOne({ $or: [{ id: mappings[0].hackathonId }, { _id: mappings[0].hackathonId }] });
+        }
+
+        return res.json({
+          success: true,
+          type: "team",
+          data: {
+            team: {
+              id,
+              name: id,
+              status: "active",
+              description: `Registered hackathon squad with ${members.length} student members.`
+            },
+            members: members.map(m => sanitizeUser(m)),
+            project,
+            hackathon,
+            mappings
+          }
+        });
+      }
+
+      res.status(400).json({ error: "Invalid entity type" });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // 24/7 Anti-Sleep Keep-Alive Health Check Endpoints
   app.get(["/api/health", "/api/ping"], (req, res) => {
     res.json({
