@@ -5376,13 +5376,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       }
 
       const teamSet = new Set<string>();
-      mappings.forEach((m: any) => { if (m.teamId) teamSet.add(m.teamId); });
-      projects.forEach((p: any) => { 
-        if (p.name) teamSet.add(p.name);
-        if (p.teamMembers && Array.isArray(p.teamMembers) && p.teamMembers.length > 1) {
-          teamSet.add(p._id || p.id);
-        }
-      });
+      mappings.forEach((m: any) => { if (m.teamId && m.teamId.trim()) teamSet.add(m.teamId.trim()); });
 
       const now = new Date();
       const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
@@ -5440,19 +5434,27 @@ Do not include markdown tags. Return only raw JSON string.`;
         const labStudentIds = new Set(labStudents.map((s: any) => s.userId || s.id));
         const labMappings = allMappings.filter((m: any) => labStudentIds.has(m.studentId));
         const labTeams = new Set<string>();
-        labMappings.forEach((m: any) => { if (m.teamId) labTeams.add(m.teamId); });
+        labMappings.forEach((m: any) => { if (m.teamId && m.teamId.trim()) labTeams.add(m.teamId.trim()); });
 
         labSummaries[labName] = {
           labName,
           totalStudents: labStudents.length,
+          studentsCount: labStudents.length,
           totalProjects: labProjects.length,
+          projectsCount: labProjects.length,
           activeProjects: labProjects.filter((p: any) => p.status === 'Active' || p.status === 'ACTIVE').length,
+          activeProjectsCount: labProjects.filter((p: any) => p.status === 'Active' || p.status === 'ACTIVE').length,
           totalTeams: labTeams.size,
+          teamsCount: labTeams.size,
+          participationsCount: labMappings.length,
           hackathonMappings: labMappings.length,
           verifiedStudents: allRegistrations.filter((r: any) => labStudentIds.has(r.studentId) && r.verificationStatus === 'Verified').length,
+          verifiedCount: allRegistrations.filter((r: any) => labStudentIds.has(r.studentId) && r.verificationStatus === 'Verified').length,
           pendingVerifications: allRegistrations.filter((r: any) => labStudentIds.has(r.studentId) && r.verificationStatus === 'Pending').length,
+          pendingCount: allRegistrations.filter((r: any) => labStudentIds.has(r.studentId) && r.verificationStatus === 'Pending').length,
           activeRounds: labMappings.filter((m: any) => m.roundStatus === 'In Progress').length,
-          atRiskItems: labMappings.filter((m: any) => m.coordinatorFollowUp === 'Required' || ((m.internalProgress || 0) < 30 && m.roundDeadline)).length
+          atRiskItems: labMappings.filter((m: any) => m.coordinatorFollowUp === 'Required' || ((m.internalProgress || 0) < 30 && m.roundDeadline)).length,
+          atRiskCount: labMappings.filter((m: any) => m.coordinatorFollowUp === 'Required' || ((m.internalProgress || 0) < 30 && m.roundDeadline)).length
         };
       });
 
@@ -5481,6 +5483,13 @@ Do not include markdown tags. Return only raw JSON string.`;
           atRiskItems: atRiskCount
         },
         labSummaries,
+        labsSummary: Object.values(labSummaries),
+        attentionSummary: {
+          overdueRounds: mappings.filter((m: any) => m.roundDeadline && new Date(m.roundDeadline) < now && m.roundStatus !== 'Completed').length,
+          approachingDeadlines: upcomingDeadlinesCount,
+          pendingVerifications: pendingVerificationCount,
+          lowProgress: mappings.filter((m: any) => (m.internalProgress || 0) < 30).length
+        },
         timestamp: new Date().toISOString()
       });
     } catch (e: any) {
@@ -5558,15 +5567,18 @@ Do not include markdown tags. Return only raw JSON string.`;
           studentEmail: student.email || "",
           registerNumber: student.registerNumber || "",
           studentLab: student.lab || "Unassigned",
+          lab: student.lab || "Unassigned",
           studentDepartment: student.department || "",
+          department: student.department || "",
           studentYear: student.year || "3",
+          year: student.year || "3",
           studentAvatar: student.avatar || `https://avatar.vercel.sh/${student.email || m.studentId}`,
           
-          teamId: m.teamId || "Team Alpha",
-          teamName: m.teamId || "Team Alpha",
+          teamId: m.teamId || "",
+          teamName: m.teamId || "",
           
           projectId: project ? (project._id || project.id) : (m.projectId || ""),
-          projectName: project ? project.name : (m.projectName || "Unlinked Project"),
+          projectName: project ? (project.name || project.title) : (m.projectName || ""),
           projectStatus: project ? project.status : "Active",
           projectProgress: project ? project.progress : 0,
 
@@ -5575,8 +5587,10 @@ Do not include markdown tags. Return only raw JSON string.`;
           hackathonOrganizer: hackathon ? hackathon.organizer : "Tech Organizer",
           verificationStatus: reg ? reg.verificationStatus : "Approved",
           proofUrl: reg ? reg.proofUrl : "",
+          hasProof: Boolean(reg?.proofUrl || reg?.screenshotUrl),
 
           currentRoundId: m.currentRoundId || "Round 1",
+          currentRoundName: m.currentRoundId || "Round 1",
           roundStatus: m.roundStatus || "In Progress",
           roundDeadline: m.roundDeadline || "",
           internalProgress: m.internalProgress !== undefined ? m.internalProgress : 0,
@@ -5589,6 +5603,8 @@ Do not include markdown tags. Return only raw JSON string.`;
           isOverdue,
           isDueSoon,
           isAtRisk,
+          atRiskReason: isOverdue ? "Overdue Round Deadline" : (isDueSoon && (m.internalProgress || 0) < 30) ? "Approaching Deadline (<30% Progress)" : m.coordinatorFollowUp === 'Required' ? "Coordinator Follow-up Required" : "",
+          lastUpdated: m.updatedAt || m.createdAt || new Date().toISOString(),
           updatedAt: m.updatedAt || m.createdAt || new Date().toISOString()
         });
       });
@@ -5608,16 +5624,19 @@ Do not include markdown tags. Return only raw JSON string.`;
             studentEmail: student.email || r.studentEmail || "",
             registerNumber: student.registerNumber || r.registerNumber || "",
             studentLab: student.lab || "Unassigned",
+            lab: student.lab || "Unassigned",
             studentDepartment: student.department || r.department || "",
+            department: student.department || r.department || "",
             studentYear: student.year || "3",
+            year: student.year || "3",
             studentAvatar: student.avatar || `https://avatar.vercel.sh/${student.email || r.studentId}`,
 
-            teamId: "Unassigned",
-            teamName: "Unassigned",
+            teamId: "",
+            teamName: "",
 
             projectId: project ? (project._id || project.id) : "",
-            projectName: project ? project.name : "Unlinked Project",
-            projectStatus: project ? project.status : "Active",
+            projectName: project ? (project.name || project.title) : "",
+            projectStatus: project ? project.status : "",
             projectProgress: project ? project.progress : 0,
 
             hackathonId: r.hackathonId,
@@ -5625,8 +5644,10 @@ Do not include markdown tags. Return only raw JSON string.`;
             hackathonOrganizer: hackathon ? hackathon.organizer : "Organizer",
             verificationStatus: r.verificationStatus,
             proofUrl: r.proofUrl || "",
+            hasProof: Boolean(r.proofUrl || r.screenshotUrl),
 
             currentRoundId: "Round 1",
+            currentRoundName: "Round 1",
             roundStatus: "Upcoming",
             roundDeadline: "",
             internalProgress: 0,
@@ -5639,6 +5660,8 @@ Do not include markdown tags. Return only raw JSON string.`;
             isOverdue: false,
             isDueSoon: false,
             isAtRisk: r.verificationStatus === 'Pending',
+            atRiskReason: r.verificationStatus === 'Pending' ? "Pending Proof Verification" : "",
+            lastUpdated: r.registrationDate || new Date().toISOString(),
             updatedAt: r.registrationDate || new Date().toISOString()
           });
         }
@@ -5821,16 +5844,27 @@ Do not include markdown tags. Return only raw JSON string.`;
         }
       });
 
+      const deadlineOverview = [
+        { category: "Due Today", count: dueToday },
+        { category: "Due Soon (7d)", count: dueSoon },
+        { category: "Overdue", count: overdue },
+        { category: "Completed", count: completedDeadlines }
+      ];
+
       res.json({
         success: true,
         analytics: {
           studentParticipation,
+          hackathonParticipation: hackathonDistribution,
           hackathonDistribution,
+          projectStatus: projectStatusDistribution,
           projectStatusDistribution,
+          roundProgress: roundDistribution,
           roundDistribution,
           labDistribution,
           verificationFunnel: funnel,
-          deadlines: { dueToday, dueSoon, overdue, completed: completedDeadlines }
+          deadlines: { dueToday, dueSoon, overdue, completed: completedDeadlines },
+          deadlineOverview
         }
       });
     } catch (e: any) {
@@ -5920,15 +5954,78 @@ Do not include markdown tags. Return only raw JSON string.`;
         }
       });
 
+      const items: any[] = [];
+
+      overdueRounds.forEach((o: any) => {
+        items.push({
+          type: "overdue_round",
+          severity: "critical",
+          title: `Overdue Milestone (${o.currentRoundId || "Round"})`,
+          description: `Student ${o.studentName} has passed round deadline without completion.`,
+          studentId: o.studentId,
+          studentName: o.studentName,
+          hackathonId: o.hackathonId,
+          lab: o.studentLab,
+          progress: o.internalProgress
+        });
+      });
+
+      approachingDeadlines.forEach((a: any) => {
+        items.push({
+          type: "approaching_deadline",
+          severity: "high",
+          title: `Deadline Approaching (${a.currentRoundId || "Round"})`,
+          description: `Deadline approaching within 7 days for ${a.studentName}.`,
+          studentId: a.studentId,
+          studentName: a.studentName,
+          hackathonId: a.hackathonId,
+          lab: a.studentLab,
+          progress: a.internalProgress
+        });
+      });
+
+      pendingVerifications.forEach((p: any) => {
+        items.push({
+          type: "pending_verification",
+          severity: "high",
+          title: `Pending Proof Verification`,
+          description: `Student ${p.studentName} submitted verification proof for ${p.hackathonName}.`,
+          studentId: p.studentId,
+          studentName: p.studentName,
+          lab: p.studentLab
+        });
+      });
+
+      lowProgressItems.forEach((l: any) => {
+        items.push({
+          type: "low_progress",
+          severity: "critical",
+          title: `At-Risk Progress (<30%)`,
+          description: `${l.studentName} is at ${l.internalProgress}% progress with approaching milestone deadline.`,
+          studentId: l.studentId,
+          studentName: l.studentName,
+          hackathonId: l.hackathonId,
+          lab: l.studentLab,
+          progress: l.internalProgress
+        });
+      });
+
       res.json({
         success: true,
         attention: {
+          summary: {
+            overdueRounds: overdueRounds.length,
+            approachingDeadlines: approachingDeadlines.length,
+            pendingVerifications: pendingVerifications.length,
+            lowProgress: lowProgressItems.length
+          },
+          items,
           overdueRounds,
           approachingDeadlines,
           pendingVerifications,
           lowProgressItems,
           followUpRequired,
-          totalAttentionCount: overdueRounds.length + approachingDeadlines.length + pendingVerifications.length + lowProgressItems.length + followUpRequired.length
+          totalAttentionCount: items.length
         }
       });
     } catch (e: any) {
@@ -5980,14 +6077,69 @@ Do not include markdown tags. Return only raw JSON string.`;
         lab: s.lab
       }));
 
+      const issues: any[] = [];
+
+      missingRegisterNumbers.forEach((s: any) => {
+        issues.push({
+          type: "missing_register_number",
+          severity: "high",
+          entityType: "student",
+          entityId: s.id,
+          entityName: s.name,
+          issue: "Missing official registration number in profile.",
+          suggestion: "Update student record with institutional register number."
+        });
+      });
+
+      teamsWithoutProject.forEach((t: any) => {
+        issues.push({
+          type: "team_without_project",
+          severity: "high",
+          entityType: "team",
+          entityId: t.teamId,
+          entityName: t.teamId,
+          issue: "Team has no linked project abstract or repository.",
+          suggestion: "Map an active project to this team."
+        });
+      });
+
+      mappingsWithoutRound.forEach((m: any) => {
+        issues.push({
+          type: "mapping_without_round",
+          severity: "medium",
+          entityType: "mapping",
+          entityId: m.mappingId,
+          entityName: m.studentId,
+          issue: m.issue,
+          suggestion: "Define active round and submission deadline."
+        });
+      });
+
+      studentsWithoutTeam.forEach((s: any) => {
+        issues.push({
+          type: "student_without_team",
+          severity: "medium",
+          entityType: "student",
+          entityId: s.id,
+          entityName: s.name,
+          issue: "Student is not linked to any project team or squad.",
+          suggestion: "Form or assign a project team for this student."
+        });
+      });
+
       res.json({
         success: true,
         dataQuality: {
+          summary: {
+            totalIssues: issues.length,
+            highSeverity: issues.filter((i: any) => i.severity === 'high').length,
+            mediumSeverity: issues.filter((i: any) => i.severity === 'medium').length
+          },
+          issues,
           studentsWithoutTeam,
           teamsWithoutProject,
           mappingsWithoutRound,
-          missingRegisterNumbers,
-          totalIssues: studentsWithoutTeam.length + teamsWithoutProject.length + mappingsWithoutRound.length + missingRegisterNumbers.length
+          missingRegisterNumbers
         }
       });
     } catch (e: any) {

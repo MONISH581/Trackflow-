@@ -55,7 +55,7 @@ export const Project360Drawer: React.FC<Project360DrawerProps> = ({
                 Project 360° Dossier
               </span>
               <h2 className="text-base sm:text-lg font-black text-white line-clamp-1">
-                {project?.title || "Project Details"}
+                {project?.title || project?.name || "Project Details"}
               </h2>
             </div>
           </div>
@@ -141,7 +141,7 @@ export const Project360Drawer: React.FC<Project360DrawerProps> = ({
 
                 <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs space-y-1">
                   <span className="text-[10px] font-black uppercase text-amber-600">Hackathon Alignment</span>
-                  <h4 className="text-xs font-black text-slate-900">{hackathon?.title || "Independent Project"}</h4>
+                  <h4 className="text-xs font-black text-slate-900">{hackathon?.title || hackathon?.name || "Independent Project"}</h4>
                   <p className="text-[11px] text-slate-500">{hackathon?.organizer || "Internal TrackFlow"}</p>
                 </div>
               </div>

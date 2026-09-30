@@ -149,7 +149,7 @@ export const Student360Drawer: React.FC<Student360DrawerProps> = ({
                             <span className="text-[10px] font-black uppercase tracking-wider text-amber-600">
                               {h?.organizer || "Official Hackathon"}
                             </span>
-                            <h4 className="text-sm font-black text-slate-900">{h?.title || "Hackathon"}</h4>
+                            <h4 className="text-sm font-black text-slate-900">{h?.title || h?.name || "Hackathon"}</h4>
                           </div>
 
                           <span
@@ -229,7 +229,7 @@ export const Student360Drawer: React.FC<Student360DrawerProps> = ({
                       className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs space-y-2"
                     >
                       <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-black text-slate-900">{proj.title}</h4>
+                        <h4 className="text-xs font-black text-slate-900">{proj.title || proj.name}</h4>
                         <span className="text-[10px] font-bold text-indigo-600">
                           {proj.progress || 0}% Progress
                         </span>

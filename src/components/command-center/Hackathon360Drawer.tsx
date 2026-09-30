@@ -50,7 +50,7 @@ export const Hackathon360Drawer: React.FC<Hackathon360DrawerProps> = ({
                 Hackathon 360° Dossier
               </span>
               <h2 className="text-base sm:text-lg font-black text-white line-clamp-1">
-                {hackathon?.title || "Hackathon Event"}
+                {hackathon?.title || hackathon?.name || "Hackathon Event"}
               </h2>
             </div>
           </div>
@@ -153,7 +153,7 @@ export const Hackathon360Drawer: React.FC<Hackathon360DrawerProps> = ({
                         className="p-3 bg-white rounded-xl border border-slate-200/80 hover:border-amber-300 transition flex items-center justify-between cursor-pointer"
                       >
                         <div>
-                          <h4 className="text-xs font-bold text-slate-900">{proj.title}</h4>
+                          <h4 className="text-xs font-bold text-slate-900">{proj.title || proj.name}</h4>
                           <p className="text-[10px] text-slate-400">Progress: {proj.progress || 0}%</p>
                         </div>
                         <span className="text-[10px] text-amber-600 font-bold hover:underline">
