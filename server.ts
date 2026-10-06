@@ -3049,6 +3049,138 @@ Do not include markdown tags. Return only raw JSON string.`;
           registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           registrationLink: "https://naanmudhalvan.tn.gov.in",
           status: "Active"
+        },
+        {
+          hackathonId: "hack2skill-ai-grand-challenge-2026",
+          name: "Hack2skill National GenAI Innovation Sprint 2026",
+          organizer: "Hack2skill",
+          description: "Flagship nationwide AI innovation sprint empowering students to develop multimodal LLM applications, autonomous agents, and enterprise AI bots.",
+          domain: "Artificial Intelligence (AI)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://hack2skill.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "hack2skill-cyber-shield-2026",
+          name: "Hack2skill Cyber Shield & Cloud Defense 2026",
+          organizer: "Hack2skill",
+          description: "National cybersecurity hackathon covering zero-trust architectures, threat hunting, CTF challenges, and vulnerability intelligence.",
+          domain: "Cybersecurity & Cloud",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://hack2skill.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "hack2skill-ml-vision-2026",
+          name: "Hack2skill Computer Vision & Predictive ML Cup",
+          organizer: "Hack2skill",
+          description: "Develop cutting-edge machine learning models for computer vision, object classification, and time-series analytics.",
+          domain: "Machine Learning (ML)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 65 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://hack2skill.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "unstop-fsd-national-2026",
+          name: "Unstop Full Stack Development National Championship",
+          organizer: "Unstop",
+          description: "Premier 48-hour Full Stack web and mobile application sprint. Architect end-to-end MERN/Next.js platforms with real-time architectures.",
+          domain: "Full Stack Development (FSD)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 50 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://unstop.com/hackathons",
+          status: "Active"
+        },
+        {
+          hackathonId: "unstop-app-innovators-2026",
+          name: "Unstop Web & Mobile Full Stack Hack",
+          organizer: "Unstop",
+          description: "Design and build scalable full-stack web and mobile apps solving modern consumer tech workflows.",
+          domain: "Full Stack Development (FSD)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://unstop.com/hackathons",
+          status: "Active"
+        },
+        {
+          hackathonId: "devpost-ml-predictive-2026",
+          name: "Devpost Machine Learning & Big Data Hackathon",
+          organizer: "Devpost",
+          description: "Global data science challenge to build ML algorithms and predictive pipelines on distributed datasets.",
+          domain: "Machine Learning (ML)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 70 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://devpost.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "devpost-cyber-sentinel-2026",
+          name: "Devpost Global Cloud & Cyber Threat Hackathon",
+          organizer: "Devpost",
+          description: "Build automated cybersecurity threat intelligence, cloud vulnerability detection, and identity protection tools.",
+          domain: "Cybersecurity & Cloud",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 80 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://devpost.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "aws-cloud-genai-2026",
+          name: "AWS Amazon GenAI Cloud Builders Challenge",
+          organizer: "Amazon AWS",
+          description: "Build enterprise cloud applications powered by Amazon Bedrock, serverless architectures, and AWS cloud security.",
+          domain: "Artificial Intelligence (AI)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://aws.amazon.com/events",
+          status: "Active"
+        },
+        {
+          hackathonId: "apple-swift-student-2026",
+          name: "Apple Swift Student Challenge & App Innovation Sprint",
+          organizer: "Apple",
+          description: "Create an extraordinary full-stack app experience using Swift, SwiftUI, and iOS cloud integrations.",
+          domain: "Full Stack Development (FSD)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 100 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 50 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://developer.apple.com/swift-student-challenge",
+          status: "Active"
+        },
+        {
+          hackathonId: "microsoft-sentinel-cyber-2026",
+          name: "Microsoft Security Sentinel AI & Cyber Challenge",
+          organizer: "Microsoft",
+          description: "Build AI-driven cybersecurity automation and threat response solutions integrated with Microsoft Defender and Azure Sentinel.",
+          domain: "Cybersecurity & Cloud",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://security.microsoft.com",
+          status: "Active"
+        },
+        {
+          hackathonId: "google-cloud-run-fsd-2026",
+          name: "Google Cloud Full Stack Modern App Sprint",
+          organizer: "Google",
+          description: "Develop scalable full-stack web and mobile apps leveraging Firebase, Google Cloud Run, and Gemini AI.",
+          domain: "Full Stack Development (FSD)",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000),
+          registrationDeadline: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
+          registrationLink: "https://cloud.google.com/innovators",
+          status: "Active"
         }
       ];
 

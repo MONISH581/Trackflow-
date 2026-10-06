@@ -20,6 +20,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import HackathonMatrixView from "../components/HackathonMatrixView.tsx";
 
 export default function AdminOpportunities() {
   const navigate = useNavigate();
@@ -32,6 +33,9 @@ export default function AdminOpportunities() {
     deleteOpportunity,
     addToast
   } = useStore();
+
+  // Admin View Mode (Matrix vs Table)
+  const [adminTab, setAdminTab] = React.useState<"matrix" | "table">("matrix");
 
   // Modal / Form States
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -66,8 +70,8 @@ export default function AdminOpportunities() {
   const [trending, setTrending] = React.useState(false);
 
   React.useEffect(() => {
-    // Restrict to Coordinator
-    if (currentUser?.role !== "coordinator") {
+    // Restrict to Coordinator or Master Admin
+    if (currentUser?.role !== "coordinator" && currentUser?.role !== "master_admin") {
       navigate("/opportunities");
       return;
     }
@@ -278,7 +282,52 @@ export default function AdminOpportunities() {
         </div>
       </div>
 
-      {/* Pending Student Opportunity Approvals Section */}
+      {/* Admin View Mode Switcher: Matrix View vs Database Table */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div>
+          <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <span>Admin Opportunities & Hackathons Console</span>
+          </h2>
+          <p className="text-xs text-slate-500">
+            Switch between the Domain/Platform Matrix cross-tabulation view and the database management table.
+          </p>
+        </div>
+
+        <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setAdminTab("matrix")}
+            className={`px-4 py-2 text-xs font-black rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+              adminTab === "matrix"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900"
+            }`}
+          >
+            <span>📊 Matrix View (Domains × Platforms)</span>
+          </button>
+          <button
+            onClick={() => setAdminTab("table")}
+            className={`px-4 py-2 text-xs font-black rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+              adminTab === "table"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900"
+            }`}
+          >
+            <span>📋 Database Table ({opportunities.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {adminTab === "matrix" ? (
+        <HackathonMatrixView
+          userRole="coordinator"
+          onAddHackathon={handleOpenAdd}
+          onRefresh={() => fetchOpportunities({ search })}
+          title="Admin Hackathon Matrix (Platforms & Companies × Domains)"
+          subtitle="Coordinator Admin Console: Cross-tabulation mapping hackathon sources (Devpost, Hack2skill, Unstop, Microsoft, Google, etc.) against technical domains (AI, ML, FSD, Cyber) with active month filtering."
+        />
+      ) : (
+        <div className="space-y-6">
+          {/* Pending Student Opportunity Approvals Section */}
       <div className="glass-card p-6 border border-amber-200/80 bg-amber-50/20 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -468,6 +517,8 @@ export default function AdminOpportunities() {
           </table>
         </div>
       </div>
+        </div>
+      )}
 
       {/* Add / Edit Form Modal */}
       {modalOpen && (

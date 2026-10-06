@@ -7,6 +7,7 @@ import {
   Flame, Zap, RefreshCw, ZoomIn, ZoomOut, RotateCw, Download, Filter, ChevronLeft, ChevronRight,
   Edit3, Trash2
 } from "lucide-react";
+import HackathonMatrixView from "../components/HackathonMatrixView.tsx";
 
 const FEATURED_PLATFORMS = [
   {
@@ -68,7 +69,7 @@ export default function HackathonHub() {
     fetchHackathonInterests
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<"available" | "registrations" | "interests" | "verification">("available");
+  const [activeTab, setActiveTab] = useState<"available" | "registrations" | "interests" | "verification" | "matrix">("matrix");
   const [domainFilter, setDomainFilter] = useState<string>("ALL");
   const [selectedHackathon, setSelectedHackathon] = useState<HackathonInfo | null>(null);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
@@ -321,6 +322,14 @@ export default function HackathonHub() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
+              onClick={() => setActiveTab("matrix")}
+              className={`px-3 py-2 text-xs font-black rounded-lg transition-all ${
+                activeTab === "matrix" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              📊 Matrix View (Domains × Platforms)
+            </button>
+            <button
               onClick={() => setActiveTab("available")}
               className={`px-3 py-2 text-xs font-bold rounded-lg transition-all ${
                 activeTab === "available" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
@@ -385,6 +394,16 @@ export default function HackathonHub() {
           )}
         </div>
       </div>
+
+      {/* Matrix View Tab */}
+      {activeTab === "matrix" && (
+        <HackathonMatrixView
+          userRole={currentUser?.role}
+          onAddHackathon={isTeacher ? () => setShowAddModal(true) : undefined}
+          title="Hackathon Domain & Platform Matrix"
+          subtitle="Real-time cross-tabulation mapping hackathon sourcing platforms and corporate tech giants against core engineering domains with active month filtering."
+        />
+      )}
 
       {/* Available Hackathons & Kaggle Competitions Tab */}
       {activeTab === "available" && (

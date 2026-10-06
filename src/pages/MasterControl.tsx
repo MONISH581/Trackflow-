@@ -30,6 +30,8 @@ import {
   CheckCircle2
 } from "lucide-react";
 
+import HackathonMatrixView from "../components/HackathonMatrixView.tsx";
+
 export default function MasterControl() {
   const { 
     currentUser, 
@@ -49,6 +51,9 @@ export default function MasterControl() {
   const [loading, setLoading] = React.useState(true);
   const [selectedLab, setSelectedLab] = React.useState<string | "ALL">("ALL");
   const [mappingsSearch, setMappingsSearch] = React.useState("");
+
+  // Hackathon Section View Mode (Matrix vs Lab Mappings)
+  const [hackathonTab, setHackathonTab] = React.useState<"matrix" | "mappings">("matrix");
 
   // Master Remark Inline Edit State
   const [editingMappingKey, setEditingMappingKey] = React.useState<string | null>(null);
@@ -223,28 +228,63 @@ export default function MasterControl() {
               <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
                 <Target className="w-4 h-4" />
               </div>
-              <h2 className="text-lg font-black text-slate-900">7-Lab Hackathon Mapping & Tracking Command</h2>
+              <h2 className="text-lg font-black text-slate-900">Hackathon Command & 7-Lab Tracking</h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Strict Master-only visibility: monitor student teams, mapped projects, round progressions, deadlines, and issue strategic Master remarks.
+              Strict Master-only visibility: switch between the Domain/Platform Matrix layout and 7-Lab student tracking cards.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search student, team, event..."
-                value={mappingsSearch}
-                onChange={(e) => setMappingsSearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 w-56"
-              />
+            {/* View Mode Toggle */}
+            <div className="inline-flex rounded-xl p-1 bg-purple-50 border border-purple-200">
+              <button
+                onClick={() => setHackathonTab("matrix")}
+                className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                  hackathonTab === "matrix"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-purple-700 hover:bg-purple-100"
+                }`}
+              >
+                <span>📊 Matrix View (Domains × Platforms)</span>
+              </button>
+              <button
+                onClick={() => setHackathonTab("mappings")}
+                className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                  hackathonTab === "mappings"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-purple-700 hover:bg-purple-100"
+                }`}
+              >
+                <span>🎯 7-Lab Student Mappings ({mappings.length})</span>
+              </button>
             </div>
+
+            {hackathonTab === "mappings" && (
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search student, team, event..."
+                  value={mappingsSearch}
+                  onChange={(e) => setMappingsSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 w-56"
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Lab Filter Selector */}
+        {hackathonTab === "matrix" ? (
+          <HackathonMatrixView
+            userRole="master_admin"
+            onRefresh={loadData}
+            title="Master Hackathon Matrix (Platform/Company × Domain)"
+            subtitle="Real-time matrix mapping hackathon sources (Devpost, Hack2skill, Unstop, Microsoft, Google, etc.) against technical domains (AI, ML, FSD, Cyber) with active month filtering."
+          />
+        ) : (
+          <div className="space-y-4">
+            {/* Lab Filter Selector */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
           <button
             onClick={() => setSelectedLab("ALL")}
@@ -422,6 +462,8 @@ export default function MasterControl() {
                 </div>
               );
             })}
+          </div>
+        )}
           </div>
         )}
       </div>
