@@ -22,7 +22,8 @@ import {
   BadgeAlert,
   Info,
   ChevronDown,
-  Globe
+  Globe,
+  Upload
 } from "lucide-react";
 
 
@@ -415,6 +416,16 @@ export default function OpportunityDetails() {
                   <span>Record Applied Interest</span>
                 )}
               </button>
+
+              {(opp.category || "").toLowerCase() === "hackathons" && (
+                <Link
+                  to={`/hackathons?hackathonId=${opp.id || opp._id}&name=${encodeURIComponent(opp.title)}`}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>📸 Submit Hackathon Proof</span>
+                </Link>
+              )}
 
               <a
                 href={opp.website}

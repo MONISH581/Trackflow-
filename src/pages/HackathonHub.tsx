@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useStore, HackathonInfo, HackathonRegistrationInfo, API_BASE, getAuthHeaders } from "../store.ts";
 import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
 import { 
@@ -68,6 +69,34 @@ export default function HackathonHub() {
     expressHackathonInterest,
     fetchHackathonInterests
   } = useStore();
+
+  const [searchParams] = useSearchParams();
+  const paramHackathonId = searchParams.get("hackathonId");
+  const paramHackathonName = searchParams.get("name");
+
+  useEffect(() => {
+    if (paramHackathonId || paramHackathonName) {
+      const match = hackathons.find((h) =>
+        (paramHackathonId && (h._id === paramHackathonId || h.id === paramHackathonId || h.hackathonId === paramHackathonId)) ||
+        (paramHackathonName && h.name && h.name.toLowerCase() === paramHackathonName.toLowerCase())
+      );
+      if (match) {
+        setSelectedHackathon(match);
+      } else if (paramHackathonName) {
+        setSelectedHackathon({
+          id: paramHackathonId || `custom-${Date.now()}`,
+          name: paramHackathonName,
+          organizer: "Event Host",
+          domain: "General Tech",
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          registrationDeadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          registrationLink: "https://trackflow.internal",
+          status: "Active"
+        } as HackathonInfo);
+      }
+    }
+  }, [paramHackathonId, paramHackathonName, hackathons]);
 
   const [activeTab, setActiveTab] = useState<"available" | "registrations" | "interests" | "verification" | "matrix">("matrix");
   const [domainFilter, setDomainFilter] = useState<string>("ALL");
@@ -1286,14 +1315,19 @@ export default function HackathonHub() {
                 <select
                   value={newHackathon.domain}
                   onChange={(e) => setNewHackathon({ ...newHackathon, domain: e.target.value })}
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
                 >
-                  <option value="Kaggle / Machine Learning">Kaggle / Machine Learning</option>
-                  <option value="Kaggle / Generative AI">Kaggle / Generative AI</option>
-                  <option value="Government Hackathon">Government Hackathon</option>
-                  <option value="Artificial Intelligence">Artificial Intelligence</option>
-                  <option value="Cyber Security">Cyber Security</option>
-                  <option value="Web & Mobile Dev">Web & Mobile Dev</option>
+                  <option value="Machine Learning (ML)">Machine Learning (ML) & Kaggle</option>
+                  <option value="Artificial Intelligence (AI)">Artificial Intelligence (AI) & LLMs</option>
+                  <option value="Full Stack Development (FSD)">Full Stack Development (FSD)</option>
+                  <option value="Cybersecurity (Cyber)">Cybersecurity & CTF Defense</option>
+                  <option value="Cloud Infrastructure">Cloud Infrastructure & DevOps</option>
+                  <option value="Mobile App Development">Mobile App Development</option>
+                  <option value="Web3 & Blockchain">Web3 & Blockchain</option>
+                  <option value="IoT & Robotics">IoT & Hardware Robotics</option>
+                  <option value="Open Innovation & Govt Tech">Open Innovation & Govt Tech (SIH)</option>
+                  <option value="Premier University Fest">Premier University Fest (IIT / NIT / BITS)</option>
+                  <option value="Local & Campus Internal">Local & Campus Internal (Unadvertised)</option>
                 </select>
               </div>
 

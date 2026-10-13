@@ -26,7 +26,8 @@ import {
   AlertCircle,
   RefreshCw,
   Plus,
-  Globe
+  Globe,
+  Upload
 } from "lucide-react";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -911,6 +912,18 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
             >
               <Share2 className="w-4 h-4" />
             </button>
+
+            {(opp.category || "").toLowerCase() === "hackathons" && (
+              <Link
+                to={`/hackathons?hackathonId=${opp.id || opp._id}&name=${encodeURIComponent(opp.title)}`}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-emerald-500/20 flex items-center gap-1.5"
+                title="Upload & submit registration screenshot proof for this hackathon"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>📸 Upload Proof</span>
+              </Link>
+            )}
+
             <Link
               to={`/opportunities/${opp.id || opp._id}`}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-blue-500/20"

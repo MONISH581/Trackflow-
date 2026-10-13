@@ -16,6 +16,7 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import multer from "multer";
 import axios from "axios";
+import { CANONICAL_HACKATHONS } from "./src/data/canonicalHackathons.ts";
 
 // Adjust Socket.io keepâ€‘alive to avoid premature disconnects
 const socketOptions = {
@@ -549,8 +550,12 @@ async function startServer() {
               }
             });
             return results;
-          } catch (err) {
-            console.warn(`Firestore read error on ${this.collectionName}, fallback to memory:`, err);
+          } catch (err: any) {
+            if (err?.message?.includes("RESOURCE_EXHAUSTED") || err?.code === 8) {
+              // Silently fallback to MongoDB/memory without spamming thousands of error traces
+            } else {
+              console.warn(`Firestore read error on ${this.collectionName}:`, err?.message || err);
+            }
           }
         }
         for (const [id, data] of this.localStore.entries()) {
@@ -1380,6 +1385,165 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   }
 
+  function detectHackathonDomain(title: string = "", themes: any[] = [], desc: string = ""): string {
+    const combined = `${title} ${desc} ${(themes || []).map((t: any) => t?.name || t).join(" ")}`.toLowerCase();
+    if (combined.includes("machine learning") || combined.includes("kaggle") || combined.includes("data science") || combined.includes("predictive") || combined.includes("tabular") || /\bml\b/.test(combined)) {
+      return "Machine Learning (ML)";
+    }
+    if (combined.includes("cyber") || combined.includes("security") || combined.includes("ctf") || combined.includes("infosec") || combined.includes("threat") || combined.includes("vulnerability") || combined.includes("zero-trust")) {
+      return "Cybersecurity & Cloud";
+    }
+    if (combined.includes("genai") || combined.includes("generative ai") || combined.includes("llm") || combined.includes("large language") || combined.includes("gpt") || combined.includes("gemini") || combined.includes("artificial intelligence") || combined.includes("openai") || /\bai\b/.test(combined)) {
+      return "Artificial Intelligence (AI)";
+    }
+    if (combined.includes("web3") || combined.includes("blockchain") || combined.includes("crypto") || combined.includes("solana") || combined.includes("ethereum") || combined.includes("smart contract") || combined.includes("dorahacks")) {
+      return "Web3 & Blockchain";
+    }
+    if (combined.includes("iot") || combined.includes("robotics") || combined.includes("hardware") || combined.includes("embedded") || combined.includes("arduino") || combined.includes("sensor")) {
+      return "IoT, Embedded & Robotics";
+    }
+    if (combined.includes("cloud") || combined.includes("devops") || combined.includes("kubernetes") || combined.includes("docker") || combined.includes("serverless") || combined.includes("aws") || combined.includes("azure")) {
+      return "Cloud Infrastructure & DevOps";
+    }
+    if (combined.includes("android") || combined.includes("ios") || combined.includes("swift") || combined.includes("flutter") || combined.includes("react native") || combined.includes("mobile")) {
+      return "Mobile App Development";
+    }
+    if (combined.includes("sih") || combined.includes("smart india") || combined.includes("space apps") || combined.includes("naan mudhalvan") || combined.includes("govt") || combined.includes("social good")) {
+      return "Open Innovation & Govt Tech";
+    }
+    if (combined.includes("full stack") || combined.includes("fullstack") || combined.includes("frontend") || combined.includes("backend") || combined.includes("react") || combined.includes("web development") || combined.includes("software")) {
+      return "Full Stack Development (FSD)";
+    }
+    return "Open Innovation & Govt Tech";
+  }
+
+  async function syncHackathonsAndOpportunities() {
+    try {
+      // 1. Ensure CANONICAL_HACKATHONS are in both Hackathon and Opportunity collections
+      for (const item of CANONICAL_HACKATHONS) {
+        const hExists = await Hackathon.findOne({
+          $or: [{ hackathonId: item.hackathonId }, { name: item.name }, { registrationLink: item.registrationLink }]
+        });
+        if (!hExists) {
+          await Hackathon.create({
+            hackathonId: item.hackathonId,
+            name: item.name,
+            organizer: item.organizer,
+            description: item.description,
+            domain: item.domain,
+            startDate: new Date(item.startDate || item.eventStartDate),
+            endDate: new Date(item.endDate || item.eventEndDate),
+            registrationDeadline: new Date(item.registrationDeadline),
+            registrationLink: item.registrationLink,
+            status: item.status || "Active",
+            mode: item.mode,
+            location: item.location,
+            tags: item.tags
+          });
+        }
+
+        const oExists = await Opportunity.findOne({
+          $or: [{ title: item.title }, { website: item.website }, { registrationLink: item.registrationLink }]
+        });
+        if (!oExists) {
+          await Opportunity.create({
+            title: item.title,
+            description: item.description,
+            category: "Hackathons",
+            organizer: item.organizer,
+            organizerLogo: item.organizerLogo,
+            bannerImage: item.bannerImage,
+            website: item.website,
+            registrationLink: item.registrationLink,
+            location: item.location,
+            mode: item.mode,
+            freeOrPaid: item.freeOrPaid,
+            targetAudience: item.targetAudience,
+            prizePool: item.prizePool,
+            registrationDeadline: new Date(item.registrationDeadline),
+            eventStartDate: new Date(item.eventStartDate || item.startDate),
+            eventEndDate: new Date(item.eventEndDate || item.endDate),
+            difficulty: item.difficulty,
+            eligibility: item.eligibility,
+            timeline: item.timeline,
+            rules: item.rules,
+            judgingCriteria: item.judgingCriteria,
+            tags: item.tags,
+            domain: item.domain,
+            featured: item.featured,
+            trending: item.trending,
+            approved: true
+          });
+        }
+      }
+
+      // 2. Sync any existing opportunities with category 'Hackathons' into Hackathon collection
+      const oppHackathons = await Opportunity.find({ category: /^hackathons$/i });
+      for (const opp of oppHackathons) {
+        const hExists = await Hackathon.findOne({
+          $or: [{ name: opp.title }, { registrationLink: opp.registrationLink || opp.website }]
+        });
+        if (!hExists) {
+          await Hackathon.create({
+            hackathonId: `hack-${opp._id}`,
+            name: opp.title,
+            organizer: opp.organizer || "Dev Community",
+            description: opp.description || "",
+            domain: opp.domain || detectHackathonDomain(opp.title, opp.tags || [], opp.description || ""),
+            startDate: opp.eventStartDate || new Date(),
+            endDate: opp.eventEndDate || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+            registrationDeadline: opp.registrationDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            registrationLink: opp.registrationLink || opp.website || "https://devpost.com",
+            status: "Active",
+            mode: opp.mode || "Online",
+            location: opp.location || "Online",
+            tags: opp.tags || []
+          });
+        }
+      }
+
+      // 3. Sync any hackathons in Hackathon collection into Opportunity collection
+      const allHacks = await Hackathon.find();
+      for (const h of allHacks) {
+        const oExists = await Opportunity.findOne({
+          $or: [{ title: h.name }, { website: h.registrationLink }, { registrationLink: h.registrationLink }]
+        });
+        if (!oExists) {
+          await Opportunity.create({
+            title: h.name,
+            description: h.description || `Hackathon organized by ${h.organizer}`,
+            category: "Hackathons",
+            organizer: h.organizer || "Community",
+            organizerLogo: `https://avatar.vercel.sh/${(h.organizer || 'hackathon').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+            bannerImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
+            website: h.registrationLink,
+            registrationLink: h.registrationLink,
+            location: h.location || "Online",
+            mode: h.mode || "Online",
+            freeOrPaid: "Free",
+            targetAudience: "Student Only",
+            prizePool: "Platform Badges & Prizes",
+            registrationDeadline: h.registrationDeadline,
+            eventStartDate: h.startDate,
+            eventEndDate: h.endDate,
+            difficulty: "Intermediate",
+            eligibility: "Open to students and developers.",
+            timeline: "Active Registration",
+            rules: "Standard code of conduct applies.",
+            judgingCriteria: "Quality, innovation, and implementation.",
+            tags: (h.tags && h.tags.length > 0) ? h.tags : ["Hackathon", h.domain || "Tech"],
+            domain: h.domain,
+            featured: true,
+            trending: true,
+            approved: true
+          });
+        }
+      }
+    } catch (err: any) {
+      console.warn("syncHackathonsAndOpportunities warning:", err.message);
+    }
+  }
+
   async function cleanupExpiredHackathons() {
     try {
       const now = new Date();
@@ -1420,7 +1584,8 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         const endExpired = opp.eventEndDate && new Date(opp.eventEndDate).getTime() < now.getTime();
         const isStatusExpired = opp.status === "Expired";
 
-        if (deadlineExpired || endExpired || isStatusExpired) {
+        // Only purge if BOTH deadline and end date have passed, or explicitly marked Expired
+        if ((deadlineExpired && endExpired) || isStatusExpired) {
           await Opportunity.findByIdAndDelete(opp._id || opp.id);
           deletedCount++;
         }
@@ -2015,7 +2180,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const reportsToday = await DailyReport.countDocuments({ date: todayStr });
       const pendingTasks = await Task.countDocuments({ status: { $ne: 'Completed' } });
       const pendingScreenshotVerifications = await HackathonRegistration.countDocuments({ verificationStatus: 'Pending' });
-      const activeHackathons = await Hackathon.countDocuments({ status: 'Active' });
+      const activeHackathons = await Hackathon.countDocuments({ status: { $ne: 'Expired' } });
       const totalHackathonRegistrations = await HackathonRegistration.countDocuments();
 
       res.json({
@@ -2821,407 +2986,7 @@ Do not include markdown tags. Return only raw JSON string.`;
   app.get("/api/hackathons", async (req, res) => {
     try {
       await cleanupExpiredHackathons();
-      const defaultEvents = [
-        {
-          hackathonId: "dorahacks-web3-2026",
-          name: "DoraHacks Web3 & Open-Source Hackathons",
-          organizer: "DoraHacks Foundation",
-          description: "Premier platform for Web3, crypto, decentralized tech, and open-source developer hackathons. Build dApps and decentralized AI.",
-          domain: "Web3 & Open-Source",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://dorahacks.io",
-          status: "Active"
-        },
-        {
-          hackathonId: "hackathon-com-global-2026",
-          name: "Hackathon.com Global Directory",
-          organizer: "Hackathon.com",
-          description: "Global hackathon directory connecting developers, innovators, and organizers with hackathons worldwide.",
-          domain: "Global Directory",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://www.hackathon.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "devnetwork-ai-cloud-2026",
-          name: "DevNetwork Hackathons",
-          organizer: "DevNetwork",
-          description: "Enterprise-grade developer hackathons focusing on AI models, Cloud computing, DevOps, and API tech.",
-          domain: "AI & Enterprise Cloud",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://devnetwork.com/hackathons/",
-          status: "Active"
-        },
-        {
-          hackathonId: "huggingface-ai-competitions-2026",
-          name: "Hugging Face AI & LLM Competitions",
-          organizer: "Hugging Face",
-          description: "Build, fine-tune, and benchmark state-of-the-art Open Source Large Language Models, NLP, and multimodal AI systems.",
-          domain: "AI & LLM Competitions",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://huggingface.co/competitions",
-          status: "Active"
-        },
-        {
-          hackathonId: "google-developer-community-2026",
-          name: "Google Developer Communities & Solution Challenge 2026",
-          organizer: "Google Developers",
-          description: "Google-sponsored global developer challenges, Solution Challenges, Gemini AI sprints, and community hackathons.",
-          domain: "Google AI & Cloud",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://developers.google.com/community",
-          status: "Active"
-        },
-        {
-          hackathonId: "devfolio-india-2026",
-          name: "Devfolio Hackathon Platform",
-          organizer: "Devfolio",
-          description: "Recommended Priority #1 platform in India. Discover top university & tech community hackathons with 1-click profiles.",
-          domain: "Recommended Priority Platform",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://devfolio.co",
-          status: "Active"
-        },
-        {
-          hackathonId: "sih-2026-hackathon",
-          name: "Smart India Hackathon 2026 (SIH)",
-          organizer: "Ministry of Education & AICTE",
-          description: "Recommended Priority #2 nationwide hackathon. Solve pressing problem statements submitted by Central Ministries, State Departments, PSUs, and Industry leaders.",
-          domain: "Government Hackathon",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://sih.gov.in",
-          status: "Active"
-        },
-        {
-          hackathonId: "mlh-season-2026",
-          name: "Major League Hacking (MLH)",
-          organizer: "Major League Hacking",
-          description: "Recommended Priority #3 student hackathon league. Over 200+ weekend hackathons annually worldwide with hardware access, workshops, and swag.",
-          domain: "Student Hackathon League",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://mlh.io",
-          status: "Active"
-        },
-        {
-          hackathonId: "devpost-global-2026",
-          name: "Devpost Hackathons",
-          organizer: "Devpost",
-          description: "Recommended Priority #4 global software hackathon platform. Join online and in-person hackathons with millions in prizes.",
-          domain: "Global Directory",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://devpost.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "hackerearth-challenges-2026",
-          name: "HackerEarth Hackathons",
-          organizer: "HackerEarth",
-          description: "Recommended Priority #5 enterprise innovation platform hosting hackathons, coding challenges, and hiring contests.",
-          domain: "Enterprise & Coding",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://www.hackerearth.com/challenges/",
-          status: "Active"
-        },
-        {
-          hackathonId: "unstop-hackathons-2026",
-          name: "Unstop Hackathons & Competitions",
-          organizer: "Unstop",
-          description: "Recommended Priority #6 college hackathon platform in India. Join tech sprints, coding contests, and case competitions.",
-          domain: "College & Tech Competition",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://unstop.com/hackathons",
-          status: "Active"
-        },
-        {
-          hackathonId: "kaggle-grand-prix-2026",
-          name: "Kaggle Machine Learning Grand Prix 2026",
-          organizer: "Kaggle & Google AI",
-          description: "Build state-of-the-art predictive models, NLP classifiers, and computer vision pipelines in this flagship Kaggle ML challenge.",
-          domain: "Kaggle / Machine Learning",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://www.kaggle.com/competitions",
-          status: "Active"
-        },
-        {
-          hackathonId: "kaggle-llm-challenge-2026",
-          name: "Kaggle LLM Science Exam Challenge",
-          organizer: "Kaggle Community",
-          description: "Fine-tune open-weights Large Language Models to answer complex STEM questions and benchmark AI reasoning capability.",
-          domain: "Kaggle / Generative AI",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://www.kaggle.com/competitions",
-          status: "Active"
-        },
-        {
-          hackathonId: "solana-renaissance-2026",
-          name: "Solana Renaissance Global Hackathon",
-          organizer: "Solana Foundation",
-          description: "Build high-speed crypto, DePIN, DeFi, and Web3 infrastructure on Solana with $1M+ total prize pool.",
-          domain: "Web3 & Open-Source",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://solana.com/hackathon",
-          status: "Active"
-        },
-        {
-          hackathonId: "ethglobal-2026",
-          name: "ETHGlobal Hackathons 2026",
-          organizer: "ETHGlobal",
-          description: "The premier global Ethereum developer hackathon series with virtual & in-person events worldwide.",
-          domain: "Web3 & Open-Source",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://ethglobal.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "nasa-space-apps-2026",
-          name: "NASA International Space Apps Challenge 2026",
-          organizer: "NASA",
-          description: "The world's largest global hackathon. Solve challenges using open Earth & space data.",
-          domain: "Government Hackathon",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://www.spaceappschallenge.org",
-          status: "Active"
-        },
-        {
-          hackathonId: "microsoft-imagine-cup-2026",
-          name: "Microsoft Imagine Cup 2026",
-          organizer: "Microsoft",
-          description: "Global student tech competition to build impactful AI solutions using Azure Cloud and AI technologies.",
-          domain: "AI & Enterprise Cloud",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 150 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://imaginecup.microsoft.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "meta-llama-impact-2026",
-          name: "Meta Llama Open Source AI Hackathon",
-          organizer: "Meta AI",
-          description: "Build next-generation applications leveraging Meta's open-weights Llama 3 models and open source AI stack.",
-          domain: "AI & LLM Competitions",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://llama.meta.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "naan-mudhalvan-tn-2026",
-          name: "Naan Mudhalvan Tamil Nadu Govt Tech Hackathon",
-          organizer: "Tamil Nadu Skill Development Corporation",
-          description: "State government hackathon for engineering college students in Tamil Nadu to solve real civic & industry challenges.",
-          domain: "Government Hackathon",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://naanmudhalvan.tn.gov.in",
-          status: "Active"
-        },
-        {
-          hackathonId: "hack2skill-ai-grand-challenge-2026",
-          name: "Hack2skill National GenAI Innovation Sprint 2026",
-          organizer: "Hack2skill",
-          description: "Flagship nationwide AI innovation sprint empowering students to develop multimodal LLM applications, autonomous agents, and enterprise AI bots.",
-          domain: "Artificial Intelligence (AI)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://hack2skill.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "hack2skill-cyber-shield-2026",
-          name: "Hack2skill Cyber Shield & Cloud Defense 2026",
-          organizer: "Hack2skill",
-          description: "National cybersecurity hackathon covering zero-trust architectures, threat hunting, CTF challenges, and vulnerability intelligence.",
-          domain: "Cybersecurity & Cloud",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://hack2skill.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "hack2skill-ml-vision-2026",
-          name: "Hack2skill Computer Vision & Predictive ML Cup",
-          organizer: "Hack2skill",
-          description: "Develop cutting-edge machine learning models for computer vision, object classification, and time-series analytics.",
-          domain: "Machine Learning (ML)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 65 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://hack2skill.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "unstop-fsd-national-2026",
-          name: "Unstop Full Stack Development National Championship",
-          organizer: "Unstop",
-          description: "Premier 48-hour Full Stack web and mobile application sprint. Architect end-to-end MERN/Next.js platforms with real-time architectures.",
-          domain: "Full Stack Development (FSD)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 50 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://unstop.com/hackathons",
-          status: "Active"
-        },
-        {
-          hackathonId: "unstop-app-innovators-2026",
-          name: "Unstop Web & Mobile Full Stack Hack",
-          organizer: "Unstop",
-          description: "Design and build scalable full-stack web and mobile apps solving modern consumer tech workflows.",
-          domain: "Full Stack Development (FSD)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://unstop.com/hackathons",
-          status: "Active"
-        },
-        {
-          hackathonId: "devpost-ml-predictive-2026",
-          name: "Devpost Machine Learning & Big Data Hackathon",
-          organizer: "Devpost",
-          description: "Global data science challenge to build ML algorithms and predictive pipelines on distributed datasets.",
-          domain: "Machine Learning (ML)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 70 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://devpost.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "devpost-cyber-sentinel-2026",
-          name: "Devpost Global Cloud & Cyber Threat Hackathon",
-          organizer: "Devpost",
-          description: "Build automated cybersecurity threat intelligence, cloud vulnerability detection, and identity protection tools.",
-          domain: "Cybersecurity & Cloud",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 80 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://devpost.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "aws-cloud-genai-2026",
-          name: "AWS Amazon GenAI Cloud Builders Challenge",
-          organizer: "Amazon AWS",
-          description: "Build enterprise cloud applications powered by Amazon Bedrock, serverless architectures, and AWS cloud security.",
-          domain: "Artificial Intelligence (AI)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://aws.amazon.com/events",
-          status: "Active"
-        },
-        {
-          hackathonId: "apple-swift-student-2026",
-          name: "Apple Swift Student Challenge & App Innovation Sprint",
-          organizer: "Apple",
-          description: "Create an extraordinary full-stack app experience using Swift, SwiftUI, and iOS cloud integrations.",
-          domain: "Full Stack Development (FSD)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 100 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 50 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://developer.apple.com/swift-student-challenge",
-          status: "Active"
-        },
-        {
-          hackathonId: "microsoft-sentinel-cyber-2026",
-          name: "Microsoft Security Sentinel AI & Cyber Challenge",
-          organizer: "Microsoft",
-          description: "Build AI-driven cybersecurity automation and threat response solutions integrated with Microsoft Defender and Azure Sentinel.",
-          domain: "Cybersecurity & Cloud",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://security.microsoft.com",
-          status: "Active"
-        },
-        {
-          hackathonId: "google-cloud-run-fsd-2026",
-          name: "Google Cloud Full Stack Modern App Sprint",
-          organizer: "Google",
-          description: "Develop scalable full-stack web and mobile apps leveraging Firebase, Google Cloud Run, and Gemini AI.",
-          domain: "Full Stack Development (FSD)",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000),
-          registrationDeadline: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
-          registrationLink: "https://cloud.google.com/innovators",
-          status: "Active"
-        }
-      ];
-
-      for (const event of defaultEvents) {
-        const existing = await Hackathon.findOne({ hackathonId: event.hackathonId });
-        if (!existing) {
-          await Hackathon.create(event);
-        }
-        const oppExisting = await Opportunity.findOne({
-          $or: [{ title: event.name }, { website: event.registrationLink }]
-        });
-        if (!oppExisting) {
-          await Opportunity.create({
-            title: event.name,
-            description: event.description,
-            category: "Hackathons",
-            organizer: event.organizer,
-            organizerLogo: `https://avatar.vercel.sh/${(event.organizer || 'hackathon').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-            bannerImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
-            website: event.registrationLink,
-            registrationLink: event.registrationLink,
-            location: "Online",
-            mode: "Online",
-            freeOrPaid: "Free",
-            targetAudience: "Student Only",
-            prizePool: "Platform Badges & Prizes",
-            registrationDeadline: event.registrationDeadline,
-            eventStartDate: event.startDate,
-            eventEndDate: event.endDate,
-            difficulty: "Intermediate",
-            eligibility: "Open to students globally.",
-            timeline: "Active Registration",
-            rules: "Standard platform terms and code of conduct apply.",
-            judgingCriteria: "Innovation, complexity, and presentation.",
-            tags: ["Hackathon", "Build", event.domain],
-            featured: true,
-            trending: true,
-            approved: true
-          });
-        }
-      }
+      await syncHackathonsAndOpportunities();
 
       const nowTime = Date.now();
       let hackathons = await Hackathon.find();
@@ -3327,25 +3092,61 @@ Do not include markdown tags. Return only raw JSON string.`;
 
   app.post("/api/hackathons", async (req, res) => {
     try {
-      const { name, organizer, description, domain, startDate, endDate, registrationDeadline, registrationLink } = req.body;
+      const { name, organizer, description, domain, startDate, endDate, registrationDeadline, registrationLink, mode, location, prizePool } = req.body;
       if (!name || !registrationLink) {
         return res.status(400).json({ error: "Hackathon Name and Registration Link are required" });
       }
 
+      const hId = `hack-${Date.now()}`;
       const hackathon = new Hackathon({
-        hackathonId: `hack-${Date.now()}`,
+        hackathonId: hId,
         name,
         organizer: organizer || "Tech Committee",
         description: description || "",
         domain: domain || "General Tech",
         startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: endDate ? new Date(endDate) : new Date(),
-        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : new Date(),
+        endDate: endDate ? new Date(endDate) : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         registrationLink,
-        status: "Active"
+        status: "Active",
+        mode: mode || "Offline",
+        location: location || "Campus Lab",
+        tags: [organizer || "Internal", domain || "Hackathon", "Manual Addition"]
       });
       await hackathon.save();
 
+      // Mirror to Opportunity collection immediately for 100% sync
+      await Opportunity.create({
+        title: name,
+        description: description || `Hackathon organized by ${organizer || 'Tech Committee'}`,
+        category: "Hackathons",
+        organizer: organizer || "Tech Committee",
+        organizerLogo: `https://avatar.vercel.sh/${(organizer || 'hackathon').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+        bannerImage: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
+        website: registrationLink,
+        registrationLink,
+        location: location || "Campus Lab",
+        mode: mode || "Offline",
+        freeOrPaid: "Free",
+        targetAudience: "Student Only",
+        prizePool: prizePool || "₹50,000 + Merit Trophy",
+        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        eventStartDate: startDate ? new Date(startDate) : new Date(),
+        eventEndDate: endDate ? new Date(endDate) : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        difficulty: "Intermediate",
+        eligibility: "Open to students.",
+        timeline: "Active Registration",
+        rules: "Standard hackathon rules apply.",
+        judgingCriteria: "Novelty, technical complexity, presentation.",
+        tags: [organizer || "Internal", domain || "Hackathon", "Manual Addition"],
+        domain: domain || "General Tech",
+        featured: true,
+        trending: true,
+        approved: true
+      });
+
+      io.emit("hackathons_updated");
+      io.emit("opportunities_updated");
       res.json({ success: true, hackathon: { id: hackathon._id, ...hackathon.toObject() } });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -3359,6 +3160,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
 
       const { name, organizer, description, domain, startDate, endDate, registrationDeadline, registrationLink, status } = req.body;
+      const oldName = hackathon.name;
       if (name !== undefined) hackathon.name = name;
       if (organizer !== undefined) hackathon.organizer = organizer;
       if (description !== undefined) hackathon.description = description;
@@ -3370,6 +3172,27 @@ Do not include markdown tags. Return only raw JSON string.`;
       if (status !== undefined) hackathon.status = status;
 
       await hackathon.save();
+
+      // Mirror update to Opportunity collection
+      await Opportunity.updateMany(
+        { $or: [{ title: oldName }, { title: name }, { website: hackathon.registrationLink }, { registrationLink: hackathon.registrationLink }] },
+        {
+          $set: {
+            title: hackathon.name,
+            organizer: hackathon.organizer,
+            description: hackathon.description,
+            domain: hackathon.domain,
+            registrationLink: hackathon.registrationLink,
+            website: hackathon.registrationLink,
+            eventStartDate: hackathon.startDate,
+            eventEndDate: hackathon.endDate,
+            registrationDeadline: hackathon.registrationDeadline
+          }
+        }
+      );
+
+      io.emit("hackathons_updated");
+      io.emit("opportunities_updated");
       res.json({ success: true, hackathon });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -3383,12 +3206,22 @@ Do not include markdown tags. Return only raw JSON string.`;
       if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
 
       const targetId = hackathon._id || hackathon.id;
+      const hackName = hackathon.name;
+      const hackLink = hackathon.registrationLink;
       await Hackathon.findByIdAndDelete(targetId);
 
       // Clean up linked registrations and interests
       await HackathonRegistration.deleteMany({ hackathonId: targetId });
       await HackathonInterest.deleteMany({ hackathonId: targetId });
 
+      // Clean up mirror Opportunity
+      await Opportunity.deleteMany({
+        category: /^hackathons$/i,
+        $or: [{ title: hackName }, { website: hackLink }, { registrationLink: hackLink }]
+      });
+
+      io.emit("hackathons_updated");
+      io.emit("opportunities_updated");
       res.json({ success: true, message: "Hackathon deleted successfully" });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -3782,9 +3615,35 @@ Do not include markdown tags. Return only raw JSON string.`;
       const { approve } = req.body;
       if (approve) {
         const opp = await Opportunity.findByIdAndUpdate(req.params.id, { approved: true }, { new: true });
+        if (opp && (opp.category || "").toLowerCase() === "hackathons") {
+          await Hackathon.create({
+            hackathonId: `hack-${opp._id}`,
+            name: opp.title,
+            organizer: opp.organizer || "Dev Community",
+            description: opp.description || "",
+            domain: opp.domain || detectHackathonDomain(opp.title, opp.tags || [], opp.description || ""),
+            startDate: opp.eventStartDate || new Date(),
+            endDate: opp.eventEndDate || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+            registrationDeadline: opp.registrationDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            registrationLink: opp.registrationLink || opp.website || "https://devpost.com",
+            status: "Active",
+            mode: opp.mode || "Online",
+            location: opp.location || "Online",
+            tags: opp.tags || []
+          });
+          io.emit("hackathons_updated");
+        }
+        io.emit("opportunities_updated");
         res.json({ success: true, opportunity: opp });
       } else {
-        await Opportunity.findByIdAndDelete(req.params.id);
+        const opp = await Opportunity.findByIdAndDelete(req.params.id);
+        if (opp && (opp.category || "").toLowerCase() === "hackathons") {
+          await Hackathon.deleteMany({
+            $or: [{ hackathonId: `hack-${opp._id}` }, { name: opp.title }, { registrationLink: opp.registrationLink }]
+          });
+          io.emit("hackathons_updated");
+        }
+        io.emit("opportunities_updated");
         res.json({ success: true, message: "Opportunity request declined." });
       }
     } catch (e: any) {
@@ -5122,6 +4981,29 @@ Do not include markdown tags. Return only raw JSON string.`;
         bookmarks: []
       });
       await opp.save();
+
+      // Mirror to Hackathon collection if category is Hackathons
+      if ((opp.category || "").toLowerCase() === "hackathons") {
+        const hId = `hack-${opp._id}`;
+        await Hackathon.create({
+          hackathonId: hId,
+          name: opp.title,
+          organizer: opp.organizer || "Dev Community",
+          description: opp.description || "",
+          domain: opp.domain || detectHackathonDomain(opp.title, opp.tags || [], opp.description || ""),
+          startDate: opp.eventStartDate || new Date(),
+          endDate: opp.eventEndDate || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          registrationDeadline: opp.registrationDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationLink: opp.registrationLink || opp.website || "https://devpost.com",
+          status: "Active",
+          mode: opp.mode || "Online",
+          location: opp.location || "Online",
+          tags: opp.tags || []
+        });
+        io.emit("hackathons_updated");
+      }
+
+      io.emit("opportunities_updated");
       res.json({ success: true, opportunity: { id: opp._id, ...opp.toObject() } });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -5132,6 +5014,29 @@ Do not include markdown tags. Return only raw JSON string.`;
     try {
       const opp = await Opportunity.findByIdAndUpdate(req.params.id, req.body, { new: true });
       if (!opp) return res.status(404).json({ error: "Opportunity not found" });
+
+      if ((opp.category || "").toLowerCase() === "hackathons") {
+        await Hackathon.updateMany(
+          { $or: [{ hackathonId: `hack-${opp._id}` }, { name: opp.title }, { registrationLink: opp.registrationLink }] },
+          {
+            $set: {
+              name: opp.title,
+              organizer: opp.organizer,
+              description: opp.description,
+              domain: opp.domain,
+              startDate: opp.eventStartDate,
+              endDate: opp.eventEndDate,
+              registrationDeadline: opp.registrationDeadline,
+              registrationLink: opp.registrationLink || opp.website,
+              mode: opp.mode,
+              location: opp.location
+            }
+          }
+        );
+        io.emit("hackathons_updated");
+      }
+
+      io.emit("opportunities_updated");
       res.json({ success: true, opportunity: { id: opp._id, ...opp.toObject() } });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -5142,6 +5047,15 @@ Do not include markdown tags. Return only raw JSON string.`;
     try {
       const opp = await Opportunity.findByIdAndDelete(req.params.id);
       if (!opp) return res.status(404).json({ error: "Opportunity not found" });
+
+      if ((opp.category || "").toLowerCase() === "hackathons") {
+        await Hackathon.deleteMany({
+          $or: [{ hackathonId: `hack-${opp._id}` }, { name: opp.title }, { registrationLink: opp.registrationLink }]
+        });
+        io.emit("hackathons_updated");
+      }
+
+      io.emit("opportunities_updated");
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

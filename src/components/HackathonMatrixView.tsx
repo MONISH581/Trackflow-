@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   HackathonInfo,
   OpportunityInfo,
@@ -28,11 +29,13 @@ import {
   Coins,
   Radio,
   Globe,
-  Sliders,
   CheckCircle2,
-  SlidersHorizontal,
   ChevronRight,
-  Info
+  Info,
+  GraduationCap,
+  School,
+  Upload,
+  Check
 } from "lucide-react";
 
 export type DomainCategory =
@@ -46,11 +49,13 @@ export type DomainCategory =
   | "IoT"
   | "OpenTech";
 
+export type SourceType = "Platform" | "Company" | "University" | "Local";
+
 export interface UnifiedHackathon {
   id: string;
   title: string;
   organizer: string;
-  sourceType: "Platform" | "Company";
+  sourceType: SourceType;
   sourceId: string;
   sourceName: string;
   domain: DomainCategory;
@@ -66,6 +71,7 @@ export interface UnifiedHackathon {
   tags?: string[];
   status?: string;
   bannerImage?: string;
+  isUnadvertised?: boolean;
 }
 
 export interface DomainMeta {
@@ -247,6 +253,29 @@ export const STANDARD_COMPANIES = [
   { id: "infosys_tcs", name: "Infosys / TCS", aliases: ["infosys", "tcs", "tata"] }
 ];
 
+export const STANDARD_UNIVERSITIES = [
+  { id: "iit_bombay", name: "IIT Bombay (Techfest)", aliases: ["iit bombay", "techfest", "iitb"] },
+  { id: "iit_madras", name: "IIT Madras (Shaastra)", aliases: ["iit madras", "shaastra", "iitm"] },
+  { id: "iit_delhi", name: "IIT Delhi (Tryst)", aliases: ["iit delhi", "tryst", "iitd"] },
+  { id: "iit_kharagpur", name: "IIT Kharagpur (Kshitij)", aliases: ["iit kharagpur", "kshitij", "iitkgp"] },
+  { id: "nit_trichy", name: "NIT Trichy (Pragyan)", aliases: ["nit trichy", "pragyan", "nitt"] },
+  { id: "nit_surathkal", name: "NIT Surathkal (Engineer)", aliases: ["nit surathkal", "engineer fest", "nitk"] },
+  { id: "bits_pilani", name: "BITS Pilani (APOGEE)", aliases: ["bits pilani", "apogee", "bits"] },
+  { id: "iiit_hyderabad", name: "IIIT Hyderabad (Megathon)", aliases: ["iiit hyderabad", "megathon", "iiith"] },
+  { id: "anna_univ", name: "Anna University (Kurukshetra)", aliases: ["anna university", "kurukshetra", "ceg"] },
+  { id: "vit_vellore", name: "VIT Vellore (Devspace)", aliases: ["vit vellore", "devspace", "vit"] },
+  { id: "srm_univ", name: "SRM University (HackSRM)", aliases: ["srm university", "hacksrm", "srmist", "srm"] }
+];
+
+export const STANDARD_LOCAL = [
+  { id: "siet_campus", name: "Sri Shakthi Campus (SIET)", aliases: ["sri shakthi", "siet", "shakthi campus"] },
+  { id: "dept_cse", name: "Dept of CSE (Intra-College Hack)", aliases: ["dept of cse", "cse dept", "computer science dept"] },
+  { id: "dept_aids", name: "Dept of AI & DS (ML Sprint)", aliases: ["dept of ai", "ai & ds", "artificial intelligence & data science", "ai ds dept"] },
+  { id: "campus_ctf", name: "Campus Cyber CTF (Internal)", aliases: ["campus cyber", "internal ctf", "college ctf", "intra-college ctf"] },
+  { id: "campus_iot", name: "Campus IoT Hardware Sprint", aliases: ["campus iot", "hardware sprint", "embedded lab hack", "iot club"] },
+  { id: "unadvertised_hack", name: "Local Unadvertised Hackathon", aliases: ["unadvertised", "internal hack", "local hackathon", "intra-college", "campus sprint"] }
+];
+
 export const MONTH_OPTIONS = [
   { id: "ALL", label: "All Months", short: "All" },
   { id: "0", label: "January", short: "Jan" },
@@ -270,9 +299,63 @@ export function categorizeDomain(raw: {
   description?: string;
   tags?: string[];
 }): DomainCategory {
-  const text = `${raw.domain || ""} ${raw.name || raw.title || ""} ${raw.description || ""} ${(raw.tags || []).join(" ")}`.toLowerCase();
+  const explicit = (raw.domain || "").toLowerCase().trim();
 
-  // 1. Cybersecurity & Threat Defense
+  // Priority 1: Direct explicit mapping if already present
+  if (explicit.includes("machine learning") || explicit === "ml" || explicit.includes("(ml)")) {
+    return "ML";
+  }
+  if (explicit.includes("artificial intelligence") || explicit === "ai" || explicit.includes("(ai)")) {
+    return "AI";
+  }
+  if (explicit.includes("full stack") || explicit.includes("fsd") || explicit.includes("(fsd)")) {
+    return "FSD";
+  }
+  if (explicit.includes("cyber") || explicit.includes("security") || explicit.includes("(cyber)")) {
+    return "Cyber";
+  }
+  if (explicit.includes("cloud")) {
+    return "Cloud";
+  }
+  if (explicit.includes("mobile")) {
+    return "Mobile";
+  }
+  if (explicit.includes("web3") || explicit.includes("blockchain")) {
+    return "Web3";
+  }
+  if (explicit.includes("iot") || explicit.includes("robotics")) {
+    return "IoT";
+  }
+  if (explicit.includes("open") || explicit.includes("govt")) {
+    return "OpenTech";
+  }
+
+  const text = `${raw.name || raw.title || ""} ${raw.description || ""} ${(raw.tags || []).join(" ")}`.toLowerCase();
+
+  // Priority 2: Machine Learning (ML) & Data Science - EVALUATED BEFORE AI SO ML IS NEVER STOLEN!
+  if (
+    text.includes("kaggle") ||
+    text.includes("machine learning") ||
+    text.includes("data science") ||
+    text.includes("ml cup") ||
+    text.includes("predictive") ||
+    text.includes("tabular") ||
+    text.includes("dataset") ||
+    text.includes("scikit") ||
+    text.includes("xgboost") ||
+    text.includes("random forest") ||
+    text.includes("regression") ||
+    text.includes("classification") ||
+    text.includes("clustering") ||
+    text.includes("deep learning model") ||
+    text.includes("data analytics") ||
+    text.includes("data mining") ||
+    /\bml\b/.test(text)
+  ) {
+    return "ML";
+  }
+
+  // Priority 3: Cybersecurity
   if (
     text.includes("cyber") ||
     text.includes("security") ||
@@ -288,7 +371,7 @@ export function categorizeDomain(raw: {
     return "Cyber";
   }
 
-  // 2. Artificial Intelligence & LLMs (GenAI, LLMs, Agents, Vision, Prompting)
+  // Priority 4: Artificial Intelligence & LLMs
   if (
     text.includes("genai") ||
     text.includes("generative ai") ||
@@ -296,12 +379,11 @@ export function categorizeDomain(raw: {
     text.includes("large language") ||
     text.includes("gemini") ||
     text.includes("gpt") ||
+    text.includes("chatgpt") ||
+    text.includes("copilot") ||
     text.includes("prompt") ||
-    text.includes("deep learning") ||
-    text.includes("nlp") ||
     text.includes("llama") ||
     text.includes("agent") ||
-    text.includes("neural") ||
     text.includes("openai") ||
     text.includes("hugging face") ||
     text.includes("huggingface") ||
@@ -312,22 +394,7 @@ export function categorizeDomain(raw: {
     return "AI";
   }
 
-  // 3. Machine Learning & Data Science (Kaggle, Predictive, Tabular)
-  if (
-    text.includes("kaggle") ||
-    text.includes("machine learning") ||
-    text.includes("data science") ||
-    text.includes("predictive") ||
-    text.includes("tabular") ||
-    text.includes("dataset") ||
-    text.includes("analytics") ||
-    text.includes("data mining") ||
-    /\bml\b/.test(text)
-  ) {
-    return "ML";
-  }
-
-  // 4. Cloud Infrastructure & DevOps
+  // Priority 5: Cloud & DevOps
   if (
     text.includes("devops") ||
     text.includes("cloud computing") ||
@@ -345,7 +412,7 @@ export function categorizeDomain(raw: {
     return "Cloud";
   }
 
-  // 5. Mobile App Development
+  // Priority 6: Mobile App Development
   if (
     text.includes("android") ||
     text.includes("ios") ||
@@ -360,7 +427,7 @@ export function categorizeDomain(raw: {
     return "Mobile";
   }
 
-  // 6. Web3 & Blockchain
+  // Priority 7: Web3 & Blockchain
   if (
     text.includes("web3") ||
     text.includes("blockchain") ||
@@ -375,7 +442,7 @@ export function categorizeDomain(raw: {
     return "Web3";
   }
 
-  // 7. IoT & Robotics
+  // Priority 8: IoT & Robotics
   if (
     text.includes("iot") ||
     text.includes("internet of things") ||
@@ -389,7 +456,7 @@ export function categorizeDomain(raw: {
     return "IoT";
   }
 
-  // 8. Open Innovation & Govt Tech
+  // Priority 9: Open Innovation & Govt Tech
   if (
     text.includes("sih") ||
     text.includes("smart india") ||
@@ -403,7 +470,7 @@ export function categorizeDomain(raw: {
     return "OpenTech";
   }
 
-  // 9. Full Stack Development & Web/App
+  // Priority 10: Full Stack Development
   if (
     text.includes("fsd") ||
     text.includes("full stack") ||
@@ -421,7 +488,6 @@ export function categorizeDomain(raw: {
     return "FSD";
   }
 
-  // Default fallback
   return "FSD";
 }
 
@@ -442,7 +508,7 @@ export default function HackathonMatrixView({
   onRefresh,
   onAddHackathon,
   title = "Hackathon Matrix View (Platforms & Companies × Domains)",
-  subtitle = "AI-adapted cross-tabulation mapping hackathon sourcing platforms and corporate tech giants against technical domains."
+  subtitle = "AI-adapted cross-tabulation mapping hackathon sourcing platforms, companies, premier universities, and campus events against technical domains."
 }: HackathonMatrixViewProps) {
   const store = useStore();
   const hackathons = propHackathons || store.hackathons || [];
@@ -453,15 +519,34 @@ export default function HackathonMatrixView({
   const [domainScope, setDomainScope] = useState<"CORE" | "EXPANDED">("EXPANDED");
 
   // Filters
-  const [selectedMonth, setSelectedMonth] = useState<string>("9"); // October by default (.Oct)
+  const [selectedMonth, setSelectedMonth] = useState<string>("ALL"); // Default to All Months so all 102 events are immediately visible
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceTypeFilter, setSourceTypeFilter] = useState<"ALL" | "PLATFORMS" | "COMPANIES">("ALL");
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<"ALL" | "PLATFORMS" | "COMPANIES" | "UNIVERSITIES" | "LOCAL">("ALL");
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Manual Addition Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmittingHack, setIsSubmittingHack] = useState(false);
+  const [newHackForm, setNewHackForm] = useState({
+    name: "",
+    organizer: "",
+    sourceType: "Local" as SourceType,
+    domain: "ML" as DomainCategory,
+    mode: "Offline",
+    location: "Campus Lab / Auditorium",
+    registrationLink: "",
+    registrationDeadline: "",
+    startDate: "",
+    endDate: "",
+    prizePool: "₹25,000 + Merit Certificates",
+    description: "",
+    isUnadvertised: true
+  });
 
   // Cell Detail Modal State
   const [activeCellModal, setActiveCellModal] = useState<{
     sourceName: string;
-    sourceType: "Platform" | "Company";
+    sourceType: SourceType;
     domain: DomainCategory;
     domainLabel: string;
     domainTheme: DomainMeta["theme"];
@@ -480,37 +565,101 @@ export default function HackathonMatrixView({
   const unifiedList = useMemo<UnifiedHackathon[]>(() => {
     const map = new Map<string, UnifiedHackathon>();
 
+    // Helper to resolve source
+    const resolveSource = (title: string, organizer: string, link: string, desc: string, tags: string[]) => {
+      const combined = `${title} ${organizer} ${tags.join(" ")} ${desc}`.toLowerCase();
+      const linkLower = (link || "").toLowerCase();
+
+      // 1. Check Local / Campus Internal Hackathons FIRST
+      const matchedLocal = STANDARD_LOCAL.find((l) =>
+        l.aliases.some((alias) => combined.includes(alias))
+      );
+      const isLocalExplicit =
+        tags.some((t) => /internal|local|campus|unadvertised|intra-college|manual/i.test(t)) ||
+        /dept of|campus|intra-college|sri shakthi|siet|unadvertised/i.test(organizer);
+
+      if (matchedLocal || isLocalExplicit) {
+        return {
+          sourceType: "Local" as SourceType,
+          sourceId: matchedLocal ? matchedLocal.id : "unadvertised_hack",
+          sourceName: matchedLocal ? matchedLocal.name : organizer || "Campus Internal Hack"
+        };
+      }
+
+      // 2. Check Premier Universities & Institutes SECOND
+      const matchedUni = STANDARD_UNIVERSITIES.find((u) =>
+        u.aliases.some((alias) => combined.includes(alias))
+      );
+      const isUniExplicit =
+        /university|institute|college|iit|nit|bits|iiit|vit|srm|anna univ/i.test(organizer) ||
+        /shaastra|techfest|pragyan|apogee|tryst|kshitij|megathon|kurukshetra/i.test(title);
+
+      if (matchedUni || isUniExplicit) {
+        return {
+          sourceType: "University" as SourceType,
+          sourceId: matchedUni ? matchedUni.id : "iit_bombay",
+          sourceName: matchedUni ? matchedUni.name : organizer || "Premier University"
+        };
+      }
+
+      // 3. Check Tech Enterprises & Companies THIRD
+      const matchedCompany = STANDARD_COMPANIES.find((c) =>
+        c.aliases.some((alias) => combined.includes(alias))
+      );
+      if (matchedCompany) {
+        return {
+          sourceType: "Company" as SourceType,
+          sourceId: matchedCompany.id,
+          sourceName: matchedCompany.name
+        };
+      }
+
+      // 4. Check Platforms FOURTH (Check Kaggle, Hugging Face, etc. before generic Devpost)
+      if (linkLower.includes("kaggle.com") || combined.includes("kaggle")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "kaggle", sourceName: "Kaggle" };
+      }
+      if (linkLower.includes("huggingface.co") || combined.includes("hugging face") || combined.includes("huggingface")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "huggingface", sourceName: "Hugging Face" };
+      }
+      if (linkLower.includes("devfolio.co") || combined.includes("devfolio")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "devfolio", sourceName: "Devfolio" };
+      }
+      if (linkLower.includes("unstop.com") || combined.includes("unstop") || combined.includes("dare2compete")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "unstop", sourceName: "Unstop" };
+      }
+      if (linkLower.includes("hackerearth.com") || combined.includes("hackerearth")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "hackerearth", sourceName: "HackerEarth" };
+      }
+      if (linkLower.includes("hack2skill.com") || combined.includes("hack2skill")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "hack2skill", sourceName: "Hack2skill" };
+      }
+      if (linkLower.includes("dorahacks.io") || combined.includes("dorahacks")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "dorahacks", sourceName: "DoraHacks" };
+      }
+      if (linkLower.includes("sih.gov.in") || combined.includes("smart india") || combined.includes("sih")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "sih", sourceName: "Smart India Hackathon (SIH)" };
+      }
+      if (linkLower.includes("mlh.io") || combined.includes("major league hacking") || combined.includes("mlh")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "mlh", sourceName: "Major League Hacking (MLH)" };
+      }
+      if (linkLower.includes("devpost.com") || combined.includes("devpost")) {
+        return { sourceType: "Platform" as SourceType, sourceId: "devpost", sourceName: "Devpost" };
+      }
+
+      // Default platform fallback
+      return { sourceType: "Platform" as SourceType, sourceId: "devpost", sourceName: organizer || "Devpost" };
+    };
+
     // 1. Process HackathonInfo
     for (const h of hackathons) {
       const id = h._id || h.id || h.hackathonId || "";
-      const textOrg = `${h.organizer || ""} ${h.name || ""} ${h.registrationLink || ""}`.toLowerCase();
-
-      let sourceType: "Platform" | "Company" = "Platform";
-      let sourceId = "other";
-      let sourceName = h.organizer || "Independent";
-
-      const matchedCompany = STANDARD_COMPANIES.find((c) =>
-        c.aliases.some((alias) => textOrg.includes(alias))
+      const { sourceType, sourceId, sourceName } = resolveSource(
+        h.name || "",
+        h.organizer || "",
+        h.registrationLink || "",
+        h.description || "",
+        h.tags || []
       );
-
-      if (matchedCompany) {
-        sourceType = "Company";
-        sourceId = matchedCompany.id;
-        sourceName = matchedCompany.name;
-      } else {
-        const matchedPlatform = STANDARD_PLATFORMS.find((p) =>
-          p.aliases.some((alias) => textOrg.includes(alias))
-        );
-        if (matchedPlatform) {
-          sourceType = "Platform";
-          sourceId = matchedPlatform.id;
-          sourceName = matchedPlatform.name;
-        } else {
-          sourceType = "Platform";
-          sourceId = "other_platform";
-          sourceName = h.organizer || "Dev Community";
-        }
-      }
 
       const domainCat = categorizeDomain(h);
 
@@ -532,7 +681,8 @@ export default function HackathonMatrixView({
         mode: h.mode || "Online",
         location: h.location || "Global",
         tags: h.tags || [],
-        status: h.status || "Active"
+        status: h.status || "Active",
+        isUnadvertised: (h.tags || []).some((t) => /unadvertised|internal/i.test(t))
       });
     }
 
@@ -542,34 +692,13 @@ export default function HackathonMatrixView({
       const id = o._id || o.id || o.title;
       if (map.has(id)) continue;
 
-      const textOrg = `${o.organizer || ""} ${o.title || ""} ${o.website || ""} ${o.registrationLink || ""}`.toLowerCase();
-
-      let sourceType: "Platform" | "Company" = "Platform";
-      let sourceId = "other";
-      let sourceName = o.organizer || "Independent";
-
-      const matchedCompany = STANDARD_COMPANIES.find((c) =>
-        c.aliases.some((alias) => textOrg.includes(alias))
+      const { sourceType, sourceId, sourceName } = resolveSource(
+        o.title || "",
+        o.organizer || "",
+        o.registrationLink || o.website || "",
+        o.description || "",
+        o.tags || []
       );
-
-      if (matchedCompany) {
-        sourceType = "Company";
-        sourceId = matchedCompany.id;
-        sourceName = matchedCompany.name;
-      } else {
-        const matchedPlatform = STANDARD_PLATFORMS.find((p) =>
-          p.aliases.some((alias) => textOrg.includes(alias))
-        );
-        if (matchedPlatform) {
-          sourceType = "Platform";
-          sourceId = matchedPlatform.id;
-          sourceName = matchedPlatform.name;
-        } else {
-          sourceType = "Platform";
-          sourceId = "other_platform";
-          sourceName = o.organizer || "Tech Platform";
-        }
-      }
 
       const domainCat = categorizeDomain(o);
 
@@ -592,7 +721,8 @@ export default function HackathonMatrixView({
         location: o.location,
         tags: o.tags || [],
         status: o.status || "Active",
-        bannerImage: o.bannerImage
+        bannerImage: o.bannerImage,
+        isUnadvertised: (o.tags || []).some((t) => /unadvertised|internal/i.test(t))
       });
     }
 
@@ -614,7 +744,7 @@ export default function HackathonMatrixView({
             return !isNaN(dateObj.getTime()) && dateObj.getMonth() === monthNum;
           });
         } else {
-          monthMatched = monthNum === 9; // October default active season
+          monthMatched = monthNum === 9;
         }
 
         if (!monthMatched) return false;
@@ -632,10 +762,10 @@ export default function HackathonMatrixView({
   }, [unifiedList, selectedMonth, searchQuery]);
 
   // Build matrix row groupings
-  const platformRows = useMemo(() => {
-    return STANDARD_PLATFORMS.map((platform) => {
+  const buildRows = (standards: { id: string; name: string }[], type: SourceType) => {
+    return standards.map((std) => {
       const items = filteredList.filter(
-        (item) => item.sourceType === "Platform" && item.sourceId === platform.id
+        (item) => item.sourceType === type && item.sourceId === std.id
       );
 
       const cellItems: Record<DomainCategory, UnifiedHackathon[]> = {
@@ -659,48 +789,18 @@ export default function HackathonMatrixView({
       });
 
       return {
-        ...platform,
-        sourceType: "Platform" as const,
+        ...std,
+        sourceType: type,
         total: items.length,
         cellItems
       };
     });
-  }, [filteredList]);
+  };
 
-  const companyRows = useMemo(() => {
-    return STANDARD_COMPANIES.map((company) => {
-      const items = filteredList.filter(
-        (item) => item.sourceType === "Company" && item.sourceId === company.id
-      );
-
-      const cellItems: Record<DomainCategory, UnifiedHackathon[]> = {
-        AI: [],
-        ML: [],
-        FSD: [],
-        Cyber: [],
-        Cloud: [],
-        Mobile: [],
-        Web3: [],
-        IoT: [],
-        OpenTech: []
-      };
-
-      items.forEach((item) => {
-        if (cellItems[item.domain]) {
-          cellItems[item.domain].push(item);
-        } else {
-          cellItems.FSD.push(item);
-        }
-      });
-
-      return {
-        ...company,
-        sourceType: "Company" as const,
-        total: items.length,
-        cellItems
-      };
-    });
-  }, [filteredList]);
+  const platformRows = useMemo(() => buildRows(STANDARD_PLATFORMS, "Platform"), [filteredList]);
+  const companyRows = useMemo(() => buildRows(STANDARD_COMPANIES, "Company"), [filteredList]);
+  const universityRows = useMemo(() => buildRows(STANDARD_UNIVERSITIES, "University"), [filteredList]);
+  const localRows = useMemo(() => buildRows(STANDARD_LOCAL, "Local"), [filteredList]);
 
   // Column Totals
   const columnTotals = useMemo(() => {
@@ -748,7 +848,7 @@ export default function HackathonMatrixView({
 
   const handleOpenCell = (
     sourceName: string,
-    sourceType: "Platform" | "Company",
+    sourceType: SourceType,
     domain: DomainCategory,
     items: UnifiedHackathon[]
   ) => {
@@ -761,6 +861,74 @@ export default function HackathonMatrixView({
       domainTheme: domainDef.theme,
       hackathons: items
     });
+  };
+
+  // Submit manual hackathon addition
+  const handleManualAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHackForm.name.trim() || !newHackForm.organizer.trim()) {
+      addToast("Please provide Hackathon Name and Organizer", "error");
+      return;
+    }
+
+    setIsSubmittingHack(true);
+    try {
+      const now = new Date();
+      const sDate = newHackForm.startDate ? new Date(newHackForm.startDate) : now;
+      const eDate = newHackForm.endDate ? new Date(newHackForm.endDate) : new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+      const dDate = newHackForm.registrationDeadline ? new Date(newHackForm.registrationDeadline) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const domainFullName = ALL_DOMAINS.find((d) => d.id === newHackForm.domain)?.fullName || newHackForm.domain;
+
+      const success = await store.createHackathon({
+        name: newHackForm.name.trim(),
+        organizer: newHackForm.organizer.trim(),
+        domain: domainFullName,
+        description: newHackForm.description.trim() || `${newHackForm.name} organized by ${newHackForm.organizer}`,
+        registrationLink: newHackForm.registrationLink.trim() || "https://trackflow.internal/campus-hackathon",
+        mode: newHackForm.mode,
+        location: newHackForm.location,
+        startDate: sDate.toISOString(),
+        endDate: eDate.toISOString(),
+        registrationDeadline: dDate.toISOString(),
+        status: "Active",
+        tags: [
+          newHackForm.organizer.trim(),
+          newHackForm.sourceType,
+          newHackForm.domain,
+          newHackForm.isUnadvertised ? "Unadvertised Local" : "Public Event",
+          "Manual Addition"
+        ]
+      });
+
+      if (success) {
+        addToast(`Successfully published "${newHackForm.name}"! Synced to Opportunities Hub & Proofs.`, "success");
+        setIsAddModalOpen(false);
+        setNewHackForm({
+          name: "",
+          organizer: "",
+          sourceType: "Local",
+          domain: "ML",
+          mode: "Offline",
+          location: "Campus Lab / Auditorium",
+          registrationLink: "",
+          registrationDeadline: "",
+          startDate: "",
+          endDate: "",
+          prizePool: "₹25,000 + Merit Certificates",
+          description: "",
+          isUnadvertised: true
+        });
+        await store.fetchHackathons();
+        await store.fetchOpportunities();
+      } else {
+        addToast("Failed to create hackathon.", "error");
+      }
+    } catch (err: any) {
+      addToast(err.message || "Failed to add hackathon", "error");
+    } finally {
+      setIsSubmittingHack(false);
+    }
   };
 
   return (
@@ -776,12 +944,12 @@ export default function HackathonMatrixView({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 flex items-center gap-1.5 shadow-[0_0_12px_rgba(99,102,241,0.3)]">
                 <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-                TrackFlow AI Adaptive Matrix
+                TrackFlow 4-Source Unified Matrix
               </span>
 
               <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                Active Month: {selectedMonth === "9" ? "October (.Oct)" : MONTH_OPTIONS.find((m) => m.id === selectedMonth)?.label}
+                Active Filter: {selectedMonth === "ALL" ? "All Active Hackathons" : MONTH_OPTIONS.find((m) => m.id === selectedMonth)?.label}
               </span>
 
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/15 border border-purple-400/30 text-purple-300">
@@ -806,9 +974,9 @@ export default function HackathonMatrixView({
             </div>
 
             <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-cyan-500/20 text-center min-w-[95px] shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Top Domain</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">ML Events</span>
               <span className="text-base font-black text-cyan-300">
-                {grandTotal === 0 ? "-" : Object.entries(columnTotals).sort((a, b) => Number(b[1]) - Number(a[1]))[0]?.[0]}
+                {columnTotals.ML || 0}
               </span>
             </div>
 
@@ -822,30 +990,33 @@ export default function HackathonMatrixView({
               <span>{isSyncing ? "Syncing..." : "Sync Live"}</span>
             </button>
 
-            {onAddHackathon && (userRole === "coordinator" || userRole === "master_admin") && (
-              <button
-                onClick={() => onAddHackathon()}
-                className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Hackathon</span>
-              </button>
-            )}
+            {/* + Add Hackathon Button (Opens manual & unadvertised hackathon addition modal) */}
+            <button
+              onClick={() => {
+                if (onAddHackathon) {
+                  onAddHackathon();
+                } else {
+                  setIsAddModalOpen(true);
+                }
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
+              title="Add a new hackathon (Platform, Company, University, or Unadvertised Local event)"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Add Hackathon (Manual/Local/Uni)</span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Futuristic Controls Bar: Month Selector, Domain Scope Switcher, Search */}
       <div className="bg-[#0b101e] p-4 sm:p-5 rounded-3xl border border-indigo-500/20 shadow-xl space-y-4">
-        {/* Month Selector Bar (Annotated in sketch with .Oct) */}
+        {/* Month Selector Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-indigo-500/15">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-indigo-400" />
             <span className="text-xs font-black uppercase tracking-wider text-slate-200">
               Active Period Filter:
-            </span>
-            <span className="text-[11px] text-slate-400 font-medium">
-              (Matches handwritten .Oct note)
             </span>
           </div>
 
@@ -882,7 +1053,7 @@ export default function HackathonMatrixView({
             <Search className="w-4 h-4 text-indigo-400/70 absolute left-3.5 top-2.5" />
             <input
               type="text"
-              placeholder="Search platforms, companies, Google, AI, Devpost..."
+              placeholder="Search Devpost, Kaggle, IIT, Dept of CSE, ML, AI..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-xs bg-slate-900/80 border border-indigo-500/25 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-100 placeholder-slate-400 shadow-inner"
@@ -909,9 +1080,9 @@ export default function HackathonMatrixView({
                       ? "bg-indigo-600 text-white shadow-xs font-black"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
-                  title="Show original 4 domains (AI, ML, FSD, Cyber)"
+                  title="Show original 4 core domains (AI, ML, FSD, Cyber)"
                 >
-                  Core 4 (Handwritten)
+                  Core 4 (AI, ML, FSD, Cyber)
                 </button>
                 <button
                   onClick={() => setDomainScope("EXPANDED")}
@@ -920,7 +1091,7 @@ export default function HackathonMatrixView({
                       ? "bg-indigo-600 text-white shadow-xs font-black"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
-                  title="Show all 9 AI engineering domains"
+                  title="Show all 9 engineering domains"
                 >
                   <Sparkles className="w-3 h-3 text-cyan-300" />
                   All 9 Domains
@@ -928,10 +1099,10 @@ export default function HackathonMatrixView({
               </div>
             </div>
 
-            {/* Show Rows Filter */}
+            {/* Show Rows Filter: ALL 4 SOURCES */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-400">Rows:</span>
-              <div className="inline-flex rounded-xl p-1 bg-slate-900/90 border border-indigo-500/20">
+              <span className="text-[11px] font-bold text-slate-400">Source:</span>
+              <div className="inline-flex rounded-xl p-1 bg-slate-900/90 border border-indigo-500/20 flex-wrap">
                 <button
                   onClick={() => setSourceTypeFilter("ALL")}
                   className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
@@ -940,7 +1111,7 @@ export default function HackathonMatrixView({
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  All
+                  All (4 Sources)
                 </button>
                 <button
                   onClick={() => setSourceTypeFilter("PLATFORMS")}
@@ -962,13 +1133,33 @@ export default function HackathonMatrixView({
                 >
                   Companies
                 </button>
+                <button
+                  onClick={() => setSourceTypeFilter("UNIVERSITIES")}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                    sourceTypeFilter === "UNIVERSITIES"
+                      ? "bg-indigo-600/90 text-white shadow-xs"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Universities (IIT/NIT)
+                </button>
+                <button
+                  onClick={() => setSourceTypeFilter("LOCAL")}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                    sourceTypeFilter === "LOCAL"
+                      ? "bg-indigo-600/90 text-white shadow-xs"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Local / Internal
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MATRIX TABLE (AI Holographic Glass Layout) */}
+      {/* MATRIX TABLE (AI Holographic Glass Layout with 4 Distinct Sections) */}
       <div className="bg-[#0b101e] rounded-3xl border border-indigo-500/20 shadow-2xl overflow-hidden backdrop-blur-2xl">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full border-collapse text-left text-xs min-w-[840px]">
@@ -976,14 +1167,14 @@ export default function HackathonMatrixView({
             <thead>
               <tr className="bg-slate-950/90 border-b border-indigo-500/20 text-slate-200">
                 {/* Sticky Top-Left Corner Header */}
-                <th className="p-4 sm:p-5 w-56 sticky left-0 z-20 bg-[#0b101e] border-r border-indigo-500/20 shadow-[2px_0_10px_rgba(0,0,0,0.5)]">
+                <th className="p-4 sm:p-5 w-60 sticky left-0 z-20 bg-[#0b101e] border-r border-indigo-500/20 shadow-[2px_0_10px_rgba(0,0,0,0.5)]">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block">
                         Source
                       </span>
                       <span className="text-xs font-black text-slate-100">
-                        Platform / Company
+                        Platform / Company / Uni
                       </span>
                     </div>
                     <Layers className="w-4 h-4 text-indigo-400/60" />
@@ -1033,7 +1224,7 @@ export default function HackathonMatrixView({
                       className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-indigo-300"
                     >
                       <div className="flex items-center gap-2">
-                        <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+                        <Globe className="w-3.5 h-3.5 text-indigo-400" />
                         <span>Platform (Where hackathons are hosted & discovered)</span>
                       </div>
                     </td>
@@ -1044,7 +1235,6 @@ export default function HackathonMatrixView({
                       key={row.id}
                       className="hover:bg-slate-800/40 transition-colors group"
                     >
-                      {/* Sticky Row Label (Left) */}
                       <td className="p-4 font-bold sticky left-0 z-10 bg-[#0b101e] group-hover:bg-[#10172c] border-r border-indigo-500/20 transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.5)]">
                         <div className="flex items-center justify-between">
                           <span className="truncate pr-2 font-extrabold text-xs text-slate-100">{row.name}</span>
@@ -1054,7 +1244,6 @@ export default function HackathonMatrixView({
                         </div>
                       </td>
 
-                      {/* Domain Cells */}
                       {activeDomains.map((domain) => {
                         const items = row.cellItems[domain.id] || [];
                         const count = items.length;
@@ -1073,15 +1262,12 @@ export default function HackathonMatrixView({
                                 {count}
                               </button>
                             ) : (
-                              <span className="text-slate-600 font-bold text-sm block select-none">
-                                -
-                              </span>
+                              <span className="text-slate-600 font-bold text-sm block select-none">-</span>
                             )}
                           </td>
                         );
                       })}
 
-                      {/* Row Total */}
                       <td className="p-3 text-center font-extrabold text-xs text-indigo-200 bg-slate-900/30">
                         {row.total}
                       </td>
@@ -1100,7 +1286,7 @@ export default function HackathonMatrixView({
                     >
                       <div className="flex items-center gap-2">
                         <Building2 className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Comp / Company (Corporate & Tech Giant Sponsoring Hosts)</span>
+                        <span>Company & Tech Giants (Corporate & Enterprise Organizers)</span>
                       </div>
                     </td>
                   </tr>
@@ -1110,7 +1296,6 @@ export default function HackathonMatrixView({
                       key={row.id}
                       className="hover:bg-slate-800/40 transition-colors group"
                     >
-                      {/* Sticky Row Label (Left) */}
                       <td className="p-4 font-bold sticky left-0 z-10 bg-[#0b101e] group-hover:bg-[#10172c] border-r border-indigo-500/20 transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.5)]">
                         <div className="flex items-center justify-between">
                           <span className="truncate pr-2 font-extrabold text-xs text-slate-100">{row.name}</span>
@@ -1120,7 +1305,6 @@ export default function HackathonMatrixView({
                         </div>
                       </td>
 
-                      {/* Domain Cells */}
                       {activeDomains.map((domain) => {
                         const items = row.cellItems[domain.id] || [];
                         const count = items.length;
@@ -1139,16 +1323,135 @@ export default function HackathonMatrixView({
                                 {count}
                               </button>
                             ) : (
-                              <span className="text-slate-600 font-bold text-sm block select-none">
-                                -
-                              </span>
+                              <span className="text-slate-600 font-bold text-sm block select-none">-</span>
                             )}
                           </td>
                         );
                       })}
 
-                      {/* Row Total */}
                       <td className="p-3 text-center font-extrabold text-xs text-purple-200 bg-slate-900/30">
+                        {row.total}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              )}
+
+              {/* SECTION 3: PREMIER UNIVERSITIES & INSTITUTES */}
+              {(sourceTypeFilter === "ALL" || sourceTypeFilter === "UNIVERSITIES") && (
+                <>
+                  <tr className="bg-emerald-950/30 border-y border-emerald-500/20">
+                    <td
+                      colSpan={activeDomains.length + 2}
+                      className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-emerald-300"
+                    >
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Premier Universities & Institutes (IITs, NITs, BITS, IIITs & Universities)</span>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {universityRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="hover:bg-slate-800/40 transition-colors group"
+                    >
+                      <td className="p-4 font-bold sticky left-0 z-10 bg-[#0b101e] group-hover:bg-[#10172c] border-r border-indigo-500/20 transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.5)]">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate pr-2 font-extrabold text-xs text-slate-100">{row.name}</span>
+                          <span className="text-[10px] text-emerald-300 font-bold px-1.5 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/30">
+                            {row.total}
+                          </span>
+                        </div>
+                      </td>
+
+                      {activeDomains.map((domain) => {
+                        const items = row.cellItems[domain.id] || [];
+                        const count = items.length;
+
+                        return (
+                          <td
+                            key={domain.id}
+                            className="p-3 text-center border-r border-indigo-500/10"
+                          >
+                            {count > 0 ? (
+                              <button
+                                onClick={() => handleOpenCell(row.name, "University", domain.id, items)}
+                                className={`w-11 h-8 rounded-xl font-black text-xs transition-all transform hover:scale-110 active:scale-95 cursor-pointer inline-flex items-center justify-center ${domain.theme.pill}`}
+                                title={`Click to view ${count} ${domain.label} hackathons at ${row.name}`}
+                              >
+                                {count}
+                              </button>
+                            ) : (
+                              <span className="text-slate-600 font-bold text-sm block select-none">-</span>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      <td className="p-3 text-center font-extrabold text-xs text-emerald-200 bg-slate-900/30">
+                        {row.total}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              )}
+
+              {/* SECTION 4: LOCAL & CAMPUS INTERNAL HACKATHONS */}
+              {(sourceTypeFilter === "ALL" || sourceTypeFilter === "LOCAL") && (
+                <>
+                  <tr className="bg-amber-950/30 border-y border-amber-500/20">
+                    <td
+                      colSpan={activeDomains.length + 2}
+                      className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-amber-300"
+                    >
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Local & Campus Internal Hackathons (Intra-College, Unadvertised & Manual Addition)</span>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {localRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="hover:bg-slate-800/40 transition-colors group"
+                    >
+                      <td className="p-4 font-bold sticky left-0 z-10 bg-[#0b101e] group-hover:bg-[#10172c] border-r border-indigo-500/20 transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.5)]">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate pr-2 font-extrabold text-xs text-slate-100">{row.name}</span>
+                          <span className="text-[10px] text-amber-300 font-bold px-1.5 py-0.5 rounded-md bg-amber-950/80 border border-amber-500/30">
+                            {row.total}
+                          </span>
+                        </div>
+                      </td>
+
+                      {activeDomains.map((domain) => {
+                        const items = row.cellItems[domain.id] || [];
+                        const count = items.length;
+
+                        return (
+                          <td
+                            key={domain.id}
+                            className="p-3 text-center border-r border-indigo-500/10"
+                          >
+                            {count > 0 ? (
+                              <button
+                                onClick={() => handleOpenCell(row.name, "Local", domain.id, items)}
+                                className={`w-11 h-8 rounded-xl font-black text-xs transition-all transform hover:scale-110 active:scale-95 cursor-pointer inline-flex items-center justify-center ${domain.theme.pill}`}
+                                title={`Click to view ${count} ${domain.label} hackathons in ${row.name}`}
+                              >
+                                {count}
+                              </button>
+                            ) : (
+                              <span className="text-slate-600 font-bold text-sm block select-none">-</span>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      <td className="p-3 text-center font-extrabold text-xs text-amber-200 bg-slate-900/30">
                         {row.total}
                       </td>
                     </tr>
@@ -1196,7 +1499,7 @@ export default function HackathonMatrixView({
 
       {/* CELL DETAIL MODAL / DRAWER */}
       {activeCellModal && (
-        <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[999] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-[#0b101e] rounded-3xl border border-indigo-500/30 shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="p-5 border-b border-indigo-500/20 flex items-center justify-between bg-slate-950/70">
@@ -1242,9 +1545,16 @@ export default function HackathonMatrixView({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black uppercase text-indigo-300 bg-indigo-950/70 px-2 py-0.5 rounded border border-indigo-500/30">
-                          by {hackathon.organizer}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-black uppercase text-indigo-300 bg-indigo-950/70 px-2 py-0.5 rounded border border-indigo-500/30">
+                            by {hackathon.organizer}
+                          </span>
+                          {hackathon.isUnadvertised && (
+                            <span className="text-[10px] font-bold text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded border border-amber-500/30">
+                              🔒 Unadvertised Local Event
+                            </span>
+                          )}
+                        </div>
                         <h4 className="font-extrabold text-sm text-white">
                           {hackathon.title}
                         </h4>
@@ -1279,17 +1589,30 @@ export default function HackathonMatrixView({
                         Category: {hackathon.rawDomain || activeCellModal.domainLabel}
                       </span>
 
-                      {hackathon.registrationLink && (
-                        <a
-                          href={hackathon.registrationLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-500/25"
+                      <div className="flex items-center gap-2">
+                        {/* Direct link to Hackathon Proof submission page */}
+                        <Link
+                          to={`/hackathons?hackathonId=${hackathon.id}&name=${encodeURIComponent(hackathon.title)}`}
+                          onClick={() => setActiveCellModal(null)}
+                          className="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
+                          title="Upload and submit registration screenshot proof for this hackathon"
                         >
-                          <span>Register on Platform</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
+                          <Upload className="w-3 h-3" />
+                          <span>📸 Upload Proof</span>
+                        </Link>
+
+                        {hackathon.registrationLink && (
+                          <a
+                            href={hackathon.registrationLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-500/25"
+                          >
+                            <span>Register / Details</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1308,6 +1631,208 @@ export default function HackathonMatrixView({
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: MANUAL / UNADVERTISED / LOCAL / UNIVERSITY HACKATHON ADDITION */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-[#0b101e] rounded-3xl border border-indigo-500/30 shadow-2xl w-full max-w-xl p-6 sm:p-7 space-y-5 my-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-indigo-500/20">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <Plus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-black text-white text-base">Add Hackathon (Manual / Local / Uni)</h3>
+                  <p className="text-[11px] text-slate-400">For unadvertised campus events, university tech fests & internal sprints</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleManualAddSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Hackathon Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dept of CSE Intra-College FSD Sprint"
+                    value={newHackForm.name}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, name: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Organizer / Department *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dept of CSE / IIT Madras"
+                    value={newHackForm.organizer}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, organizer: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Source Type</label>
+                  <select
+                    value={newHackForm.sourceType}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, sourceType: e.target.value as SourceType })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  >
+                    <option value="Local">Local & Campus Internal (Intra-College)</option>
+                    <option value="University">Premier University (IIT, NIT, BITS)</option>
+                    <option value="Platform">Hosting Platform (Kaggle, Devpost, etc.)</option>
+                    <option value="Company">Enterprise Company (Google, AWS, etc.)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Technical Domain *</label>
+                  <select
+                    value={newHackForm.domain}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, domain: e.target.value as DomainCategory })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white font-bold"
+                  >
+                    <option value="ML">ML - Machine Learning & Data Science</option>
+                    <option value="AI">AI - Artificial Intelligence & LLMs</option>
+                    <option value="FSD">FSD - Full Stack Development</option>
+                    <option value="Cyber">Cyber - Cybersecurity & CTF</option>
+                    <option value="Cloud">Cloud - Cloud & DevOps</option>
+                    <option value="Mobile">Mobile - Android & iOS</option>
+                    <option value="Web3">Web3 - Blockchain</option>
+                    <option value="IoT">IoT - Robotics & Hardware</option>
+                    <option value="OpenTech">OpenTech - Open Innovation</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Mode</label>
+                  <select
+                    value={newHackForm.mode}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, mode: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  >
+                    <option value="Offline">Offline (On-Campus)</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="Online">Online</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Location / Venue</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Campus Lab 3 / Auditorium"
+                    value={newHackForm.location}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, location: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Registration Link / Internal Form</label>
+                  <input
+                    type="text"
+                    placeholder="Google Form / Portal link (optional)"
+                    value={newHackForm.registrationLink}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, registrationLink: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Prize Pool / Trophy</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ₹25,000 + Merit Trophy"
+                    value={newHackForm.prizePool}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, prizePool: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Registration Deadline</label>
+                  <input
+                    type="date"
+                    value={newHackForm.registrationDeadline}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, registrationDeadline: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Event Date</label>
+                  <input
+                    type="date"
+                    value={newHackForm.startDate}
+                    onChange={(e) => setNewHackForm({ ...newHackForm, startDate: e.target.value })}
+                    className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-300">Description / Guidelines</label>
+                <textarea
+                  rows={2}
+                  placeholder="Intra-college 24hr hackathon details, problem statement release date..."
+                  value={newHackForm.description}
+                  onChange={(e) => setNewHackForm({ ...newHackForm, description: e.target.value })}
+                  className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 p-3 bg-indigo-950/40 border border-indigo-500/20 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="unadvertisedCheck"
+                  checked={newHackForm.isUnadvertised}
+                  onChange={(e) => setNewHackForm({ ...newHackForm, isUnadvertised: e.target.checked })}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-900 border-indigo-500/40 cursor-pointer"
+                />
+                <label htmlFor="unadvertisedCheck" className="text-xs text-indigo-200 font-semibold cursor-pointer select-none">
+                  Unadvertised / Internal Hackathon (Campus-specific event not promoted publicly)
+                </label>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-indigo-500/20">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingHack}
+                  className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center gap-2 cursor-pointer"
+                >
+                  {isSubmittingHack ? "Publishing..." : "Publish & Sync Everywhere"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
