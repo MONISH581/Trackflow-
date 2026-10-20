@@ -250,6 +250,7 @@ export const STANDARD_COMPANIES = [
   { id: "ibm", name: "IBM", aliases: ["ibm", "call for code"] },
   { id: "nvidia", name: "NVIDIA", aliases: ["nvidia"] },
   { id: "intel", name: "Intel", aliases: ["intel"] },
+  { id: "amd", name: "AMD", aliases: ["amd", "advanced micro devices", "rocm", "instinct", "ryzen", "epyc"] },
   { id: "infosys_tcs", name: "Infosys / TCS", aliases: ["infosys", "tcs", "tata"] }
 ];
 
@@ -302,20 +303,20 @@ export function categorizeDomain(raw: {
   const explicit = (raw.domain || "").toLowerCase().trim();
 
   // Priority 1: Direct explicit mapping if already present
+  if (explicit.includes("cloud")) {
+    return "Cloud";
+  }
   if (explicit.includes("machine learning") || explicit === "ml" || explicit.includes("(ml)")) {
     return "ML";
+  }
+  if (explicit.includes("cyber") || explicit.includes("security") || explicit.includes("(cyber)")) {
+    return "Cyber";
   }
   if (explicit.includes("artificial intelligence") || explicit === "ai" || explicit.includes("(ai)")) {
     return "AI";
   }
   if (explicit.includes("full stack") || explicit.includes("fsd") || explicit.includes("(fsd)")) {
     return "FSD";
-  }
-  if (explicit.includes("cyber") || explicit.includes("security") || explicit.includes("(cyber)")) {
-    return "Cyber";
-  }
-  if (explicit.includes("cloud")) {
-    return "Cloud";
   }
   if (explicit.includes("mobile")) {
     return "Mobile";
@@ -328,6 +329,88 @@ export function categorizeDomain(raw: {
   }
   if (explicit.includes("open") || explicit.includes("govt")) {
     return "OpenTech";
+  }
+
+  // Priority 1.5: Title-level domain classification (TITLE TAKES PRECEDENCE OVER INCIDENTAL DESCRIPTION MENTIONS)
+  const titleText = `${raw.name || raw.title || ""}`.toLowerCase();
+  if (
+    titleText.includes("cloud") ||
+    titleText.includes("kubernetes") ||
+    titleText.includes("devops") ||
+    titleText.includes("cloud run") ||
+    titleText.includes("docker") ||
+    titleText.includes("serverless") ||
+    titleText.includes("aws") ||
+    titleText.includes("azure") ||
+    titleText.includes("gcp")
+  ) {
+    return "Cloud";
+  }
+  if (
+    titleText.includes("kaggle") ||
+    titleText.includes("machine learning") ||
+    titleText.includes("data science") ||
+    titleText.includes("ml sprint") ||
+    titleText.includes("tabular") ||
+    /\bml\b/.test(titleText)
+  ) {
+    return "ML";
+  }
+  if (
+    titleText.includes("cyber") ||
+    titleText.includes("security") ||
+    titleText.includes("ctf") ||
+    titleText.includes("zero-trust")
+  ) {
+    return "Cyber";
+  }
+  if (
+    titleText.includes("genai") ||
+    titleText.includes("generative ai") ||
+    titleText.includes("llm") ||
+    titleText.includes("gemini") ||
+    titleText.includes("gpt") ||
+    titleText.includes("artificial intelligence") ||
+    /\bai\b/.test(titleText)
+  ) {
+    return "AI";
+  }
+  if (
+    titleText.includes("mobile") ||
+    titleText.includes("android") ||
+    titleText.includes("ios") ||
+    titleText.includes("flutter") ||
+    titleText.includes("react native") ||
+    titleText.includes("swift")
+  ) {
+    return "Mobile";
+  }
+  if (
+    titleText.includes("web3") ||
+    titleText.includes("blockchain") ||
+    titleText.includes("crypto") ||
+    titleText.includes("solana") ||
+    titleText.includes("ethereum")
+  ) {
+    return "Web3";
+  }
+  if (
+    titleText.includes("iot") ||
+    titleText.includes("robotics") ||
+    titleText.includes("hardware") ||
+    titleText.includes("embedded") ||
+    titleText.includes("arduino")
+  ) {
+    return "IoT";
+  }
+  if (
+    titleText.includes("full stack") ||
+    titleText.includes("fullstack") ||
+    titleText.includes("frontend") ||
+    titleText.includes("backend") ||
+    titleText.includes("mern")
+  ) {
+    return "FSD";
   }
 
   const text = `${raw.name || raw.title || ""} ${raw.description || ""} ${(raw.tags || []).join(" ")}`.toLowerCase();

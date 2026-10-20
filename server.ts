@@ -6,7 +6,8 @@ import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import jwt from "jsonwebtoken"; // JWT handling
 import bcrypt from "bcryptjs"; // Password hashing
-import mongoose from "mongoose"; // MongoDB ORM
+import pg from "pg"; // PostgreSQL Client
+const { Pool } = pg;
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
@@ -231,15 +232,44 @@ async function startServer() {
     limits: { fileSize: 50 * 1024 * 1024 } // 50MB max file size for ZIP archives
   });
 
-  // Database Initialization (MongoDB Atlas & Firebase Firestore Support)
-  if (process.env.MONGODB_URI) {
+  // Database Initialization (PostgreSQL Database Support & Firebase Firestore Support)
+  const pgConnectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PG_URL;
+  let pgPool: pg.Pool | null = null;
+
+  const hasPgConfig = !!(pgConnectionString || (process.env.PGHOST && process.env.PGDATABASE));
+  if (hasPgConfig) {
     try {
-      if (mongoose.connection.readyState === 0) {
-        await mongoose.connect(process.env.MONGODB_URI);
-        console.log("Connected to MongoDB Database via MONGODB_URI!");
-      }
-    } catch (mErr: any) {
-      console.warn("MongoDB connection warning:", mErr.message);
+      const isLocalhost = pgConnectionString
+        ? (pgConnectionString.includes("localhost") || pgConnectionString.includes("127.0.0.1"))
+        : (process.env.PGHOST === "localhost" || process.env.PGHOST === "127.0.0.1");
+
+      const poolConfig: pg.PoolConfig = pgConnectionString
+        ? {
+            connectionString: pgConnectionString,
+            ssl: isLocalhost ? false : { rejectUnauthorized: false },
+            max: 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 10000,
+          }
+        : {
+            host: process.env.PGHOST,
+            user: process.env.PGUSER,
+            password: process.env.PGPASSWORD,
+            database: process.env.PGDATABASE,
+            port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
+            ssl: isLocalhost ? false : { rejectUnauthorized: false },
+            max: 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 10000,
+          };
+
+      pgPool = new Pool(poolConfig);
+      const client = await pgPool.connect();
+      console.log("Connected to PostgreSQL Database via DATABASE_URL / POSTGRES_URL!");
+      client.release();
+    } catch (pgErr: any) {
+      console.warn("PostgreSQL connection warning:", pgErr.message);
+      pgPool = null;
     }
   }
 
@@ -261,8 +291,8 @@ async function startServer() {
         });
         firestoreDb = getFirestore();
         console.log("Connected to Google Cloud Firestore via environment variables!");
-      } else if (!process.env.MONGODB_URI) {
-        console.log("No active MONGODB_URI or Firebase credentials found. Operating with in-memory document adapter.");
+      } else if (!hasPgConfig) {
+        console.log("No active DATABASE_URL or Firebase credentials found. Operating with local document adapter.");
       }
     } else {
       firestoreDb = getFirestore();
@@ -271,19 +301,15 @@ async function startServer() {
     console.warn("Firestore initialization error, using local document manager:", err);
   }
 
-  // Firestore Collection Abstract Adapter
+  // Database Collection Abstract Adapter (PostgreSQL / Firestore / Local Store)
   class FirestoreCollection {
     private collectionName: string;
+    private safeTableName: string;
     private static memoryStore: Map<string, Map<string, any>> = new Map();
     private static dbFilePath = path.join(process.cwd(), "uploads", "db_store.json");
     private static isLoaded = false;
-
-    private getMongoId(id: any) {
-      if (typeof id === 'string' && /^[a-fA-F0-9]{24}$/.test(id)) {
-        return new mongoose.Types.ObjectId(id);
-      }
-      return id;
-    }
+    private static ensuredTables: Set<string> = new Set();
+    private static pgInitialized = false;
 
     private static loadFromDisk() {
       if (FirestoreCollection.isLoaded) return;
@@ -327,8 +353,108 @@ async function startServer() {
       }
     }
 
+    public static async initPostgres(pool: pg.Pool) {
+      if (!pool || FirestoreCollection.pgInitialized) return;
+      FirestoreCollection.pgInitialized = true;
+      const allCollections = [
+        "users", "mentors", "projects", "github_repos", "tasks", "notifications",
+        "messages", "daily_reports", "hackathons", "hackathon_registrations",
+        "hackathon_mappings", "hackathon_interests", "abstract_histories", "attendances",
+        "lab_accesses", "opportunities", "activity_logs", "milestone_presentations",
+        "project_extensions", "sessions"
+      ];
+
+      for (const col of allCollections) {
+        const safeTable = col.replace(/[^a-zA-Z0-9_]/g, "_");
+        try {
+          await pool.query(`
+            CREATE TABLE IF NOT EXISTS "${safeTable}" (
+              id VARCHAR(255) PRIMARY KEY,
+              data JSONB NOT NULL,
+              created_at TIMESTAMPTZ DEFAULT NOW(),
+              updated_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS "idx_${safeTable}_gin" ON "${safeTable}" USING gin (data);
+          `);
+          FirestoreCollection.ensuredTables.add(safeTable);
+        } catch (e: any) {
+          console.warn(`PostgreSQL table init error on ${safeTable}:`, e.message);
+        }
+      }
+
+      // Check if tables have records
+      let totalRecords = 0;
+      for (const col of allCollections) {
+        const safeTable = col.replace(/[^a-zA-Z0-9_]/g, "_");
+        try {
+          const res = await pool.query(`SELECT COUNT(*) AS count FROM "${safeTable}"`);
+          const count = parseInt(res.rows[0].count, 10);
+          totalRecords += count;
+          if (count > 0) {
+            const rowsRes = await pool.query(`SELECT data FROM "${safeTable}"`);
+            let colMap = FirestoreCollection.memoryStore.get(col);
+            if (!colMap) {
+              colMap = new Map<string, any>();
+              FirestoreCollection.memoryStore.set(col, colMap);
+            }
+            for (const r of rowsRes.rows) {
+              if (r.data && (r.data._id || r.data.id)) {
+                colMap.set(String(r.data._id || r.data.id), r.data);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // If PostgreSQL is empty and db_store.json has records, automatically migrate them!
+      if (totalRecords === 0) {
+        FirestoreCollection.loadFromDisk();
+        let migratedCount = 0;
+        for (const [colName, colMap] of FirestoreCollection.memoryStore.entries()) {
+          const safeTable = colName.replace(/[^a-zA-Z0-9_]/g, "_");
+          for (const [docId, docVal] of colMap.entries()) {
+            try {
+              const cleanData = docVal;
+              await pool.query(
+                `INSERT INTO "${safeTable}" (id, data, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
+                [String(docId), JSON.stringify(cleanData), new Date(cleanData.createdAt || Date.now()), new Date(cleanData.updatedAt || Date.now())]
+              );
+              migratedCount++;
+            } catch (err: any) {
+              console.warn(`PostgreSQL migration error for ${colName}/${docId}:`, err.message);
+            }
+          }
+        }
+        if (migratedCount > 0) {
+          console.log(`Successfully migrated ${migratedCount} existing records from local store to PostgreSQL!`);
+        }
+      }
+    }
+
+    private async ensurePgTable() {
+      if (!pgPool) return;
+      if (FirestoreCollection.ensuredTables.has(this.safeTableName)) return;
+      try {
+        await pgPool.query(`
+          CREATE TABLE IF NOT EXISTS "${this.safeTableName}" (
+            id VARCHAR(255) PRIMARY KEY,
+            data JSONB NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS "idx_${this.safeTableName}_gin" ON "${this.safeTableName}" USING gin (data);
+        `);
+        FirestoreCollection.ensuredTables.add(this.safeTableName);
+      } catch (err: any) {
+        console.warn(`PostgreSQL table initialization warning for ${this.safeTableName}:`, err.message);
+      }
+    }
+
     constructor(collectionName: string) {
       this.collectionName = collectionName;
+      this.safeTableName = collectionName.replace(/[^a-zA-Z0-9_]/g, "_");
       FirestoreCollection.loadFromDisk();
       if (!FirestoreCollection.memoryStore.has(collectionName)) {
         FirestoreCollection.memoryStore.set(collectionName, new Map());
@@ -471,14 +597,14 @@ async function startServer() {
       return runner;
     }
 
-    private sanitizeForFirestore(val: any): any {
+    private sanitizeForStorage(val: any): any {
       if (val === null || val === undefined) return null;
       if (val instanceof Date) {
         const time = val.getTime();
         return isNaN(time) ? new Date().toISOString() : val.toISOString();
       }
       if (typeof val === "function") return undefined;
-      if (Array.isArray(val)) return val.map(item => this.sanitizeForFirestore(item)).filter(item => item !== undefined);
+      if (Array.isArray(val)) return val.map(item => this.sanitizeForStorage(item)).filter(item => item !== undefined);
       if (typeof val === "object") {
         if (typeof val.getMonth === "function" || val.constructor?.name === "Date" || val._seconds !== undefined || val._nanoseconds !== undefined) {
           const time = new Date(val).getTime();
@@ -487,30 +613,36 @@ async function startServer() {
         const res: any = {};
         for (const [k, v] of Object.entries(val)) {
           if (k === "_id" || k === "toObject" || k === "save" || typeof v === "function") continue;
-          const cleanVal = this.sanitizeForFirestore(v);
+          const cleanVal = this.sanitizeForStorage(v);
           if (cleanVal !== undefined) res[k] = cleanVal;
         }
+        if (val._id) res._id = String(val._id);
+        if (val.id) res.id = String(val.id);
         return res;
       }
       return val;
     }
-
-
 
     async create(data: any) {
       const id = data._id || data.id || this.generateId();
       const now = new Date();
       const docData = { ...data, _id: id, id, createdAt: data.createdAt || now, updatedAt: now };
 
-      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      if (pgPool) {
         try {
-          const cleanData = this.sanitizeForFirestore(docData);
-          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: this.getMongoId(id) }, { $set: cleanData }, { upsert: true });
-        } catch (mErr) {
-          console.warn(`MongoDB write warning on ${this.collectionName}:`, mErr);
+          await this.ensurePgTable();
+          const cleanData = this.sanitizeForStorage(docData);
+          await pgPool.query(
+            `INSERT INTO "${this.safeTableName}" (id, data, created_at, updated_at)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
+            [String(id), JSON.stringify(cleanData), new Date(docData.createdAt), now]
+          );
+        } catch (pgErr) {
+          console.warn(`PostgreSQL write warning on ${this.collectionName}:`, pgErr);
         }
       } else if (firestoreDb) {
-        const cleanData = this.sanitizeForFirestore(docData);
+        const cleanData = this.sanitizeForStorage(docData);
         await firestoreDb.collection(this.collectionName).doc(id).set(cleanData, { merge: true });
       }
       this.localStore.set(id, docData);
@@ -530,15 +662,29 @@ async function startServer() {
     find(filter: Record<string, any> = {}) {
       return this.createQueryRunner(async () => {
         let results: any[] = [];
-        if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        if (pgPool) {
           try {
-            const mongoDocs = await mongoose.connection.db.collection(this.collectionName).find(filter || {}).toArray();
-            for (const doc of mongoDocs) {
-              results.push(this.formatDoc(doc._id.toString(), doc));
+            await this.ensurePgTable();
+            if (filter && (filter._id || filter.id) && Object.keys(filter).length === 1) {
+              const targetId = String(filter._id || filter.id);
+              const res = await pgPool.query(`SELECT data FROM "${this.safeTableName}" WHERE id = $1`, [targetId]);
+              if (res.rows.length > 0) {
+                const rowData = res.rows[0].data;
+                return [this.formatDoc(rowData._id || targetId, rowData)];
+              }
+              return [];
+            }
+            const res = await pgPool.query(`SELECT data FROM "${this.safeTableName}"`);
+            for (const row of res.rows) {
+              const rowData = row.data;
+              const formatted = this.formatDoc(rowData._id || rowData.id, rowData);
+              if (this.matchFilter(formatted, filter)) {
+                results.push(formatted);
+              }
             }
             return results;
-          } catch (mErr) {
-            console.warn(`MongoDB read warning on ${this.collectionName}:`, mErr);
+          } catch (pgErr) {
+            console.warn(`PostgreSQL read warning on ${this.collectionName}:`, pgErr);
           }
         } else if (firestoreDb) {
           try {
@@ -552,7 +698,7 @@ async function startServer() {
             return results;
           } catch (err: any) {
             if (err?.message?.includes("RESOURCE_EXHAUSTED") || err?.code === 8) {
-              // Silently fallback to MongoDB/memory without spamming thousands of error traces
+              // Silently fallback without spamming thousands of error traces
             } else {
               console.warn(`Firestore read error on ${this.collectionName}:`, err?.message || err);
             }
@@ -569,10 +715,16 @@ async function startServer() {
     }
 
     async findOne(filter: Record<string, any> = {}) {
-      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      if (pgPool && filter && (filter._id || filter.id) && Object.keys(filter).length === 1) {
         try {
-          const doc = await mongoose.connection.db.collection(this.collectionName).findOne(filter || {});
-          if (doc) return this.formatDoc(doc._id.toString(), doc);
+          await this.ensurePgTable();
+          const targetId = String(filter._id || filter.id);
+          const res = await pgPool.query(`SELECT data FROM "${this.safeTableName}" WHERE id = $1`, [targetId]);
+          if (res.rows.length > 0) {
+            const rowData = res.rows[0].data;
+            return this.formatDoc(rowData._id || targetId, rowData);
+          }
+          return null;
         } catch (e) {}
       }
       const results = await this.find(filter);
@@ -581,10 +733,14 @@ async function startServer() {
 
     async findById(id: string) {
       if (!id) return null;
-      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      if (pgPool) {
         try {
-          const doc = await mongoose.connection.db.collection(this.collectionName).findOne({ _id: this.getMongoId(id) } as any);
-          if (doc) return this.formatDoc(doc._id.toString(), doc);
+          await this.ensurePgTable();
+          const res = await pgPool.query(`SELECT data FROM "${this.safeTableName}" WHERE id = $1`, [String(id)]);
+          if (res.rows.length > 0) {
+            const rowData = res.rows[0].data;
+            return this.formatDoc(rowData._id || id, rowData);
+          }
         } catch (e) {}
       } else if (firestoreDb) {
         try {
@@ -611,13 +767,21 @@ async function startServer() {
 
       updatedData.updatedAt = new Date();
 
-      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      if (pgPool) {
         try {
-          const cleanData = this.sanitizeForFirestore(updatedData);
-          await mongoose.connection.db.collection(this.collectionName).updateOne({ _id: this.getMongoId(doc._id) }, { $set: cleanData }, { upsert: true });
-        } catch (e) {}
+          await this.ensurePgTable();
+          const cleanData = this.sanitizeForStorage(updatedData);
+          await pgPool.query(
+            `INSERT INTO "${this.safeTableName}" (id, data, created_at, updated_at)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
+            [String(doc._id), JSON.stringify(cleanData), new Date(updatedData.createdAt || Date.now()), updatedData.updatedAt]
+          );
+        } catch (e) {
+          console.warn(`PostgreSQL update warning on ${this.collectionName}:`, e);
+        }
       } else if (firestoreDb) {
-        const cleanData = this.sanitizeForFirestore(updatedData);
+        const cleanData = this.sanitizeForStorage(updatedData);
         await firestoreDb.collection(this.collectionName).doc(doc._id).set(cleanData, { merge: true });
       }
 
@@ -643,9 +807,10 @@ async function startServer() {
     async findOneAndDelete(filter: Record<string, any>) {
       const doc = await this.findOne(filter);
       if (!doc) return null;
-      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      if (pgPool) {
         try {
-          await mongoose.connection.db.collection(this.collectionName).deleteOne({ _id: doc._id });
+          await this.ensurePgTable();
+          await pgPool.query(`DELETE FROM "${this.safeTableName}" WHERE id = $1`, [String(doc._id)]);
         } catch (e) {}
       } else if (firestoreDb) {
         try {
@@ -665,9 +830,10 @@ async function startServer() {
       const docs = await this.find(filter);
       let deletedCount = 0;
       for (const doc of docs) {
-        if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        if (pgPool) {
           try {
-            await mongoose.connection.db.collection(this.collectionName).deleteOne({ _id: doc._id });
+            await this.ensurePgTable();
+            await pgPool.query(`DELETE FROM "${this.safeTableName}" WHERE id = $1`, [String(doc._id)]);
           } catch (e) {}
         } else if (firestoreDb) {
           try {
@@ -677,18 +843,25 @@ async function startServer() {
         this.localStore.delete(doc._id);
         deletedCount++;
       }
+      FirestoreCollection.saveToDisk();
       return { deletedCount };
     }
 
     async countDocuments(filter: Record<string, any> = {}) {
-      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      if (pgPool && (!filter || Object.keys(filter).length === 0)) {
         try {
-          return await mongoose.connection.db.collection(this.collectionName).countDocuments(filter || {});
+          await this.ensurePgTable();
+          const res = await pgPool.query(`SELECT COUNT(*) AS count FROM "${this.safeTableName}"`);
+          return parseInt(res.rows[0].count, 10);
         } catch (e) {}
       }
       const docs = await this.find(filter);
       return docs.length;
     }
+  }
+
+  if (pgPool) {
+    await FirestoreCollection.initPostgres(pgPool);
   }
 
   function createModelWrapper(collectionName: string) {
@@ -1386,7 +1559,25 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
   }
 
   function detectHackathonDomain(title: string = "", themes: any[] = [], desc: string = ""): string {
+    const titleLower = title.toLowerCase();
+    // Priority 0: Title-specific domain matches (Title takes priority over description mentions)
+    if (titleLower.includes("cloud") || titleLower.includes("kubernetes") || titleLower.includes("devops") || titleLower.includes("docker") || titleLower.includes("serverless") || titleLower.includes("cloud run") || titleLower.includes("aws") || titleLower.includes("azure") || titleLower.includes("gcp")) {
+      return "Cloud Infrastructure & DevOps";
+    }
+    if (titleLower.includes("machine learning") || titleLower.includes("kaggle") || titleLower.includes("data science") || titleLower.includes("predictive") || titleLower.includes("tabular") || /\bml\b/.test(titleLower)) {
+      return "Machine Learning (ML)";
+    }
+    if (titleLower.includes("cyber") || titleLower.includes("security") || titleLower.includes("ctf") || titleLower.includes("infosec") || titleLower.includes("threat") || titleLower.includes("vulnerability") || titleLower.includes("zero-trust")) {
+      return "Cybersecurity & Cloud";
+    }
+    if (titleLower.includes("genai") || titleLower.includes("generative ai") || titleLower.includes("llm") || titleLower.includes("large language") || titleLower.includes("gpt") || titleLower.includes("gemini") || titleLower.includes("artificial intelligence") || titleLower.includes("openai") || /\bai\b/.test(titleLower)) {
+      return "Artificial Intelligence (AI)";
+    }
+
     const combined = `${title} ${desc} ${(themes || []).map((t: any) => t?.name || t).join(" ")}`.toLowerCase();
+    if (combined.includes("cloud") || combined.includes("devops") || combined.includes("kubernetes") || combined.includes("docker") || combined.includes("serverless") || combined.includes("aws") || combined.includes("azure")) {
+      return "Cloud Infrastructure & DevOps";
+    }
     if (combined.includes("machine learning") || combined.includes("kaggle") || combined.includes("data science") || combined.includes("predictive") || combined.includes("tabular") || /\bml\b/.test(combined)) {
       return "Machine Learning (ML)";
     }
@@ -1401,9 +1592,6 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
     if (combined.includes("iot") || combined.includes("robotics") || combined.includes("hardware") || combined.includes("embedded") || combined.includes("arduino") || combined.includes("sensor")) {
       return "IoT, Embedded & Robotics";
-    }
-    if (combined.includes("cloud") || combined.includes("devops") || combined.includes("kubernetes") || combined.includes("docker") || combined.includes("serverless") || combined.includes("aws") || combined.includes("azure")) {
-      return "Cloud Infrastructure & DevOps";
     }
     if (combined.includes("android") || combined.includes("ios") || combined.includes("swift") || combined.includes("flutter") || combined.includes("react native") || combined.includes("mobile")) {
       return "Mobile App Development";
@@ -1550,13 +1738,22 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const allHackathons = await Hackathon.find();
       let deletedCount = 0;
 
+      const removedMockIds = [
+        "siet-cse-intra-fsd-2026",
+        "siet-aids-ml-challenge-2026",
+        "siet-campus-innovate-ai-2026",
+        "siet-cyber-defense-ctf-2026",
+        "siet-iot-embedded-hack-2026",
+        "unadvertised-regional-open-2026"
+      ];
+
       for (const h of allHackathons) {
+        const isMock = removedMockIds.includes(h.hackathonId || h.id || h._id);
         const deadlineExpired = h.registrationDeadline ? new Date(h.registrationDeadline).getTime() < now.getTime() : false;
         const endExpired = h.endDate ? new Date(h.endDate).getTime() < now.getTime() : false;
         const isStatusExpired = h.status === "Expired";
 
-        // Only purge if BOTH deadline and end date have passed, or explicitly marked Expired
-        if ((deadlineExpired && endExpired) || isStatusExpired) {
+        if (deadlineExpired || endExpired || isStatusExpired || isMock) {
           await Hackathon.findByIdAndDelete(h._id || h.id);
           deletedCount++;
         }
@@ -1579,13 +1776,30 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const allOpps = await Opportunity.find();
       let deletedCount = 0;
 
+      const removedMockTitles = [
+        "Dept of CSE Intra-College Full Stack WebSprint",
+        "Dept of AI & DS Machine Learning Benchmark Sprint",
+        "Sri Shakthi Campus Innovate: Autonomous GenAI Challenge",
+        "Internal College Zero-Day Cyber CTF Challenge",
+        "Campus IoT & Robotics Hardware Hackathon",
+        "Regional Unadvertised Student Innovation Hackathon"
+      ];
+      const removedMockIds = [
+        "siet-cse-intra-fsd-2026",
+        "siet-aids-ml-challenge-2026",
+        "siet-campus-innovate-ai-2026",
+        "siet-cyber-defense-ctf-2026",
+        "siet-iot-embedded-hack-2026",
+        "unadvertised-regional-open-2026"
+      ];
+
       for (const opp of allOpps) {
+        const isMock = removedMockTitles.includes(opp.title) || removedMockIds.includes(opp.id || opp._id);
         const deadlineExpired = opp.registrationDeadline && new Date(opp.registrationDeadline).getTime() < now.getTime();
         const endExpired = opp.eventEndDate && new Date(opp.eventEndDate).getTime() < now.getTime();
         const isStatusExpired = opp.status === "Expired";
 
-        // Only purge if BOTH deadline and end date have passed, or explicitly marked Expired
-        if ((deadlineExpired && endExpired) || isStatusExpired) {
+        if (deadlineExpired || endExpired || isStatusExpired || isMock) {
           await Opportunity.findByIdAndDelete(opp._id || opp.id);
           deletedCount++;
         }
@@ -2180,7 +2394,13 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       const reportsToday = await DailyReport.countDocuments({ date: todayStr });
       const pendingTasks = await Task.countDocuments({ status: { $ne: 'Completed' } });
       const pendingScreenshotVerifications = await HackathonRegistration.countDocuments({ verificationStatus: 'Pending' });
-      const activeHackathons = await Hackathon.countDocuments({ status: { $ne: 'Expired' } });
+      const nowTime = Date.now();
+      const oppHackathons = await Opportunity.find({ category: /^hackathons$/i, approved: true });
+      const activeHackathons = oppHackathons.filter(h => {
+        const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < nowTime;
+        const endExpired = (h.eventEndDate || h.endDate) && new Date(h.eventEndDate || h.endDate).getTime() < nowTime;
+        return !deadlineExpired && !endExpired && h.status !== "Expired";
+      }).length;
       const totalHackathonRegistrations = await HackathonRegistration.countDocuments();
 
       res.json({
@@ -2986,18 +3206,76 @@ Do not include markdown tags. Return only raw JSON string.`;
   app.get("/api/hackathons", async (req, res) => {
     try {
       await cleanupExpiredHackathons();
-      await syncHackathonsAndOpportunities();
+      await cleanupExpiredOpportunities();
 
       const nowTime = Date.now();
-      let hackathons = await Hackathon.find();
-      let activeHackathons = hackathons.filter(h => {
+      const oppHackathons = await Opportunity.find({
+        category: /^hackathons$/i,
+        approved: true
+      });
+
+      const activeList = oppHackathons.filter(h => {
         const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < nowTime;
-        const endExpired = h.endDate && new Date(h.endDate).getTime() < nowTime;
-        return (!deadlineExpired || !endExpired) && h.status !== "Expired";
-      }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+        const endExpired = (h.eventEndDate || h.endDate) && new Date(h.eventEndDate || h.endDate).getTime() < nowTime;
+        return !deadlineExpired && !endExpired && h.status !== "Expired";
+      }).sort((a, b) => new Date(a.eventStartDate || a.startDate || 0).getTime() - new Date(b.eventStartDate || b.startDate || 0).getTime());
+
+      // Ensure each active opportunity is indexed in Hackathon collection
+      for (const opp of activeList) {
+        const targetId = opp._id || opp.id;
+        const existing = await Hackathon.findOne({
+          $or: [{ hackathonId: targetId }, { _id: targetId }, { name: opp.title }, { registrationLink: opp.registrationLink || opp.website }]
+        });
+        if (!existing) {
+          await Hackathon.create({
+            _id: targetId,
+            hackathonId: targetId,
+            name: opp.title,
+            organizer: opp.organizer,
+            description: opp.description,
+            domain: opp.domain,
+            startDate: opp.eventStartDate || new Date(),
+            endDate: opp.eventEndDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            registrationDeadline: opp.registrationDeadline,
+            registrationLink: opp.registrationLink || opp.website,
+            status: "Active",
+            mode: opp.mode || "Online",
+            location: opp.location || "Online",
+            tags: opp.tags || []
+          });
+        }
+      }
 
       res.json({
-        hackathons: activeHackathons.map(h => ({ id: h._id, ...h.toObject() })),
+        hackathons: activeList.map(h => ({
+          id: h._id || h.id,
+          hackathonId: h._id || h.id,
+          name: h.title,
+          title: h.title,
+          organizer: h.organizer,
+          organizerLogo: h.organizerLogo,
+          bannerImage: h.bannerImage,
+          description: h.description,
+          domain: h.domain,
+          category: "Hackathons",
+          registrationLink: h.registrationLink || h.website,
+          website: h.website || h.registrationLink,
+          startDate: h.eventStartDate,
+          endDate: h.eventEndDate,
+          eventStartDate: h.eventStartDate,
+          eventEndDate: h.eventEndDate,
+          registrationDeadline: h.registrationDeadline,
+          prizePool: h.prizePool,
+          mode: h.mode,
+          location: h.location,
+          freeOrPaid: h.freeOrPaid,
+          difficulty: h.difficulty,
+          tags: h.tags || [],
+          status: h.status || "Active",
+          approved: h.approved,
+          featured: h.featured,
+          trending: h.trending
+        })),
         lastSyncedAt: lastHackathonSyncTime ? lastHackathonSyncTime.toISOString() : new Date().toISOString()
       });
     } catch (e: any) {
@@ -5069,15 +5347,17 @@ Do not include markdown tags. Return only raw JSON string.`;
         "Webinars", "Conferences", "Open Source", "Research", "Bootcamps",
         "Fellowships", "Innovation Challenges", "Competitions", "Tech Events"
       ];
-      const now = new Date();
-      const counts = await Promise.all(categories.map(async (cat) => {
-        const count = await Opportunity.countDocuments({
-          category: cat,
-          registrationDeadline: { $gt: now },
-          approved: true
+      const nowTime = Date.now();
+      const allApproved = await Opportunity.find({ approved: true });
+      const counts = categories.map((cat) => {
+        const matching = allApproved.filter(o => {
+          if (!o.category || o.category.toLowerCase() !== cat.toLowerCase()) return false;
+          const deadlineExpired = o.registrationDeadline && new Date(o.registrationDeadline).getTime() < nowTime;
+          const endExpired = (o.eventEndDate || o.endDate) && new Date(o.eventEndDate || o.endDate).getTime() < nowTime;
+          return !deadlineExpired && !endExpired && o.status !== "Expired";
         });
-        return { category: cat, count };
-      }));
+        return { category: cat, count: matching.length };
+      });
       res.json({ categories: counts });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
