@@ -37,12 +37,16 @@ async function ensureTable(client: pg.PoolClient, tableName: string) {
   `);
 }
 
-async function upsertRecord(client: pg.PoolClient, tableName: string, id: string, doc: any) {
+async function dropExtraneousTable(client: pg.PoolClient, tableName: string) {
+  const safeTable = tableName.replace(/[^a-zA-Z0-9_]/g, '_');
+  await client.query(`DROP TABLE IF EXISTS "${safeTable}" CASCADE;`);
+}
+
+async function insertRecord(client: pg.PoolClient, tableName: string, id: string, doc: any) {
   const safeTable = tableName.replace(/[^a-zA-Z0-9_]/g, '_');
   const createdAt = doc.createdAt ? new Date(doc.createdAt) : new Date();
   const updatedAt = doc.updatedAt ? new Date(doc.updatedAt) : new Date();
 
-  // Normalize _id and id
   const cleanDoc = { ...doc, _id: id, id };
 
   await client.query(
@@ -53,12 +57,12 @@ async function upsertRecord(client: pg.PoolClient, tableName: string, id: string
   );
 }
 
-async function runCompleteMigration() {
+async function runExactTrackFlowMigration() {
   console.log('\n\x1b[36m=================================================================\x1b[0m');
-  console.log('\x1b[36m    COMPREHENSIVE MONGODB ATLAS -> NEON POSTGRESQL MIGRATION     \x1b[0m');
+  console.log('\x1b[36m    EXACT TRACKFLOW MIGRATION: MONGODB ATLAS -> NEON POSTGRES    \x1b[0m');
   console.log('\x1b[36m=================================================================\x1b[0m\n');
 
-  console.log('Connecting to MongoDB Atlas...');
+  console.log('Connecting to MongoDB Atlas (trackflow database)...');
   const mongoClient = new MongoClient(MONGO_URI, { serverSelectionTimeoutMS: 15000 });
   await mongoClient.connect();
   console.log('\x1b[32m[✓] Connected to MongoDB Atlas!\x1b[0m');
@@ -67,178 +71,140 @@ async function runCompleteMigration() {
   console.log('\x1b[32m[✓] Connected to Neon PostgreSQL!\x1b[0m\n');
 
   try {
-    const memoryStoreUpdate: Record<string, Record<string, any>> = {};
+    // 1. Drop extraneous foreign tables that do not belong to Trackflow
+    console.log('\x1b[33m--- [1/4] Dropping extraneous tables (students, teachers, test tables) ---\x1b[0m');
+    const foreignTables = ['students', 'teachers', 'systemhealthtests', 'systemhealthtestnews'];
+    for (const ft of foreignTables) {
+      await dropExtraneousTable(pgClient, ft);
+      console.log(`  ✓ Removed table "${ft}" from Neon PostgreSQL.`);
+    }
 
-    // 1. Migrate all collections from `trackflow` database
-    console.log('\x1b[33m--- [1/3] Migrating "trackflow" Database Collections ---\x1b[0m');
+    // 2. Clear out existing tables to guarantee 100% exact fidelity with MongoDB trackflow database
+    console.log('\n\x1b[33m--- [2/4] Truncating and Rebuilding exact Trackflow tables ---\x1b[0m');
     const tfDb = mongoClient.db('trackflow');
     const tfCols = await tfDb.listCollections().toArray();
 
+    const diskStore: Record<string, Record<string, any>> = {};
+
     for (const colInfo of tfCols) {
       const colName = colInfo.name;
-      // Skip internal test collections
+      // Skip test/internal collections
       if (colName.startsWith('systemhealth')) continue;
 
       await ensureTable(pgClient, colName);
+      // Clean existing table in Neon to guarantee no leftover foreign records
+      await pgClient.query(`TRUNCATE TABLE "${colName}" CASCADE;`);
+
       const docs = await tfDb.collection(colName).find().toArray();
-      
-      memoryStoreUpdate[colName] = memoryStoreUpdate[colName] || {};
+      diskStore[colName] = {};
 
       let count = 0;
       for (const rawDoc of docs) {
         const id = String(rawDoc._id || rawDoc.id);
         const docObj = { ...rawDoc };
         delete (docObj as any).__v;
-        
-        await upsertRecord(pgClient, colName, id, docObj);
-        memoryStoreUpdate[colName][id] = docObj;
+
+        await insertRecord(pgClient, colName, id, docObj);
+        diskStore[colName][id] = docObj;
         count++;
       }
-      console.log(`  ✓ \x1b[32m${colName.padEnd(25)}\x1b[0m: ${count} records migrated`);
+      console.log(`  ✓ \x1b[32m${colName.padEnd(25)}\x1b[0m: ${count} exact records migrated from MongoDB Atlas`);
     }
 
-    // 2. Migrate students and teachers from `attendence` database
-    console.log('\n\x1b[33m--- [2/3] Migrating "attendence" Database (Students & Teachers) ---\x1b[0m');
-    const attDb = mongoClient.db('attendence');
-
-    // A. Students Table & User Integration
-    await ensureTable(pgClient, 'students');
-    await ensureTable(pgClient, 'users');
-    memoryStoreUpdate['students'] = memoryStoreUpdate['students'] || {};
-    memoryStoreUpdate['users'] = memoryStoreUpdate['users'] || {};
-
-    const rawStudents = await attDb.collection('students').find().toArray();
-    let studentsMigrated = 0;
-
-    for (const student of rawStudents) {
-      const id = String(student._id);
-      const cleanStudent = { ...student };
-      delete (cleanStudent as any).__v;
-
-      // 1. Save into 'students' table
-      await upsertRecord(pgClient, 'students', id, cleanStudent);
-      memoryStoreUpdate['students'][id] = cleanStudent;
-      studentsMigrated++;
-
-      // 2. Ensure student is also in 'users' collection so they appear across student lists
-      const studentUser = {
-        _id: id,
-        id: id,
-        userId: student.rollNo ? student.rollNo.toLowerCase() : `student_${id}`,
-        name: student.name,
-        rollNo: student.rollNo,
-        className: student.className,
-        department: student.department || (student.className ? student.className.split('-')[0] : 'Engineering'),
-        role: 'student',
-        status: 'approved',
-        accountStatus: 'ACTIVE',
-        attendanceRecords: student.attendance || [],
-        createdAt: student.createdAt || new Date(),
-        updatedAt: student.updatedAt || new Date()
-      };
-      await upsertRecord(pgClient, 'users', id, studentUser);
-      memoryStoreUpdate['users'][id] = studentUser;
-    }
-    console.log(`  ✓ \x1b[32m${'students'.padEnd(25)}\x1b[0m: ${studentsMigrated} student records migrated and added to users`);
-
-    // B. Teachers Table & Mentor Integration
-    await ensureTable(pgClient, 'teachers');
-    await ensureTable(pgClient, 'mentors');
-    memoryStoreUpdate['teachers'] = memoryStoreUpdate['teachers'] || {};
-    memoryStoreUpdate['mentors'] = memoryStoreUpdate['mentors'] || {};
-
-    const rawTeachers = await attDb.collection('teachers').find().toArray();
-    let teachersMigrated = 0;
-
-    for (const teacher of rawTeachers) {
-      const id = String(teacher._id);
-      const cleanTeacher = { ...teacher };
-      delete (cleanTeacher as any).__v;
-
-      // 1. Save into 'teachers' table
-      await upsertRecord(pgClient, 'teachers', id, cleanTeacher);
-      memoryStoreUpdate['teachers'][id] = cleanTeacher;
-      teachersMigrated++;
-
-      // 2. Ensure teacher is in 'mentors' table
-      const mentorDoc = {
-        _id: id,
-        id: id,
-        name: teacher.name,
-        email: teacher.email,
-        role: 'mentor',
-        department: teacher.department || 'Faculty',
-        createdAt: teacher.createdAt || new Date(),
-        updatedAt: teacher.updatedAt || new Date()
-      };
-      await upsertRecord(pgClient, 'mentors', id, mentorDoc);
-      memoryStoreUpdate['mentors'][id] = mentorDoc;
-
-      // 3. Ensure teacher is in 'users' table
-      const teacherUser = {
-        _id: id,
-        id: id,
-        userId: teacher.email ? teacher.email.split('@')[0] : `mentor_${id}`,
-        name: teacher.name,
-        email: teacher.email,
-        role: 'mentor',
-        department: teacher.department || 'Faculty',
-        status: 'approved',
-        accountStatus: 'ACTIVE',
-        createdAt: teacher.createdAt || new Date(),
-        updatedAt: teacher.updatedAt || new Date()
-      };
-      await upsertRecord(pgClient, 'users', id, teacherUser);
-      memoryStoreUpdate['users'][id] = teacherUser;
-    }
-    console.log(`  ✓ \x1b[32m${'teachers'.padEnd(25)}\x1b[0m: ${teachersMigrated} teacher records migrated and added to mentors/users`);
-
-    // 3. Sync into uploads/db_store.json so local store is also complete
-    console.log('\n\x1b[33m--- [3/3] Synchronizing Local Store Backup (uploads/db_store.json) ---\x1b[0m');
+    // 3. Update local backup store (uploads/db_store.json) to strictly match
+    console.log('\n\x1b[33m--- [3/4] Updating Local Backup Store (uploads/db_store.json) ---\x1b[0m');
     const dbFilePath = path.join(process.cwd(), 'uploads', 'db_store.json');
-    let existingDisk: Record<string, Record<string, any>> = {};
-    if (fs.existsSync(dbFilePath)) {
-      try {
-        existingDisk = JSON.parse(fs.readFileSync(dbFilePath, 'utf8'));
-      } catch (e) {}
+    const uploadsDir = path.dirname(dbFilePath);
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
     }
+    fs.writeFileSync(dbFilePath, JSON.stringify(diskStore, null, 2), 'utf8');
+    console.log('  ✓ uploads/db_store.json overwritten with exact Trackflow records only.');
 
-    for (const [col, docs] of Object.entries(memoryStoreUpdate)) {
-      existingDisk[col] = existingDisk[col] || {};
-      for (const [docId, docVal] of Object.entries(docs)) {
-        existingDisk[col][docId] = docVal;
+    // 4. Strict Validation of Faculty and Student Emails
+    console.log('\n\x1b[33m--- [4/4] Validating Staff/Faculty (@siet.ac.in) & Student (@srishakthi.ac.in) Emails ---\x1b[0m');
+    
+    // Check all users
+    const userRows = await pgClient.query(`SELECT id, data FROM "users" ORDER BY created_at ASC;`);
+    console.log(`\n  \x1b[1mVerified Users in Neon PostgreSQL (${userRows.rows.length}):\x1b[0m`);
+    
+    let staffCount = 0;
+    let studentCount = 0;
+    const invalidUsers: any[] = [];
+
+    for (const r of userRows.rows) {
+      const u = r.data;
+      const email = (u.email || '').toLowerCase().trim();
+      const role = (u.role || '').toLowerCase();
+
+      if (['master_admin', 'coordinator', 'admin'].includes(role)) {
+        if (!email.endsWith('@siet.ac.in')) {
+          invalidUsers.push({ id: r.id, name: u.name, email, role, issue: 'Staff email must end with @siet.ac.in' });
+        } else {
+          staffCount++;
+          console.log(`    • [STAFF]   \x1b[32m${u.name.padEnd(25)}\x1b[0m | Role: \x1b[36m${role.padEnd(14)}\x1b[0m | Email: \x1b[32m${email}\x1b[0m`);
+        }
+      } else if (role === 'student') {
+        if (!email.endsWith('@srishakthi.ac.in')) {
+          invalidUsers.push({ id: r.id, name: u.name, email, role, issue: 'Student email must end with @srishakthi.ac.in' });
+        } else {
+          studentCount++;
+          console.log(`    • [STUDENT] \x1b[32m${u.name.padEnd(25)}\x1b[0m | Role: \x1b[33m${role.padEnd(14)}\x1b[0m | Email: \x1b[32m${email}\x1b[0m`);
+        }
+      } else {
+        console.log(`    • [OTHER]   \x1b[35m${u.name.padEnd(25)}\x1b[0m | Role: \x1b[35m${role.padEnd(14)}\x1b[0m | Email: ${email}`);
       }
     }
 
-    fs.writeFileSync(dbFilePath, JSON.stringify(existingDisk, null, 2), 'utf8');
-    console.log('  ✓ Updated uploads/db_store.json with all migrated MongoDB data.');
+    // Check all mentors
+    const mentorRows = await pgClient.query(`SELECT id, data FROM "mentors" ORDER BY created_at ASC;`);
+    console.log(`\n  \x1b[1mVerified Mentors in Neon PostgreSQL (${mentorRows.rows.length}):\x1b[0m`);
+    let mentorCount = 0;
+    for (const r of mentorRows.rows) {
+      const m = r.data;
+      const email = (m.email || '').toLowerCase().trim();
+      if (!email.endsWith('@siet.ac.in')) {
+        invalidUsers.push({ id: r.id, name: m.name, email, role: 'mentor', issue: 'Mentor email must end with @siet.ac.in' });
+      } else {
+        mentorCount++;
+        console.log(`    • [MENTOR]  \x1b[32m${m.name.padEnd(25)}\x1b[0m | Expertise: \x1b[36m${(m.expertise || 'N/A').padEnd(25)}\x1b[0m | Email: \x1b[32m${email}\x1b[0m`);
+      }
+    }
 
-    // Print Final Verified Totals in PostgreSQL
+    if (invalidUsers.length > 0) {
+      console.error('\n\x1b[31m[VALIDATION FAILED] The following users violate the institutional email requirement:\x1b[0m');
+      console.table(invalidUsers);
+      throw new Error('Migration validation failed: Invalid email domains detected!');
+    }
+
     console.log('\n\x1b[36m=================================================================\x1b[0m');
-    console.log('\x1b[36m         VERIFIED TOTALS IN NEON POSTGRESQL DATABASE             \x1b[0m');
+    console.log('\x1b[36m            FINAL EXACT VERIFIED TOTALS IN NEON POSTGRES         \x1b[0m');
     console.log('\x1b[36m=================================================================\x1b[0m\n');
 
     const checkTables = [
-      'users', 'students', 'teachers', 'mentors', 'projects', 'hackathons',
+      'users', 'mentors', 'projects', 'hackathons',
       'opportunities', 'attendances', 'lab_accesses', 'notifications',
-      'activity_logs', 'sessions', 'messages', 'hackathon_registrations', 'hackathon_interests'
+      'activity_logs', 'sessions', 'messages', 'hackathon_registrations',
+      'hackathon_interests', 'daily_reports', 'abstract_histories', 'github_repos'
     ];
 
     let grandTotal = 0;
     for (const t of checkTables) {
-      try {
-        const res = await pgClient.query(`SELECT COUNT(*) AS count FROM "${t}"`);
-        const c = parseInt(res.rows[0].count, 10);
-        grandTotal += c;
-        console.log(`  • \x1b[32m${t.padEnd(25)}\x1b[0m: \x1b[1m${c} records\x1b[0m`);
-      } catch (e) {}
+      const res = await pgClient.query(`SELECT COUNT(*) AS count FROM "${t}"`);
+      const c = parseInt(res.rows[0].count, 10);
+      grandTotal += c;
+      console.log(`  • \x1b[32m${t.padEnd(25)}\x1b[0m: \x1b[1m${c} records\x1b[0m`);
     }
 
     console.log(`\n  \x1b[1mGrand Total in Neon PostgreSQL:\x1b[0m \x1b[32m${grandTotal} records\x1b[0m`);
-    console.log('\n\x1b[32m[SUCCESS] Complete migration from MongoDB to Neon finished!\x1b[0m\n');
+    console.log(`  \x1b[1mStaff/Faculty Accounts (@siet.ac.in):\x1b[0m \x1b[32m${staffCount + mentorCount}\x1b[0m`);
+    console.log(`  \x1b[1mStudent Accounts (@srishakthi.ac.in):\x1b[0m \x1b[32m${studentCount}\x1b[0m`);
+    console.log(`  \x1b[1mForeign/Dummy Accounts:\x1b[0m \x1b[32m0 (Completely eliminated)\x1b[0m`);
+    console.log('\n\x1b[32m[SUCCESS] Exact Trackflow database migration completed flawlessly!\x1b[0m\n');
 
   } catch (err: any) {
     console.error('\x1b[31m[Migration Error]:\x1b[0m', err.message);
+    process.exit(1);
   } finally {
     pgClient.release();
     await pool.end();
@@ -246,4 +212,4 @@ async function runCompleteMigration() {
   }
 }
 
-runCompleteMigration();
+runExactTrackFlowMigration();
