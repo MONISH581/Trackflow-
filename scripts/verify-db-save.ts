@@ -135,12 +135,20 @@ async function verifyDatabaseSave() {
       console.log(`     \x1b[32m✓ VERIFIED: Test record cleanly removed after verification.\x1b[0m\n`);
     }
 
-    // Inspect actual user in database (e.g. Master Sathish)
-    console.log('\x1b[33m--- [3] Inspecting Real Persistent Users in Neon ---\x1b[0m');
-    const existingUsers = await client.query(`SELECT id, data->>'name' as name, data->>'email' as email, data->>'role' as role FROM "users" LIMIT 5`);
-    for (const u of existingUsers.rows) {
-      console.log(`  • ID: ${u.id.padEnd(22)} | Name: ${(u.name || '').padEnd(16)} | Email: ${(u.email || '').padEnd(28)} | Role: ${u.role}`);
+    // Inspect actual students and teachers in database
+    console.log('\x1b[33m--- [3] Teachers & Mentors in Neon PostgreSQL ---\x1b[0m');
+    const mentorsRes = await client.query(`SELECT id, data FROM "mentors"`);
+    for (const m of mentorsRes.rows) {
+      console.log(`  • ${m.data.name.padEnd(20)} | Email: ${(m.data.email || 'N/A').padEnd(25)} | Dept: ${m.data.department || 'Faculty'}`);
     }
+
+    console.log('\n\x1b[33m--- [4] Registered Students in Neon PostgreSQL ---\x1b[0m');
+    const studentsRes = await client.query(`SELECT id, data FROM "users" WHERE data->>'role' = 'student'`);
+    for (const s of studentsRes.rows) {
+      const roll = s.data.rollNo || s.data.className || 'N/A';
+      console.log(`  • ${(s.data.name || '').padEnd(28)} | Roll/Class: ${roll.padEnd(12)} | Email: ${s.data.email || 'N/A'}`);
+    }
+    console.log(`\n  \x1b[1mTotal Teachers/Mentors:\x1b[0m \x1b[32m${mentorsRes.rows.length}\x1b[0m | \x1b[1mTotal Students:\x1b[0m \x1b[32m${studentsRes.rows.length}\x1b[0m`);
 
     console.log('\n\x1b[32m=================================================================\x1b[0m');
     console.log('\x1b[32m CONFIRMED: DATA IS ACTIVELY SAVING & PERSISTING IN NEON POSTGRES \x1b[0m');
