@@ -3220,13 +3220,19 @@ Do not include markdown tags. Return only raw JSON string.`;
         return !deadlineExpired && !endExpired && h.status !== "Expired";
       }).sort((a, b) => new Date(a.eventStartDate || a.startDate || 0).getTime() - new Date(b.eventStartDate || b.startDate || 0).getTime());
 
-      // Ensure each active opportunity is indexed in Hackathon collection
+      // Ensure each active opportunity is indexed in Hackathon collection efficiently
+      const existingHackathons = await Hackathon.find();
+      const existingKeySet = new Set(
+        existingHackathons.flatMap(h => [h.hackathonId, h._id, h.id, h.name, h.registrationLink]).filter(Boolean)
+      );
+
       for (const opp of activeList) {
         const targetId = opp._id || opp.id;
-        const existing = await Hackathon.findOne({
-          $or: [{ hackathonId: targetId }, { _id: targetId }, { name: opp.title }, { registrationLink: opp.registrationLink || opp.website }]
-        });
-        if (!existing) {
+        const exists = existingKeySet.has(targetId) || 
+                       existingKeySet.has(opp.title) || 
+                       (opp.registrationLink && existingKeySet.has(opp.registrationLink)) ||
+                       (opp.website && existingKeySet.has(opp.website));
+        if (!exists) {
           await Hackathon.create({
             _id: targetId,
             hackathonId: targetId,
@@ -3243,6 +3249,8 @@ Do not include markdown tags. Return only raw JSON string.`;
             location: opp.location || "Online",
             tags: opp.tags || []
           });
+          existingKeySet.add(targetId);
+          existingKeySet.add(opp.title);
         }
       }
 
