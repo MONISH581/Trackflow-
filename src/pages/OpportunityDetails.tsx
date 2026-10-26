@@ -64,7 +64,7 @@ export default function OpportunityDetails() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-600 dark:border-blue-400" />
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-600" />
         <p className="text-xs text-slate-500 font-semibold">Retrieving opportunity files...</p>
       </div>
     );
@@ -72,12 +72,12 @@ export default function OpportunityDetails() {
 
   if (!opp) {
     return (
-      <div className="glass-card max-w-md mx-auto p-8 text-center border border-slate-200 dark:border-slate-800 space-y-5 my-12">
-        <div className="w-12 h-12 rounded-full bg-rose-50 dark:bg-slate-800 flex items-center justify-center mx-auto text-rose-600 dark:text-rose-400">
+      <div className="glass-card max-w-md mx-auto p-8 text-center border border-slate-200 space-y-5 my-12 bg-white">
+        <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mx-auto text-rose-600">
           <AlertCircle className="w-6 h-6" />
         </div>
         <div className="space-y-1.5">
-          <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Opportunity Not Found</h3>
+          <h3 className="font-bold text-slate-900 text-sm">Opportunity Not Found</h3>
           <p className="text-xs text-slate-400 font-semibold leading-relaxed">
             The opportunity listing might have been removed, expired, or you followed an invalid URL.
           </p>
@@ -194,41 +194,41 @@ export default function OpportunityDetails() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Navigation Tabs */}
-          <div className="border-b border-slate-200 dark:border-slate-800 flex gap-6 text-sm font-bold bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200/50 dark:border-slate-800">
+          <div className="border border-slate-200 flex gap-6 text-sm font-bold bg-white p-4 rounded-2xl shadow-sm">
             {(["details", "eligibility", "rules", "timeline"] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`pb-1 px-1 capitalize transition-all relative ${
                   activeTab === tab
-                    ? "text-blue-600 dark:text-blue-400 font-extrabold"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
+                    ? "text-blue-600 font-extrabold"
+                    : "text-slate-600 hover:text-slate-900 font-bold"
                 }`}
               >
                 {tab}
                 {activeTab === tab && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 rounded" />
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded" />
                 )}
               </button>
             ))}
           </div>
 
           {/* Tab content renderer */}
-          <div className="glass-card p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 shadow-sm text-left">
+          <div className="glass-card p-6 bg-white border border-slate-200 shadow-sm text-left">
             {activeTab === "details" && (
               <div className="space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <ClipboardList className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-200">
+                  <ClipboardList className="w-4 h-4 text-blue-600" />
                   Opportunity Overview
                 </h3>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                <p className="text-xs text-slate-700 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                   {opp.description}
                 </p>
                 <div className="pt-4 space-y-2">
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-200">Skills / Focus Tags</h4>
+                  <h4 className="text-xs font-bold text-slate-900">Skills / Focus Tags</h4>
                   <div className="flex flex-wrap gap-1.5">
                     {opp.tags.map((tag, idx) => (
-                      <span key={idx} className="px-2.5 py-1 bg-slate-800 dark:bg-slate-800 text-xs text-white dark:text-slate-300 font-bold rounded-lg border border-slate-700/40 dark:border-slate-700/40">
+                      <span key={idx} className="px-2.5 py-1 bg-slate-800 text-xs text-white font-bold rounded-lg border border-slate-700 shadow-xs">
                         #{tag}
                       </span>
                     ))}
@@ -239,17 +239,17 @@ export default function OpportunityDetails() {
 
             {activeTab === "eligibility" && (
               <div className="space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <Target className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-200">
+                  <Target className="w-4 h-4 text-blue-600" />
                   Eligibility Criteria & Requirements
                 </h3>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                <p className="text-xs text-slate-700 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                   {opp.eligibility || "No academic or geographical restrictions have been configured. Open to all students pursuing undergraduate, graduate, or engineering programs."}
                 </p>
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl flex gap-3 text-xs">
-                  <Info className="w-4.5 h-4.5 text-blue-500 shrink-0" />
-                  <span className="text-slate-500 dark:text-slate-400 font-semibold leading-normal">
-                    This opportunity targets **{opp.targetAudience}** students. Ensure your resume and skills dashboard profiles match these specifications.
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex gap-3 text-xs">
+                  <Info className="w-4.5 h-4.5 text-blue-600 shrink-0" />
+                  <span className="text-slate-700 font-semibold leading-normal">
+                    This opportunity targets <strong className="text-slate-900 font-bold">{opp.targetAudience}</strong> students. Ensure your resume and skills dashboard profiles match these specifications.
                   </span>
                 </div>
               </div>
@@ -258,18 +258,18 @@ export default function OpportunityDetails() {
             {activeTab === "rules" && (
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                    <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-200">
+                    <FileText className="w-4 h-4 text-blue-600" />
                     Participation Guidelines & Rules
                   </h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                  <p className="text-xs text-slate-700 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                     {opp.rules || "General contest and participation rules apply. Plagiarism of pre-existing codes, projects, or papers is strictly prohibited. Teams must submit original work created during the timeline."}
                   </p>
                 </div>
 
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Judging & Evaluation Criteria</h4>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                  <h4 className="text-xs font-bold text-slate-900">Judging & Evaluation Criteria</h4>
+                  <p className="text-xs text-slate-700 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                     {opp.judgingCriteria || "Evaluations will be scored based on technical difficulty, originality, presentation, and impact of the solution."}
                   </p>
                 </div>
@@ -278,30 +278,30 @@ export default function OpportunityDetails() {
 
             {activeTab === "timeline" && (
               <div className="space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-200">
+                  <Calendar className="w-4 h-4 text-blue-600" />
                   Important Dates & Schedule
                 </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                <p className="text-xs text-slate-700 leading-relaxed font-sans font-medium whitespace-pre-wrap">
                   {opp.timeline || "Dates are subject to organizer adjustments. Please watch the announcements section."}
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-800 rounded-xl text-left">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Registration Ends</span>
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 block">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-left">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Registration Ends</span>
+                    <span className="text-xs font-black text-slate-900 mt-1 block">
                       {new Date(opp.registrationDeadline).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-155 dark:border-slate-800 rounded-xl text-left">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Event Starts</span>
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 block">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-left">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Event Starts</span>
+                    <span className="text-xs font-black text-slate-900 mt-1 block">
                       {new Date(opp.eventStartDate).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-155 dark:border-slate-800 rounded-xl text-left">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Event Ends</span>
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 block">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-left">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Event Ends</span>
+                    <span className="text-xs font-black text-slate-900 mt-1 block">
                       {new Date(opp.eventEndDate).toLocaleDateString()}
                     </span>
                   </div>
@@ -312,25 +312,25 @@ export default function OpportunityDetails() {
 
           {/* FAQs Accordion */}
           <div className="space-y-4 pt-2">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <Info className="w-5 h-5 text-blue-600" />
               Frequently Asked Questions (FAQs)
             </h3>
             <div className="space-y-2">
               {eventFaqs.map((faq, index) => (
                 <div
                   key={index}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm"
+                  className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
                 >
                   <button
                     onClick={() => setFaqOpen(prev => ({ ...prev, [index]: !prev[index] }))}
-                    className="w-full px-5 py-4 flex justify-between items-center text-left text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
+                    className="w-full px-5 py-4 flex justify-between items-center text-left text-xs font-bold text-slate-900 hover:bg-slate-50 transition"
                   >
                     <span>{faq.q}</span>
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${faqOpen[index] ? "transform rotate-180" : ""}`} />
+                    <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${faqOpen[index] ? "transform rotate-180" : ""}`} />
                   </button>
                   {faqOpen[index] && (
-                    <div className="px-5 pb-4 pt-1 text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed font-sans">
+                    <div className="px-5 pb-4 pt-1 text-xs text-slate-700 font-medium leading-relaxed font-sans">
                       {faq.a}
                     </div>
                   )}
@@ -345,31 +345,31 @@ export default function OpportunityDetails() {
         <div className="lg:col-span-1 space-y-6">
           
           {/* Quick Registration Card */}
-          <div className="glass-card p-6 border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5 shadow-sm text-left">
+          <div className="glass-card p-6 border border-slate-200 bg-white space-y-5 shadow-sm text-left">
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Milestone Deadline</span>
-              <h4 className="text-slate-900 dark:text-slate-100 font-bold text-sm flex items-center gap-1">
-                <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Apply Before {new Date(opp.registrationDeadline).toLocaleDateString()}</span>
+              <span className="text-xs font-extrabold text-slate-600 uppercase tracking-wider block">Milestone Deadline</span>
+              <h4 className="text-slate-900 font-bold text-sm flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="text-slate-900 font-black text-sm">Apply Before {new Date(opp.registrationDeadline).toLocaleDateString()}</span>
               </h4>
             </div>
 
-            <div className="space-y-3.5 pt-2 text-xs">
-              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-600 dark:text-slate-400 font-semibold">Registration Fee</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-200">{opp.freeOrPaid}</span>
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+                <span className="text-slate-600 font-bold">Registration Fee</span>
+                <span className="font-black text-slate-900 text-xs">{opp.freeOrPaid}</span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-600 dark:text-slate-400 font-semibold">Prize Pool / Stipend</span>
-                <span className="font-extrabold text-blue-600 dark:text-blue-400 truncate max-w-[min(100%,_150px)]">{formatPrizePoolToINR(opp.prizePool)}</span>
+              <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+                <span className="text-slate-600 font-bold">Prize Pool / Stipend</span>
+                <span className="font-black text-blue-600 truncate max-w-[min(100%,_160px)] text-xs">{formatPrizePoolToINR(opp.prizePool)}</span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-600 dark:text-slate-400 font-semibold">Skill Level Req</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-200">{opp.difficulty}</span>
+              <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+                <span className="text-slate-600 font-bold">Skill Level Req</span>
+                <span className="font-black text-slate-900 text-xs">{opp.difficulty}</span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-600 dark:text-slate-400 font-semibold">Audience Scope</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-200">{opp.targetAudience}</span>
+              <div className="flex justify-between items-center py-2.5 border-b border-slate-200">
+                <span className="text-slate-600 font-bold">Audience Scope</span>
+                <span className="font-black text-slate-900 text-xs">{opp.targetAudience}</span>
               </div>
             </div>
 
@@ -404,7 +404,7 @@ export default function OpportunityDetails() {
                   onClick={handleApplyToggle}
                   className={`w-full py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
                     isApplied
-                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-900"
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                       : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/10"
                   }`}
                 >
@@ -443,7 +443,7 @@ export default function OpportunityDetails() {
                 href={opp.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-1.5 py-3 border border-slate-200 dark:border-slate-800 hover:border-slate-350 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-xl text-xs font-bold transition"
+                className="w-full flex items-center justify-center gap-1.5 py-3 border border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold transition"
               >
                 <span>Go to Official Website</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -455,7 +455,7 @@ export default function OpportunityDetails() {
           {/* Related Opportunities list */}
           {relatedOpp.length > 0 && (
             <div className="space-y-3 text-left">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Related {opp.category}
               </h3>
               
@@ -464,19 +464,19 @@ export default function OpportunityDetails() {
                   <Link
                     key={item.id || item._id}
                     to={`/opportunities/${item.id || item._id}`}
-                    className="block p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-400/50 hover:scale-[1.01] transition-all shadow-sm"
+                    className="block p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400/50 hover:scale-[1.01] transition-all shadow-sm"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-400 uppercase truncate flex-1 block">
+                      <span className="text-xs font-semibold text-slate-500 uppercase truncate flex-1 block">
                         {item.organizer}
                       </span>
                     </div>
-                    <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs block mt-1 truncate">
+                    <span className="font-extrabold text-slate-900 text-xs block mt-1 truncate">
                       {item.title}
                     </span>
-                    <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mt-3 font-medium">
+                    <div className="flex justify-between items-center text-xs text-slate-600 mt-3 font-medium">
                       <span>{item.government_level ? item.government_level.split('_').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ') + ' • ' : ''}{item.mode}</span>
-                      <span className="text-blue-600 dark:text-blue-400 font-bold">{item.freeOrPaid}</span>
+                      <span className="text-blue-600 font-bold">{item.freeOrPaid}</span>
                     </div>
                   </Link>
                 ))}

@@ -865,23 +865,9 @@ export default function HackathonMatrixView({
 
           {/* Quick Metrics & Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-indigo-500/20 text-center min-w-[90px] shadow-sm">
+            <div className="bg-slate-900/60 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-indigo-500/20 text-center min-w-[105px] shadow-sm">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Events</span>
               <span className="text-xl font-black text-white">{grandTotal}</span>
-            </div>
-
-            <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-indigo-500/20 text-center min-w-[85px] shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">AI Events</span>
-              <span className="text-base font-black text-indigo-300">
-                {columnTotals.AI || 0}
-              </span>
-            </div>
-
-            <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-cyan-500/20 text-center min-w-[85px] shadow-sm">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">ML Events</span>
-              <span className="text-base font-black text-cyan-300">
-                {columnTotals.ML || 0}
-              </span>
             </div>
 
             <button

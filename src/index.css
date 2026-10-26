@@ -2,6 +2,8 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   color-scheme: light;
@@ -97,6 +99,7 @@ img, video, iframe, canvas, svg {
 
 .glass-card {
   background: #ffffff;
+  color: #0f172a;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(226, 232, 240, 0.8);
@@ -105,10 +108,21 @@ img, video, iframe, canvas, svg {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.dark .glass-card {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: rgba(51, 65, 85, 0.6);
+}
+
 .glass-card:hover {
   background: #ffffff;
   border-color: rgba(99, 102, 241, 0.3);
   box-shadow: 0 12px 30px -4px rgba(79, 70, 229, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+}
+
+.dark .glass-card:hover {
+  background: #1e293b;
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 /* Nixtio Custom Design System Classes */
