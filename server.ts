@@ -1573,94 +1573,94 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       themes = themesOrDesc;
     }
     const titleLower = title.toLowerCase();
-    const combined = `${title} ${extraDesc} ${(themes || []).map((t: any) => t?.name || t).join(" ")}`.toLowerCase();
+    const themesList = (themes || []).map((t: any) => String(t?.name || t).toLowerCase());
+    const combined = `${title} ${extraDesc} ${themesList.join(" ")}`.toLowerCase();
 
-    // STRICT MUTUAL EXCLUSIVITY: Generative AI, LLMs, Agents, Prompts, Foundation Models -> AI ONLY
-    const isGenAI =
-      /\b(genai|llm|llms|gpt|gpt-4|gpt-4o|gemini|claude|llama|openai|copilot|qwen|mistral)\b/.test(combined) ||
-      combined.includes("generative ai") ||
-      combined.includes("large language") ||
-      combined.includes("prompt engineering") ||
-      combined.includes("ai agent") ||
-      combined.includes("agentic ai") ||
-      combined.includes("autonomous agent") ||
-      combined.includes("watsonx") ||
-      combined.includes("granite") ||
-      combined.includes("hugging face") ||
-      combined.includes("huggingface") ||
-      combined.includes("multimodal") ||
-      combined.includes("conversational ai");
-
-    // STRICT MUTUAL EXCLUSIVITY: Tabular, Scikit, XGBoost, Regression, Predictive Modeling -> ML ONLY
-    const isTabularML =
-      /\b(scikit|xgboost|lightgbm|catboost|tabular|regression|auc-roc|rmse)\b/.test(combined) ||
-      combined.includes("predictive machine learning") ||
-      combined.includes("predictive ml") ||
-      combined.includes("predictive analytics") ||
-      combined.includes("predictive model") ||
-      combined.includes("predictive modeling") ||
-      combined.includes("data science") ||
-      combined.includes("gradient boosting") ||
-      combined.includes("random forest") ||
-      combined.includes("feature store") ||
-      combined.includes("feature engineering") ||
-      combined.includes("supervised learning") ||
-      combined.includes("unsupervised learning");
-
-    if (isGenAI) {
-      return "Artificial Intelligence (AI)";
-    }
-    if (isTabularML) {
-      return "Machine Learning (ML)";
-    }
-
-    if (titleLower.includes("cyber") || titleLower.includes("security") || titleLower.includes("ctf") || titleLower.includes("infosec") || titleLower.includes("sentinel") || titleLower.includes("zero-trust")) {
-      return "Cybersecurity & Cloud";
-    }
-    if (titleLower.includes("cloud") || titleLower.includes("kubernetes") || titleLower.includes("devops") || titleLower.includes("docker") || titleLower.includes("serverless") || titleLower.includes("aws") || titleLower.includes("azure")) {
-      return "Cloud Infrastructure & DevOps";
-    }
-    if (titleLower.includes("mobile") || titleLower.includes("android") || titleLower.includes("ios") || titleLower.includes("swift") || titleLower.includes("flutter")) {
-      return "Mobile App Development";
-    }
-    if (titleLower.includes("web3") || titleLower.includes("blockchain") || titleLower.includes("crypto") || titleLower.includes("solana") || titleLower.includes("ethereum")) {
+    // 1. Specific domains first to avoid generic tags overriding them
+    // Web3 & Blockchain
+    if (
+      /\b(web3|blockchain|crypto|solana|ethereum|smart contract|nft|defi|decentral|dorahacks|token|polygon)\b/.test(titleLower) ||
+      themesList.some(t => ["blockchain", "web3", "crypto", "solana", "ethereum"].includes(t)) ||
+      titleLower.includes("decentrahack") ||
+      titleLower.includes("climatechain")
+    ) {
       return "Web3 & Blockchain";
     }
-    if (titleLower.includes("iot") || titleLower.includes("robotics") || titleLower.includes("hardware") || titleLower.includes("embedded") || titleLower.includes("arduino")) {
-      return "IoT, Embedded & Robotics";
-    }
-    if (titleLower.includes("full stack") || titleLower.includes("fullstack") || titleLower.includes("frontend") || titleLower.includes("backend") || titleLower.includes("codevita") || titleLower.includes("hackwithinfy")) {
-      return "Full Stack Development (FSD)";
+
+    // Cybersecurity
+    if (
+      /\b(cyber|security|ctf|infosec|sentinel|threat|vulnerability|zero-trust|penetration|reverse engineering|kshitij cyber)\b/.test(titleLower) ||
+      themesList.some(t => ["cybersecurity", "security", "infosec"].includes(t))
+    ) {
+      return "Cybersecurity & Cloud";
     }
 
-    // Pure ML in text:
-    if (combined.includes("machine learning") || /\bml\b/.test(combined)) {
-      return "Machine Learning (ML)";
+    // Mobile App Development
+    if (
+      /\b(mobile|android|ios|swift|flutter|react native|app sprint)\b/.test(titleLower) ||
+      themesList.some(t => ["mobile", "android", "ios"].includes(t))
+    ) {
+      return "Mobile App Development";
     }
-    // AI in text:
-    if (combined.includes("artificial intelligence") || /\bai\b/.test(combined)) {
+
+    // IoT & Robotics
+    if (
+      /\b(iot|robotics|hardware|embedded|arduino|raspberry|sensor|nas)\b/.test(titleLower) ||
+      themesList.some(t => ["iot", "robotics", "hardware"].includes(t))
+    ) {
+      return "IoT, Embedded & Robotics";
+    }
+
+    // Cloud & DevOps
+    if (
+      (/\b(cloud|kubernetes|docker|serverless|devops)\b/.test(titleLower) || titleLower.includes("azure cloud") || titleLower.includes("aws cloud")) &&
+      !/\b(ai|genai|llm|ml|machine learning)\b/.test(titleLower)
+    ) {
+      return "Cloud Infrastructure & DevOps";
+    }
+
+    // 2. ARTIFICIAL INTELLIGENCE (AI) - STRICT MUTUAL EXCLUSIVITY
+    // AI, GenAI, LLMs, Agents, Prompts, GPT, Gemini, Claude, Llama, Copilot, Neural, Deep Learning, Vision, NLP
+    const isAI =
+      /\b(ai|genai|llm|llms|gpt|gpt-4|gpt-4o|gemini|claude|llama|openai|copilot|qwen|mistral|watsonx|granite|huggingface|hugging face|agentic|agents|multimodal|rag|diffusion|transformers|neural|deep learning|computer vision|nlp)\b/.test(titleLower) ||
+      titleLower.includes("artificial intelligence") ||
+      titleLower.includes("generative ai") ||
+      titleLower.includes("ai agent") ||
+      titleLower.includes("prompt engineering") ||
+      themesList.some(t => ["artificial intelligence", "generative ai", "ai", "prompt engineering", "large language models (llms)"].includes(t)) ||
+      /\b(genai|llm|llms|gpt|gemini|claude|llama|copilot|watsonx|ai agent|agentic|generative ai|prompt engineering)\b/.test(combined);
+
+    if (isAI) {
       return "Artificial Intelligence (AI)";
     }
 
-    if (combined.includes("cyber") || combined.includes("security") || combined.includes("ctf") || combined.includes("infosec") || combined.includes("threat") || combined.includes("vulnerability") || combined.includes("zero-trust")) {
-      return "Cybersecurity & Cloud";
+    // 3. MACHINE LEARNING (ML) - STRICT PURE TABULAR / STATISTICAL ML (NO AI, NO GENAI)
+    const isPureML =
+      /\b(scikit|xgboost|lightgbm|catboost|tabular|regression|auc-roc|rmse|feature engineering)\b/.test(combined) ||
+      /\b(predictive modeling|predictive analytics|predictive model|gradient boosting|random forest)\b/.test(combined) ||
+      (/\b(machine learning|kaggle)\b/.test(titleLower) && !/\b(ai|genai|llm|copilot)\b/.test(titleLower)) ||
+      themesList.some(t => ["kaggle", "tabular data", "predictive modeling"].includes(t)) ||
+      titleLower.includes("machine learning cup") ||
+      titleLower.includes("predictive ml") ||
+      titleLower.includes("tabular data");
+
+    if (isPureML) {
+      return "Machine Learning (ML)";
     }
-    if (combined.includes("cloud") || combined.includes("devops") || combined.includes("kubernetes") || combined.includes("docker") || combined.includes("serverless") || combined.includes("aws") || combined.includes("azure")) {
-      return "Cloud Infrastructure & DevOps";
-    }
-    if (combined.includes("web3") || combined.includes("blockchain") || combined.includes("crypto") || combined.includes("solana") || combined.includes("ethereum") || combined.includes("smart contract") || combined.includes("dorahacks")) {
-      return "Web3 & Blockchain";
-    }
-    if (combined.includes("iot") || combined.includes("robotics") || combined.includes("hardware") || combined.includes("embedded") || combined.includes("arduino") || combined.includes("sensor")) {
-      return "IoT, Embedded & Robotics";
-    }
-    if (combined.includes("android") || combined.includes("ios") || combined.includes("swift") || combined.includes("flutter") || combined.includes("react native") || combined.includes("mobile")) {
-      return "Mobile App Development";
-    }
-    if (combined.includes("full stack") || combined.includes("fullstack") || combined.includes("frontend") || combined.includes("backend") || combined.includes("react") || combined.includes("web development") || combined.includes("software")) {
+
+    // 4. Full Stack Development & Coding Contests
+    if (
+      /\b(full stack|fullstack|frontend|backend|web dev|codevita|hackwithinfy|react|mern|coding contest|kontest|syntax summit|code)\b/.test(titleLower) ||
+      themesList.some(t => ["web", "frontend", "backend", "full stack"].includes(t))
+    ) {
       return "Full Stack Development (FSD)";
     }
-    if (combined.includes("sih") || combined.includes("smart india") || combined.includes("space apps") || combined.includes("naan mudhalvan") || combined.includes("govt") || combined.includes("social good")) {
+
+    // 5. Open Innovation & Govt Tech
+    if (
+      /\b(sih|smart india|govt|social good|health|healthcare|medical|space apps|naan mudhalvan|sustainability|climate|clean energy)\b/.test(combined) ||
+      themesList.some(t => ["social good", "health", "education", "sustainability"].includes(t))
+    ) {
       return "Open Innovation & Govt Tech";
     }
 

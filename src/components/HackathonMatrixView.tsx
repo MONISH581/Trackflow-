@@ -294,168 +294,114 @@ export function categorizeDomain(raw: {
 }): DomainCategory {
   const explicit = (raw.domain || "").toLowerCase().trim();
   const titleText = `${raw.name || raw.title || ""}`.toLowerCase();
-  const fullText = `${titleText} ${raw.description || ""} ${(raw.tags || []).join(" ")}`.toLowerCase();
+  const descText = `${raw.description || ""}`.toLowerCase();
+  const tagsList = (raw.tags || []).map((t) => String(t).toLowerCase());
+  const tagsStr = tagsList.join(" ");
+  const fullText = `${titleText} ${descText} ${tagsStr} ${explicit}`;
 
-  // PRIORITY 1: STRICT AI vs ML MUTUAL EXCLUSIVITY
-  // Rule: If Generative AI / LLM / Agent / Prompt / GPT / Gemini / Claude / Llama / Copilot / Granite / watsonx / Foundation Model -> STRICTLY AI!
-  const isGenAI =
-    /\b(genai|llm|llms|gpt|gpt-4|gpt-4o|gemini|claude|llama|openai|copilot|qwen|mistral)\b/.test(fullText) ||
-    fullText.includes("generative ai") ||
-    fullText.includes("large language") ||
-    fullText.includes("prompt engineering") ||
-    fullText.includes("ai agent") ||
-    fullText.includes("agentic ai") ||
-    fullText.includes("autonomous agent") ||
-    fullText.includes("watsonx") ||
-    fullText.includes("granite") ||
-    fullText.includes("hugging face") ||
-    fullText.includes("huggingface") ||
-    fullText.includes("multimodal") ||
-    fullText.includes("conversational ai");
-
-  // Rule: If Tabular / Scikit / XGBoost / LightGBM / CatBoost / Random Forest / Regression / Predictive Modeling -> STRICTLY ML!
-  const isTabularML =
-    /\b(scikit|xgboost|lightgbm|catboost|tabular|regression|auc-roc|rmse)\b/.test(fullText) ||
-    fullText.includes("predictive machine learning") ||
-    fullText.includes("predictive ml") ||
-    fullText.includes("predictive analytics") ||
-    fullText.includes("predictive model") ||
-    fullText.includes("predictive modeling") ||
-    fullText.includes("data science") ||
-    fullText.includes("gradient boosting") ||
-    fullText.includes("random forest") ||
-    fullText.includes("feature store") ||
-    fullText.includes("feature engineering") ||
-    fullText.includes("supervised learning") ||
-    fullText.includes("unsupervised learning");
-
-  // If GenAI is detected, it is strictly AI, NEVER ML!
-  if (isGenAI) {
+  // 1. Direct explicit domain matching
+  if (explicit === "artificial intelligence (ai)" || explicit === "ai & llm competitions" || explicit === "google ai & cloud") {
     return "AI";
   }
-
-  // If Tabular / Predictive / Scikit / XGBoost is detected, it is strictly ML, NEVER AI!
-  if (isTabularML) {
-    return "ML";
-  }
-
-  // Priority 2: Direct explicit domain strings
-  if (explicit.includes("machine learning") || explicit === "ml" || explicit.includes("(ml)")) {
-    return "ML";
-  }
-  if (explicit.includes("artificial intelligence") || explicit === "ai" || explicit.includes("(ai)")) {
+  if (explicit === "machine learning (ml)" || explicit === "kaggle / machine learning") {
+    const isGenAI = /\b(genai|llm|llms|gpt|gemini|claude|llama|copilot|watsonx|agentic)\b/.test(fullText);
+    if (!isGenAI) return "ML";
     return "AI";
   }
-  if (explicit.includes("cyber") || explicit.includes("security") || explicit.includes("(cyber)")) {
-    return "Cyber";
-  }
-  if (explicit.includes("cloud") || explicit.includes("devops")) {
-    return "Cloud";
-  }
-  if (explicit.includes("full stack") || explicit.includes("fsd") || explicit.includes("(fsd)")) {
-    return "FSD";
-  }
-  if (explicit.includes("mobile") || explicit.includes("android") || explicit.includes("ios") || explicit.includes("swift")) {
-    return "Mobile";
-  }
-  if (explicit.includes("web3") || explicit.includes("blockchain")) {
+  if (explicit === "cybersecurity & cloud") return "Cyber";
+  if (explicit === "cloud infrastructure & devops") return "Cloud";
+  if (explicit === "full stack development (fsd)" || explicit === "enterprise & coding") return "FSD";
+  if (explicit === "web3 & blockchain" || explicit === "web3 & open-source") return "Web3";
+  if (explicit === "mobile app development") return "Mobile";
+  if (explicit === "iot, embedded & robotics") return "IoT";
+  if (explicit === "open innovation & govt tech" || explicit === "college & tech competition") return "OpenTech";
+
+  // 2. Specific Domain Indicators
+  // Web3 & Blockchain
+  if (
+    /\b(web3|blockchain|crypto|solana|ethereum|smart contract|nft|defi|decentral|dorahacks|token|polygon)\b/.test(titleText) ||
+    tagsList.some((t) => ["blockchain", "web3", "crypto", "solana", "ethereum"].includes(t)) ||
+    titleText.includes("decentrahack") ||
+    titleText.includes("climatechain")
+  ) {
     return "Web3";
   }
-  if (explicit.includes("iot") || explicit.includes("embedded") || explicit.includes("robotics")) {
+
+  // Cybersecurity
+  if (
+    /\b(cyber|security|ctf|infosec|sentinel|threat|vulnerability|zero-trust|penetration|reverse engineering|kshitij cyber)\b/.test(titleText) ||
+    tagsList.some((t) => ["cybersecurity", "security", "infosec"].includes(t))
+  ) {
+    return "Cyber";
+  }
+
+  // Mobile App Development
+  if (
+    /\b(mobile|android|ios|swift|flutter|react native|app sprint)\b/.test(titleText) ||
+    tagsList.some((t) => ["mobile", "android", "ios"].includes(t))
+  ) {
+    return "Mobile";
+  }
+
+  // IoT & Robotics
+  if (
+    /\b(iot|robotics|hardware|embedded|arduino|raspberry|sensor|nas)\b/.test(titleText) ||
+    tagsList.some((t) => ["iot", "robotics", "hardware"].includes(t))
+  ) {
     return "IoT";
   }
-  if (explicit.includes("open") || explicit.includes("govt") || explicit.includes("social")) {
+
+  // Cloud & DevOps
+  if (
+    (/\b(cloud|kubernetes|docker|serverless|devops)\b/.test(titleText) || titleText.includes("azure cloud") || titleText.includes("aws cloud")) &&
+    !/\b(ai|genai|llm|ml|machine learning)\b/.test(titleText)
+  ) {
+    return "Cloud";
+  }
+
+  // 3. ARTIFICIAL INTELLIGENCE (AI) - STRICT MUTUAL EXCLUSIVITY
+  // Any event focused on AI, GenAI, LLMs, Agents, Prompts, GPT, Gemini, Claude, Llama, Copilot, Neural, Deep Learning, Vision, NLP
+  const isAI =
+    /\b(ai|genai|llm|llms|gpt|gpt-4|gpt-4o|gemini|claude|llama|openai|copilot|qwen|mistral|watsonx|granite|huggingface|hugging face|agentic|agents|multimodal|rag|diffusion|transformers|neural|deep learning|computer vision|nlp)\b/.test(titleText) ||
+    titleText.includes("artificial intelligence") ||
+    titleText.includes("generative ai") ||
+    titleText.includes("ai agent") ||
+    titleText.includes("prompt engineering") ||
+    tagsList.some((t) => ["artificial intelligence", "generative ai", "ai", "prompt engineering", "large language models (llms)"].includes(t)) ||
+    /\b(genai|llm|llms|gpt|gemini|claude|llama|copilot|watsonx|ai agent|agentic|generative ai|prompt engineering)\b/.test(fullText);
+
+  if (isAI) {
+    return "AI";
+  }
+
+  // 4. MACHINE LEARNING (ML) - STRICT PURE TABULAR / STATISTICAL ML (NO AI, NO GENAI)
+  const isPureML =
+    /\b(scikit|xgboost|lightgbm|catboost|tabular|regression|auc-roc|rmse|feature engineering)\b/.test(fullText) ||
+    /\b(predictive modeling|predictive analytics|predictive model|gradient boosting|random forest)\b/.test(fullText) ||
+    (/\b(machine learning|kaggle)\b/.test(titleText) && !/\b(ai|genai|llm|copilot)\b/.test(titleText)) ||
+    tagsList.some((t) => ["kaggle", "tabular data", "predictive modeling"].includes(t)) ||
+    titleText.includes("machine learning cup") ||
+    titleText.includes("predictive ml") ||
+    titleText.includes("tabular data");
+
+  if (isPureML) {
+    return "ML";
+  }
+
+  // 5. Full Stack Development & Coding Contests
+  if (
+    /\b(full stack|fullstack|frontend|backend|web dev|codevita|hackwithinfy|react|mern|coding contest|kontest|syntax summit|code)\b/.test(titleText) ||
+    tagsList.some((t) => ["web", "frontend", "backend", "full stack"].includes(t))
+  ) {
+    return "FSD";
+  }
+
+  // 6. Open Innovation & Govt Tech
+  if (
+    /\b(sih|smart india|govt|social good|health|healthcare|medical|space apps|naan mudhalvan|sustainability|climate|clean energy)\b/.test(fullText) ||
+    tagsList.some((t) => ["social good", "health", "education", "sustainability"].includes(t))
+  ) {
     return "OpenTech";
-  }
-
-  // Priority 3: Title and keyword fallbacks
-  if (
-    titleText.includes("cyber") ||
-    titleText.includes("security") ||
-    titleText.includes("ctf") ||
-    titleText.includes("sentinel")
-  ) {
-    return "Cyber";
-  }
-  if (
-    titleText.includes("cloud") ||
-    titleText.includes("devops") ||
-    titleText.includes("kubernetes") ||
-    titleText.includes("docker") ||
-    titleText.includes("serverless") ||
-    titleText.includes("aws") ||
-    titleText.includes("azure")
-  ) {
-    return "Cloud";
-  }
-  if (
-    titleText.includes("mobile") ||
-    titleText.includes("android") ||
-    titleText.includes("ios") ||
-    titleText.includes("swift") ||
-    titleText.includes("flutter")
-  ) {
-    return "Mobile";
-  }
-  if (
-    titleText.includes("web3") ||
-    titleText.includes("blockchain") ||
-    titleText.includes("crypto") ||
-    titleText.includes("solana") ||
-    titleText.includes("ethereum")
-  ) {
-    return "Web3";
-  }
-  if (
-    titleText.includes("iot") ||
-    titleText.includes("robotics") ||
-    titleText.includes("hardware") ||
-    titleText.includes("embedded") ||
-    titleText.includes("arduino")
-  ) {
-    return "IoT";
-  }
-  if (
-    titleText.includes("full stack") ||
-    titleText.includes("fullstack") ||
-    titleText.includes("frontend") ||
-    titleText.includes("backend") ||
-    titleText.includes("mern") ||
-    titleText.includes("codevita") ||
-    titleText.includes("hackwithinfy")
-  ) {
-    return "FSD";
-  }
-
-  // Check pure ML in text:
-  if (fullText.includes("machine learning") || /\bml\b/.test(fullText)) {
-    return "ML";
-  }
-  // Check AI in text:
-  if (fullText.includes("artificial intelligence") || /\bai\b/.test(fullText)) {
-    return "AI";
-  }
-
-  if (fullText.includes("cyber") || fullText.includes("security") || fullText.includes("infosec") || fullText.includes("zero-trust")) {
-    return "Cyber";
-  }
-  if (fullText.includes("cloud") || fullText.includes("devops") || fullText.includes("kubernetes") || fullText.includes("docker")) {
-    return "Cloud";
-  }
-  if (fullText.includes("mobile") || fullText.includes("android") || fullText.includes("ios") || fullText.includes("app sprint")) {
-    return "Mobile";
-  }
-  if (fullText.includes("web3") || fullText.includes("blockchain") || fullText.includes("smart contract")) {
-    return "Web3";
-  }
-  if (fullText.includes("iot") || fullText.includes("robotics") || fullText.includes("sensor")) {
-    return "IoT";
-  }
-  if (fullText.includes("sih") || fullText.includes("smart india") || fullText.includes("govt") || fullText.includes("social good")) {
-    return "OpenTech";
-  }
-  if (fullText.includes("full stack") || fullText.includes("fullstack") || fullText.includes("web development") || fullText.includes("software")) {
-    return "FSD";
   }
 
   return "OpenTech";
@@ -895,7 +841,7 @@ export default function HackathonMatrixView({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 flex items-center gap-1.5 shadow-[0_0_12px_rgba(99,102,241,0.3)]">
                 <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-                TrackFlow 4-Source Unified Matrix
+                TrackFlow 3-Source Unified Matrix
               </span>
 
               <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 flex items-center gap-1.5">
@@ -924,7 +870,14 @@ export default function HackathonMatrixView({
               <span className="text-xl font-black text-white">{grandTotal}</span>
             </div>
 
-            <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-cyan-500/20 text-center min-w-[95px] shadow-sm">
+            <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-indigo-500/20 text-center min-w-[85px] shadow-sm">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">AI Events</span>
+              <span className="text-base font-black text-indigo-300">
+                {columnTotals.AI || 0}
+              </span>
+            </div>
+
+            <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-cyan-500/20 text-center min-w-[85px] shadow-sm">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">ML Events</span>
               <span className="text-base font-black text-cyan-300">
                 {columnTotals.ML || 0}
@@ -1050,7 +1003,7 @@ export default function HackathonMatrixView({
               </div>
             </div>
 
-            {/* Show Rows Filter: ALL 4 SOURCES */}
+            {/* Show Rows Filter: ALL 3 SOURCES */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-bold text-slate-400">Source:</span>
               <div className="inline-flex rounded-xl p-1 bg-slate-900/90 border border-indigo-500/20 flex-wrap">
@@ -1062,7 +1015,7 @@ export default function HackathonMatrixView({
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  All (4 Sources)
+                  All (3 Sources)
                 </button>
                 <button
                   onClick={() => setSourceTypeFilter("PLATFORMS")}
