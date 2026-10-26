@@ -49,7 +49,7 @@ export type DomainCategory =
   | "IoT"
   | "OpenTech";
 
-export type SourceType = "Platform" | "Company" | "University" | "Local";
+export type SourceType = "Platform" | "Company" | "University";
 
 export interface UnifiedHackathon {
   id: string;
@@ -242,16 +242,17 @@ export const STANDARD_PLATFORMS = [
 ];
 
 export const STANDARD_COMPANIES = [
-  { id: "microsoft", name: "Microsoft (MIC)", aliases: ["microsoft", "azure", "imagine cup", "sentinel"] },
+  { id: "microsoft", name: "Microsoft (MIC)", aliases: ["microsoft", "azure", "imagine cup", "sentinel", "copilot"] },
   { id: "google", name: "Google (GOOG)", aliases: ["google", "deepmind", "solution challenge", "gemini"] },
   { id: "amazon", name: "Amazon (AWS)", aliases: ["amazon", "aws", "bedrock"] },
-  { id: "meta", name: "Meta", aliases: ["meta", "llama", "facebook"] },
-  { id: "apple", name: "Apple", aliases: ["apple", "swift student"] },
-  { id: "ibm", name: "IBM", aliases: ["ibm", "call for code"] },
-  { id: "nvidia", name: "NVIDIA", aliases: ["nvidia"] },
-  { id: "intel", name: "Intel", aliases: ["intel"] },
+  { id: "meta", name: "Meta", aliases: ["meta", "llama", "facebook", "pytorch"] },
+  { id: "apple", name: "Apple", aliases: ["apple", "swift student", "coreml"] },
+  { id: "ibm", name: "IBM", aliases: ["ibm", "call for code", "watsonx", "granite"] },
+  { id: "nvidia", name: "NVIDIA", aliases: ["nvidia", "nim", "tensorrt", "rapids"] },
+  { id: "intel", name: "Intel", aliases: ["intel", "openvino", "oneapi"] },
   { id: "amd", name: "AMD", aliases: ["amd", "advanced micro devices", "rocm", "instinct", "ryzen", "epyc"] },
-  { id: "infosys_tcs", name: "Infosys / TCS", aliases: ["infosys", "tcs", "tata"] }
+  { id: "infosys", name: "Infosys", aliases: ["infosys", "hackwithinfy", "infytq"] },
+  { id: "tcs", name: "TCS", aliases: ["tcs", "tata", "codevita", "campuscommune"] }
 ];
 
 export const STANDARD_UNIVERSITIES = [
@@ -266,15 +267,6 @@ export const STANDARD_UNIVERSITIES = [
   { id: "anna_univ", name: "Anna University (Kurukshetra)", aliases: ["anna university", "kurukshetra", "ceg"] },
   { id: "vit_vellore", name: "VIT Vellore (Devspace)", aliases: ["vit vellore", "devspace", "vit"] },
   { id: "srm_univ", name: "SRM University (HackSRM)", aliases: ["srm university", "hacksrm", "srmist", "srm"] }
-];
-
-export const STANDARD_LOCAL = [
-  { id: "siet_campus", name: "Sri Shakthi Campus (SIET)", aliases: ["sri shakthi", "siet", "shakthi campus"] },
-  { id: "dept_cse", name: "Dept of CSE (Intra-College Hack)", aliases: ["dept of cse", "cse dept", "computer science dept"] },
-  { id: "dept_aids", name: "Dept of AI & DS (ML Sprint)", aliases: ["dept of ai", "ai & ds", "artificial intelligence & data science", "ai ds dept"] },
-  { id: "campus_ctf", name: "Campus Cyber CTF (Internal)", aliases: ["campus cyber", "internal ctf", "college ctf", "intra-college ctf"] },
-  { id: "campus_iot", name: "Campus IoT Hardware Sprint", aliases: ["campus iot", "hardware sprint", "embedded lab hack", "iot club"] },
-  { id: "unadvertised_hack", name: "Local Unadvertised Hackathon", aliases: ["unadvertised", "internal hack", "local hackathon", "intra-college", "campus sprint"] }
 ];
 
 export const MONTH_OPTIONS = [
@@ -301,87 +293,107 @@ export function categorizeDomain(raw: {
   tags?: string[];
 }): DomainCategory {
   const explicit = (raw.domain || "").toLowerCase().trim();
+  const titleText = `${raw.name || raw.title || ""}`.toLowerCase();
+  const fullText = `${titleText} ${raw.description || ""} ${(raw.tags || []).join(" ")}`.toLowerCase();
 
-  // Priority 1: Direct explicit mapping if already present
-  if (explicit.includes("cloud")) {
-    return "Cloud";
+  // PRIORITY 1: STRICT AI vs ML MUTUAL EXCLUSIVITY
+  // Rule: If Generative AI / LLM / Agent / Prompt / GPT / Gemini / Claude / Llama / Copilot / Granite / watsonx / Foundation Model -> STRICTLY AI!
+  const isGenAI =
+    /\b(genai|llm|llms|gpt|gpt-4|gpt-4o|gemini|claude|llama|openai|copilot|qwen|mistral)\b/.test(fullText) ||
+    fullText.includes("generative ai") ||
+    fullText.includes("large language") ||
+    fullText.includes("prompt engineering") ||
+    fullText.includes("ai agent") ||
+    fullText.includes("agentic ai") ||
+    fullText.includes("autonomous agent") ||
+    fullText.includes("watsonx") ||
+    fullText.includes("granite") ||
+    fullText.includes("hugging face") ||
+    fullText.includes("huggingface") ||
+    fullText.includes("multimodal") ||
+    fullText.includes("conversational ai");
+
+  // Rule: If Tabular / Scikit / XGBoost / LightGBM / CatBoost / Random Forest / Regression / Predictive Modeling -> STRICTLY ML!
+  const isTabularML =
+    /\b(scikit|xgboost|lightgbm|catboost|tabular|regression|auc-roc|rmse)\b/.test(fullText) ||
+    fullText.includes("predictive machine learning") ||
+    fullText.includes("predictive ml") ||
+    fullText.includes("predictive analytics") ||
+    fullText.includes("predictive model") ||
+    fullText.includes("predictive modeling") ||
+    fullText.includes("data science") ||
+    fullText.includes("gradient boosting") ||
+    fullText.includes("random forest") ||
+    fullText.includes("feature store") ||
+    fullText.includes("feature engineering") ||
+    fullText.includes("supervised learning") ||
+    fullText.includes("unsupervised learning");
+
+  // If GenAI is detected, it is strictly AI, NEVER ML!
+  if (isGenAI) {
+    return "AI";
   }
-  if (explicit.includes("machine learning") || explicit === "ml" || explicit.includes("(ml)")) {
+
+  // If Tabular / Predictive / Scikit / XGBoost is detected, it is strictly ML, NEVER AI!
+  if (isTabularML) {
     return "ML";
   }
-  if (explicit.includes("cyber") || explicit.includes("security") || explicit.includes("(cyber)")) {
-    return "Cyber";
+
+  // Priority 2: Direct explicit domain strings
+  if (explicit.includes("machine learning") || explicit === "ml" || explicit.includes("(ml)")) {
+    return "ML";
   }
   if (explicit.includes("artificial intelligence") || explicit === "ai" || explicit.includes("(ai)")) {
     return "AI";
   }
+  if (explicit.includes("cyber") || explicit.includes("security") || explicit.includes("(cyber)")) {
+    return "Cyber";
+  }
+  if (explicit.includes("cloud") || explicit.includes("devops")) {
+    return "Cloud";
+  }
   if (explicit.includes("full stack") || explicit.includes("fsd") || explicit.includes("(fsd)")) {
     return "FSD";
   }
-  if (explicit.includes("mobile")) {
+  if (explicit.includes("mobile") || explicit.includes("android") || explicit.includes("ios") || explicit.includes("swift")) {
     return "Mobile";
   }
   if (explicit.includes("web3") || explicit.includes("blockchain")) {
     return "Web3";
   }
-  if (explicit.includes("iot") || explicit.includes("robotics")) {
+  if (explicit.includes("iot") || explicit.includes("embedded") || explicit.includes("robotics")) {
     return "IoT";
   }
-  if (explicit.includes("open") || explicit.includes("govt")) {
+  if (explicit.includes("open") || explicit.includes("govt") || explicit.includes("social")) {
     return "OpenTech";
   }
 
-  // Priority 1.5: Title-level domain classification (TITLE TAKES PRECEDENCE OVER INCIDENTAL DESCRIPTION MENTIONS)
-  const titleText = `${raw.name || raw.title || ""}`.toLowerCase();
-  if (
-    titleText.includes("cloud") ||
-    titleText.includes("kubernetes") ||
-    titleText.includes("devops") ||
-    titleText.includes("cloud run") ||
-    titleText.includes("docker") ||
-    titleText.includes("serverless") ||
-    titleText.includes("aws") ||
-    titleText.includes("azure") ||
-    titleText.includes("gcp")
-  ) {
-    return "Cloud";
-  }
-  if (
-    titleText.includes("kaggle") ||
-    titleText.includes("machine learning") ||
-    titleText.includes("data science") ||
-    titleText.includes("ml sprint") ||
-    titleText.includes("tabular") ||
-    /\bml\b/.test(titleText)
-  ) {
-    return "ML";
-  }
+  // Priority 3: Title and keyword fallbacks
   if (
     titleText.includes("cyber") ||
     titleText.includes("security") ||
     titleText.includes("ctf") ||
-    titleText.includes("zero-trust")
+    titleText.includes("sentinel")
   ) {
     return "Cyber";
   }
   if (
-    titleText.includes("genai") ||
-    titleText.includes("generative ai") ||
-    titleText.includes("llm") ||
-    titleText.includes("gemini") ||
-    titleText.includes("gpt") ||
-    titleText.includes("artificial intelligence") ||
-    /\bai\b/.test(titleText)
+    titleText.includes("cloud") ||
+    titleText.includes("devops") ||
+    titleText.includes("kubernetes") ||
+    titleText.includes("docker") ||
+    titleText.includes("serverless") ||
+    titleText.includes("aws") ||
+    titleText.includes("azure")
   ) {
-    return "AI";
+    return "Cloud";
   }
   if (
     titleText.includes("mobile") ||
     titleText.includes("android") ||
     titleText.includes("ios") ||
-    titleText.includes("flutter") ||
-    titleText.includes("react native") ||
-    titleText.includes("swift")
+    titleText.includes("swift") ||
+    titleText.includes("flutter")
   ) {
     return "Mobile";
   }
@@ -408,170 +420,45 @@ export function categorizeDomain(raw: {
     titleText.includes("fullstack") ||
     titleText.includes("frontend") ||
     titleText.includes("backend") ||
-    titleText.includes("mern")
+    titleText.includes("mern") ||
+    titleText.includes("codevita") ||
+    titleText.includes("hackwithinfy")
   ) {
     return "FSD";
   }
 
-  const text = `${raw.name || raw.title || ""} ${raw.description || ""} ${(raw.tags || []).join(" ")}`.toLowerCase();
-
-  // Priority 2: Machine Learning (ML) & Data Science - EVALUATED BEFORE AI SO ML IS NEVER STOLEN!
-  if (
-    text.includes("kaggle") ||
-    text.includes("machine learning") ||
-    text.includes("data science") ||
-    text.includes("ml cup") ||
-    text.includes("predictive") ||
-    text.includes("tabular") ||
-    text.includes("dataset") ||
-    text.includes("scikit") ||
-    text.includes("xgboost") ||
-    text.includes("random forest") ||
-    text.includes("regression") ||
-    text.includes("classification") ||
-    text.includes("clustering") ||
-    text.includes("deep learning model") ||
-    text.includes("data analytics") ||
-    text.includes("data mining") ||
-    /\bml\b/.test(text)
-  ) {
+  // Check pure ML in text:
+  if (fullText.includes("machine learning") || /\bml\b/.test(fullText)) {
     return "ML";
   }
-
-  // Priority 3: Cybersecurity
-  if (
-    text.includes("cyber") ||
-    text.includes("security") ||
-    text.includes("ctf") ||
-    text.includes("infosec") ||
-    text.includes("sentinel") ||
-    text.includes("threat") ||
-    text.includes("vulnerability") ||
-    text.includes("zero-trust") ||
-    text.includes("penetration") ||
-    text.includes("firewall")
-  ) {
-    return "Cyber";
-  }
-
-  // Priority 4: Artificial Intelligence & LLMs
-  if (
-    text.includes("genai") ||
-    text.includes("generative ai") ||
-    text.includes("llm") ||
-    text.includes("large language") ||
-    text.includes("gemini") ||
-    text.includes("gpt") ||
-    text.includes("chatgpt") ||
-    text.includes("copilot") ||
-    text.includes("prompt") ||
-    text.includes("llama") ||
-    text.includes("agent") ||
-    text.includes("openai") ||
-    text.includes("hugging face") ||
-    text.includes("huggingface") ||
-    text.includes("computer vision") ||
-    text.includes("artificial intelligence") ||
-    /\bai\b/.test(text)
-  ) {
+  // Check AI in text:
+  if (fullText.includes("artificial intelligence") || /\bai\b/.test(fullText)) {
     return "AI";
   }
 
-  // Priority 5: Cloud & DevOps
-  if (
-    text.includes("devops") ||
-    text.includes("cloud computing") ||
-    text.includes("kubernetes") ||
-    text.includes("docker") ||
-    text.includes("aws") ||
-    text.includes("azure") ||
-    text.includes("gcp") ||
-    text.includes("serverless") ||
-    text.includes("microservice") ||
-    text.includes("cloud run") ||
-    text.includes("lambda") ||
-    text.includes("devnetwork")
-  ) {
+  if (fullText.includes("cyber") || fullText.includes("security") || fullText.includes("infosec") || fullText.includes("zero-trust")) {
+    return "Cyber";
+  }
+  if (fullText.includes("cloud") || fullText.includes("devops") || fullText.includes("kubernetes") || fullText.includes("docker")) {
     return "Cloud";
   }
-
-  // Priority 6: Mobile App Development
-  if (
-    text.includes("android") ||
-    text.includes("ios") ||
-    text.includes("swift") ||
-    text.includes("flutter") ||
-    text.includes("react native") ||
-    text.includes("kotlin") ||
-    text.includes("mobile app") ||
-    text.includes("app sprint") ||
-    text.includes("swiftui")
-  ) {
+  if (fullText.includes("mobile") || fullText.includes("android") || fullText.includes("ios") || fullText.includes("app sprint")) {
     return "Mobile";
   }
-
-  // Priority 7: Web3 & Blockchain
-  if (
-    text.includes("web3") ||
-    text.includes("blockchain") ||
-    text.includes("crypto") ||
-    text.includes("solana") ||
-    text.includes("ethereum") ||
-    text.includes("smart contract") ||
-    text.includes("defi") ||
-    text.includes("depin") ||
-    text.includes("dorahacks")
-  ) {
+  if (fullText.includes("web3") || fullText.includes("blockchain") || fullText.includes("smart contract")) {
     return "Web3";
   }
-
-  // Priority 8: IoT & Robotics
-  if (
-    text.includes("iot") ||
-    text.includes("internet of things") ||
-    text.includes("robotics") ||
-    text.includes("hardware") ||
-    text.includes("embedded") ||
-    text.includes("arduino") ||
-    text.includes("raspberry") ||
-    text.includes("sensor")
-  ) {
+  if (fullText.includes("iot") || fullText.includes("robotics") || fullText.includes("sensor")) {
     return "IoT";
   }
-
-  // Priority 9: Open Innovation & Govt Tech
-  if (
-    text.includes("sih") ||
-    text.includes("smart india") ||
-    text.includes("govt") ||
-    text.includes("government") ||
-    text.includes("nasa") ||
-    text.includes("space apps") ||
-    text.includes("naan mudhalvan") ||
-    text.includes("social good")
-  ) {
+  if (fullText.includes("sih") || fullText.includes("smart india") || fullText.includes("govt") || fullText.includes("social good")) {
     return "OpenTech";
   }
-
-  // Priority 10: Full Stack Development
-  if (
-    text.includes("fsd") ||
-    text.includes("full stack") ||
-    text.includes("fullstack") ||
-    text.includes("web development") ||
-    text.includes("web dev") ||
-    text.includes("frontend") ||
-    text.includes("backend") ||
-    text.includes("react") ||
-    text.includes("node") ||
-    text.includes("next.js") ||
-    text.includes("software engineering") ||
-    text.includes("software development")
-  ) {
+  if (fullText.includes("full stack") || fullText.includes("fullstack") || fullText.includes("web development") || fullText.includes("software")) {
     return "FSD";
   }
 
-  return "FSD";
+  return "OpenTech";
 }
 
 interface HackathonMatrixViewProps {
@@ -604,7 +491,7 @@ export default function HackathonMatrixView({
   // Filters
   const [selectedMonth, setSelectedMonth] = useState<string>("ALL"); // Default to All Months so all 102 events are immediately visible
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceTypeFilter, setSourceTypeFilter] = useState<"ALL" | "PLATFORMS" | "COMPANIES" | "UNIVERSITIES" | "LOCAL">("ALL");
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<"ALL" | "PLATFORMS" | "COMPANIES" | "UNIVERSITIES">("ALL");
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Manual Addition Modal State
@@ -613,17 +500,16 @@ export default function HackathonMatrixView({
   const [newHackForm, setNewHackForm] = useState({
     name: "",
     organizer: "",
-    sourceType: "Local" as SourceType,
+    sourceType: "Company" as SourceType,
     domain: "ML" as DomainCategory,
-    mode: "Offline",
-    location: "Campus Lab / Auditorium",
+    mode: "Online",
+    location: "Global Online",
     registrationLink: "",
     registrationDeadline: "",
     startDate: "",
     endDate: "",
-    prizePool: "₹25,000 + Merit Certificates",
-    description: "",
-    isUnadvertised: true
+    prizePool: "Cash Prize + Certificates",
+    description: ""
   });
 
   // Cell Detail Modal State
@@ -653,19 +539,15 @@ export default function HackathonMatrixView({
       const combined = `${title} ${organizer} ${tags.join(" ")} ${desc}`.toLowerCase();
       const linkLower = (link || "").toLowerCase();
 
-      // 1. Check Local / Campus Internal Hackathons FIRST
-      const matchedLocal = STANDARD_LOCAL.find((l) =>
-        l.aliases.some((alias) => combined.includes(alias))
+      // 1. Check Tech Enterprises & Companies FIRST
+      const matchedCompany = STANDARD_COMPANIES.find((c) =>
+        c.aliases.some((alias) => combined.includes(alias))
       );
-      const isLocalExplicit =
-        tags.some((t) => /internal|local|campus|unadvertised|intra-college|manual/i.test(t)) ||
-        /dept of|campus|intra-college|sri shakthi|siet|unadvertised/i.test(organizer);
-
-      if (matchedLocal || isLocalExplicit) {
+      if (matchedCompany) {
         return {
-          sourceType: "Local" as SourceType,
-          sourceId: matchedLocal ? matchedLocal.id : "unadvertised_hack",
-          sourceName: matchedLocal ? matchedLocal.name : organizer || "Campus Internal Hack"
+          sourceType: "Company" as SourceType,
+          sourceId: matchedCompany.id,
+          sourceName: matchedCompany.name
         };
       }
 
@@ -685,17 +567,6 @@ export default function HackathonMatrixView({
         };
       }
 
-      // 3. Check Tech Enterprises & Companies THIRD
-      const matchedCompany = STANDARD_COMPANIES.find((c) =>
-        c.aliases.some((alias) => combined.includes(alias))
-      );
-      if (matchedCompany) {
-        return {
-          sourceType: "Company" as SourceType,
-          sourceId: matchedCompany.id,
-          sourceName: matchedCompany.name
-        };
-      }
 
       // 4. Check Platforms FOURTH (Check Kaggle, Hugging Face, etc. before generic Devpost)
       if (linkLower.includes("kaggle.com") || combined.includes("kaggle")) {
@@ -883,7 +754,6 @@ export default function HackathonMatrixView({
   const platformRows = useMemo(() => buildRows(STANDARD_PLATFORMS, "Platform"), [filteredList]);
   const companyRows = useMemo(() => buildRows(STANDARD_COMPANIES, "Company"), [filteredList]);
   const universityRows = useMemo(() => buildRows(STANDARD_UNIVERSITIES, "University"), [filteredList]);
-  const localRows = useMemo(() => buildRows(STANDARD_LOCAL, "Local"), [filteredList]);
 
   // Column Totals
   const columnTotals = useMemo(() => {
@@ -979,7 +849,6 @@ export default function HackathonMatrixView({
           newHackForm.organizer.trim(),
           newHackForm.sourceType,
           newHackForm.domain,
-          newHackForm.isUnadvertised ? "Unadvertised Local" : "Public Event",
           "Manual Addition"
         ]
       });
@@ -990,17 +859,16 @@ export default function HackathonMatrixView({
         setNewHackForm({
           name: "",
           organizer: "",
-          sourceType: "Local",
+          sourceType: "Company",
           domain: "ML",
-          mode: "Offline",
-          location: "Campus Lab / Auditorium",
+          mode: "Online",
+          location: "Global Online",
           registrationLink: "",
           registrationDeadline: "",
           startDate: "",
           endDate: "",
-          prizePool: "₹25,000 + Merit Certificates",
-          description: "",
-          isUnadvertised: true
+          prizePool: "Cash Prize + Certificates",
+          description: ""
         });
         await store.fetchHackathons();
         await store.fetchOpportunities();
@@ -1083,10 +951,10 @@ export default function HackathonMatrixView({
                 }
               }}
               className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/30 cursor-pointer"
-              title="Add a new hackathon (Platform, Company, University, or Unadvertised Local event)"
+              title="Add a new hackathon (Enterprise Company, Premier University, or Platform)"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Add Hackathon (Manual/Local/Uni)</span>
+              <span>+ Add Hackathon (Company / Uni / Platform)</span>
             </button>
           </div>
         </div>
@@ -1226,23 +1094,13 @@ export default function HackathonMatrixView({
                 >
                   Universities (IIT/NIT)
                 </button>
-                <button
-                  onClick={() => setSourceTypeFilter("LOCAL")}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
-                    sourceTypeFilter === "LOCAL"
-                      ? "bg-indigo-600/90 text-white shadow-xs"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Local / Internal
-                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MATRIX TABLE (AI Holographic Glass Layout with 4 Distinct Sections) */}
+      {/* MATRIX TABLE (AI Holographic Glass Layout with 3 Authoritative Sections) */}
       <div className="bg-[#0b101e] rounded-3xl border border-indigo-500/20 shadow-2xl overflow-hidden backdrop-blur-2xl">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full border-collapse text-left text-xs min-w-[840px]">
@@ -1480,67 +1338,6 @@ export default function HackathonMatrixView({
                   ))}
                 </>
               )}
-
-              {/* SECTION 4: LOCAL & CAMPUS INTERNAL HACKATHONS */}
-              {(sourceTypeFilter === "ALL" || sourceTypeFilter === "LOCAL") && (
-                <>
-                  <tr className="bg-amber-950/30 border-y border-amber-500/20">
-                    <td
-                      colSpan={activeDomains.length + 2}
-                      className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-amber-300"
-                    >
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Local & Campus Internal Hackathons (Intra-College, Unadvertised & Manual Addition)</span>
-                      </div>
-                    </td>
-                  </tr>
-
-                  {localRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="hover:bg-slate-800/40 transition-colors group"
-                    >
-                      <td className="p-4 font-bold sticky left-0 z-10 bg-[#0b101e] group-hover:bg-[#10172c] border-r border-indigo-500/20 transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.5)]">
-                        <div className="flex items-center justify-between">
-                          <span className="truncate pr-2 font-extrabold text-xs text-slate-100">{row.name}</span>
-                          <span className="text-[10px] text-amber-300 font-bold px-1.5 py-0.5 rounded-md bg-amber-950/80 border border-amber-500/30">
-                            {row.total}
-                          </span>
-                        </div>
-                      </td>
-
-                      {activeDomains.map((domain) => {
-                        const items = row.cellItems[domain.id] || [];
-                        const count = items.length;
-
-                        return (
-                          <td
-                            key={domain.id}
-                            className="p-3 text-center border-r border-indigo-500/10"
-                          >
-                            {count > 0 ? (
-                              <button
-                                onClick={() => handleOpenCell(row.name, "Local", domain.id, items)}
-                                className={`w-11 h-8 rounded-xl font-black text-xs transition-all transform hover:scale-110 active:scale-95 cursor-pointer inline-flex items-center justify-center ${domain.theme.pill}`}
-                                title={`Click to view ${count} ${domain.label} hackathons in ${row.name}`}
-                              >
-                                {count}
-                              </button>
-                            ) : (
-                              <span className="text-slate-600 font-bold text-sm block select-none">-</span>
-                            )}
-                          </td>
-                        );
-                      })}
-
-                      <td className="p-3 text-center font-extrabold text-xs text-amber-200 bg-slate-900/30">
-                        {row.total}
-                      </td>
-                    </tr>
-                  ))}
-                </>
-              )}
             </tbody>
 
             {/* Bottom Summary Row: Column Totals */}
@@ -1632,11 +1429,6 @@ export default function HackathonMatrixView({
                           <span className="text-[10px] font-black uppercase text-indigo-300 bg-indigo-950/70 px-2 py-0.5 rounded border border-indigo-500/30">
                             by {hackathon.organizer}
                           </span>
-                          {hackathon.isUnadvertised && (
-                            <span className="text-[10px] font-bold text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded border border-amber-500/30">
-                              🔒 Unadvertised Local Event
-                            </span>
-                          )}
                         </div>
                         <h4 className="font-extrabold text-sm text-white">
                           {hackathon.title}
@@ -1673,16 +1465,27 @@ export default function HackathonMatrixView({
                       </span>
 
                       <div className="flex items-center gap-2">
-                        {/* Direct link to Hackathon Proof submission page */}
-                        <Link
-                          to={`/hackathons?hackathonId=${hackathon.id}&name=${encodeURIComponent(hackathon.title)}`}
-                          onClick={() => setActiveCellModal(null)}
-                          className="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
-                          title="Upload and submit registration screenshot proof for this hackathon"
-                        >
-                          <Upload className="w-3 h-3" />
-                          <span>📸 Upload Proof</span>
-                        </Link>
+                        {/* Direct link to Hackathon Proof submission page - STUDENT ONLY */}
+                        {store.currentUser?.role === 'student' ? (
+                          <Link
+                            to={`/hackathons?hackathonId=${hackathon.id}&name=${encodeURIComponent(hackathon.title)}`}
+                            onClick={() => setActiveCellModal(null)}
+                            className="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
+                            title="Upload and submit registration screenshot proof for this hackathon"
+                          >
+                            <Upload className="w-3 h-3" />
+                            <span>📸 Upload Proof</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            to={`/hackathons?search=${encodeURIComponent(hackathon.title)}`}
+                            onClick={() => setActiveCellModal(null)}
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700"
+                            title="View this hackathon in Opportunities Hub"
+                          >
+                            <span>View in Hub</span>
+                          </Link>
+                        )}
 
                         {hackathon.registrationLink && (
                           <a
@@ -1718,7 +1521,7 @@ export default function HackathonMatrixView({
         </div>
       )}
 
-      {/* MODAL: MANUAL / UNADVERTISED / LOCAL / UNIVERSITY HACKATHON ADDITION */}
+      {/* MODAL: MANUAL HACKATHON ADDITION (COMPANY / UNIVERSITY / PLATFORM) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
           <div className="bg-[#0b101e] rounded-3xl border border-indigo-500/30 shadow-2xl w-full max-w-xl p-6 sm:p-7 space-y-5 my-auto animate-in zoom-in-95 duration-200">
@@ -1728,8 +1531,8 @@ export default function HackathonMatrixView({
                   <Plus className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-black text-white text-base">Add Hackathon (Manual / Local / Uni)</h3>
-                  <p className="text-[11px] text-slate-400">For unadvertised campus events, university tech fests & internal sprints</p>
+                  <h3 className="font-black text-white text-base">Add Hackathon (Company / University / Platform)</h3>
+                  <p className="text-[11px] text-slate-400">Add an authoritative hackathon from enterprise companies, premier universities & global platforms</p>
                 </div>
               </div>
 
@@ -1776,10 +1579,9 @@ export default function HackathonMatrixView({
                     onChange={(e) => setNewHackForm({ ...newHackForm, sourceType: e.target.value as SourceType })}
                     className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
                   >
-                    <option value="Local">Local & Campus Internal (Intra-College)</option>
-                    <option value="University">Premier University (IIT, NIT, BITS)</option>
-                    <option value="Platform">Hosting Platform (Kaggle, Devpost, etc.)</option>
-                    <option value="Company">Enterprise Company (Google, AWS, etc.)</option>
+                    <option value="Company">Enterprise Company (Google, Microsoft, IBM, Infosys, TCS, etc.)</option>
+                    <option value="University">Premier University (IIT, NIT, BITS, IIIT, etc.)</option>
+                    <option value="Platform">Hosting Platform (Kaggle, Devpost, Unstop, etc.)</option>
                   </select>
                 </div>
 
@@ -1790,8 +1592,8 @@ export default function HackathonMatrixView({
                     onChange={(e) => setNewHackForm({ ...newHackForm, domain: e.target.value as DomainCategory })}
                     className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white font-bold"
                   >
-                    <option value="ML">ML - Machine Learning & Data Science</option>
-                    <option value="AI">AI - Artificial Intelligence & LLMs</option>
+                    <option value="ML">ML - Machine Learning & Data Science (Tabular/Predictive)</option>
+                    <option value="AI">AI - Artificial Intelligence (GenAI & LLMs)</option>
                     <option value="FSD">FSD - Full Stack Development</option>
                     <option value="Cyber">Cyber - Cybersecurity & CTF</option>
                     <option value="Cloud">Cloud - Cloud & DevOps</option>
@@ -1879,24 +1681,11 @@ export default function HackathonMatrixView({
                 <label className="text-xs font-bold text-slate-300">Description / Guidelines</label>
                 <textarea
                   rows={2}
-                  placeholder="Intra-college 24hr hackathon details, problem statement release date..."
+                  placeholder="Official hackathon guidelines, problem statements, and judging parameters..."
                   value={newHackForm.description}
                   onChange={(e) => setNewHackForm({ ...newHackForm, description: e.target.value })}
                   className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
                 />
-              </div>
-
-              <div className="flex items-center gap-2 p-3 bg-indigo-950/40 border border-indigo-500/20 rounded-xl">
-                <input
-                  type="checkbox"
-                  id="unadvertisedCheck"
-                  checked={newHackForm.isUnadvertised}
-                  onChange={(e) => setNewHackForm({ ...newHackForm, isUnadvertised: e.target.checked })}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-900 border-indigo-500/40 cursor-pointer"
-                />
-                <label htmlFor="unadvertisedCheck" className="text-xs text-indigo-200 font-semibold cursor-pointer select-none">
-                  Unadvertised / Internal Hackathon (Campus-specific event not promoted publicly)
-                </label>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-3 border-t border-indigo-500/20">

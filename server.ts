@@ -1564,34 +1564,89 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     }
   }
 
-  function detectHackathonDomain(title: string = "", themes: any[] = [], desc: string = ""): string {
-    const titleLower = title.toLowerCase();
-    // Priority 0: Title-specific domain matches (Title takes priority over description mentions)
-    if (titleLower.includes("cloud") || titleLower.includes("kubernetes") || titleLower.includes("devops") || titleLower.includes("docker") || titleLower.includes("serverless") || titleLower.includes("cloud run") || titleLower.includes("aws") || titleLower.includes("azure") || titleLower.includes("gcp")) {
-      return "Cloud Infrastructure & DevOps";
+  function detectHackathonDomain(title: string = "", themesOrDesc: any[] | string = [], desc: string = ""): string {
+    let themes: any[] = [];
+    let extraDesc = desc;
+    if (typeof themesOrDesc === "string") {
+      extraDesc = `${themesOrDesc} ${desc}`;
+    } else if (Array.isArray(themesOrDesc)) {
+      themes = themesOrDesc;
     }
-    if (titleLower.includes("machine learning") || titleLower.includes("kaggle") || titleLower.includes("data science") || titleLower.includes("predictive") || titleLower.includes("tabular") || /\bml\b/.test(titleLower)) {
+    const titleLower = title.toLowerCase();
+    const combined = `${title} ${extraDesc} ${(themes || []).map((t: any) => t?.name || t).join(" ")}`.toLowerCase();
+
+    // STRICT MUTUAL EXCLUSIVITY: Generative AI, LLMs, Agents, Prompts, Foundation Models -> AI ONLY
+    const isGenAI =
+      /\b(genai|llm|llms|gpt|gpt-4|gpt-4o|gemini|claude|llama|openai|copilot|qwen|mistral)\b/.test(combined) ||
+      combined.includes("generative ai") ||
+      combined.includes("large language") ||
+      combined.includes("prompt engineering") ||
+      combined.includes("ai agent") ||
+      combined.includes("agentic ai") ||
+      combined.includes("autonomous agent") ||
+      combined.includes("watsonx") ||
+      combined.includes("granite") ||
+      combined.includes("hugging face") ||
+      combined.includes("huggingface") ||
+      combined.includes("multimodal") ||
+      combined.includes("conversational ai");
+
+    // STRICT MUTUAL EXCLUSIVITY: Tabular, Scikit, XGBoost, Regression, Predictive Modeling -> ML ONLY
+    const isTabularML =
+      /\b(scikit|xgboost|lightgbm|catboost|tabular|regression|auc-roc|rmse)\b/.test(combined) ||
+      combined.includes("predictive machine learning") ||
+      combined.includes("predictive ml") ||
+      combined.includes("predictive analytics") ||
+      combined.includes("predictive model") ||
+      combined.includes("predictive modeling") ||
+      combined.includes("data science") ||
+      combined.includes("gradient boosting") ||
+      combined.includes("random forest") ||
+      combined.includes("feature store") ||
+      combined.includes("feature engineering") ||
+      combined.includes("supervised learning") ||
+      combined.includes("unsupervised learning");
+
+    if (isGenAI) {
+      return "Artificial Intelligence (AI)";
+    }
+    if (isTabularML) {
       return "Machine Learning (ML)";
     }
-    if (titleLower.includes("cyber") || titleLower.includes("security") || titleLower.includes("ctf") || titleLower.includes("infosec") || titleLower.includes("threat") || titleLower.includes("vulnerability") || titleLower.includes("zero-trust")) {
+
+    if (titleLower.includes("cyber") || titleLower.includes("security") || titleLower.includes("ctf") || titleLower.includes("infosec") || titleLower.includes("sentinel") || titleLower.includes("zero-trust")) {
       return "Cybersecurity & Cloud";
     }
-    if (titleLower.includes("genai") || titleLower.includes("generative ai") || titleLower.includes("llm") || titleLower.includes("large language") || titleLower.includes("gpt") || titleLower.includes("gemini") || titleLower.includes("artificial intelligence") || titleLower.includes("openai") || /\bai\b/.test(titleLower)) {
+    if (titleLower.includes("cloud") || titleLower.includes("kubernetes") || titleLower.includes("devops") || titleLower.includes("docker") || titleLower.includes("serverless") || titleLower.includes("aws") || titleLower.includes("azure")) {
+      return "Cloud Infrastructure & DevOps";
+    }
+    if (titleLower.includes("mobile") || titleLower.includes("android") || titleLower.includes("ios") || titleLower.includes("swift") || titleLower.includes("flutter")) {
+      return "Mobile App Development";
+    }
+    if (titleLower.includes("web3") || titleLower.includes("blockchain") || titleLower.includes("crypto") || titleLower.includes("solana") || titleLower.includes("ethereum")) {
+      return "Web3 & Blockchain";
+    }
+    if (titleLower.includes("iot") || titleLower.includes("robotics") || titleLower.includes("hardware") || titleLower.includes("embedded") || titleLower.includes("arduino")) {
+      return "IoT, Embedded & Robotics";
+    }
+    if (titleLower.includes("full stack") || titleLower.includes("fullstack") || titleLower.includes("frontend") || titleLower.includes("backend") || titleLower.includes("codevita") || titleLower.includes("hackwithinfy")) {
+      return "Full Stack Development (FSD)";
+    }
+
+    // Pure ML in text:
+    if (combined.includes("machine learning") || /\bml\b/.test(combined)) {
+      return "Machine Learning (ML)";
+    }
+    // AI in text:
+    if (combined.includes("artificial intelligence") || /\bai\b/.test(combined)) {
       return "Artificial Intelligence (AI)";
     }
 
-    const combined = `${title} ${desc} ${(themes || []).map((t: any) => t?.name || t).join(" ")}`.toLowerCase();
-    if (combined.includes("cloud") || combined.includes("devops") || combined.includes("kubernetes") || combined.includes("docker") || combined.includes("serverless") || combined.includes("aws") || combined.includes("azure")) {
-      return "Cloud Infrastructure & DevOps";
-    }
-    if (combined.includes("machine learning") || combined.includes("kaggle") || combined.includes("data science") || combined.includes("predictive") || combined.includes("tabular") || /\bml\b/.test(combined)) {
-      return "Machine Learning (ML)";
-    }
     if (combined.includes("cyber") || combined.includes("security") || combined.includes("ctf") || combined.includes("infosec") || combined.includes("threat") || combined.includes("vulnerability") || combined.includes("zero-trust")) {
       return "Cybersecurity & Cloud";
     }
-    if (combined.includes("genai") || combined.includes("generative ai") || combined.includes("llm") || combined.includes("large language") || combined.includes("gpt") || combined.includes("gemini") || combined.includes("artificial intelligence") || combined.includes("openai") || /\bai\b/.test(combined)) {
-      return "Artificial Intelligence (AI)";
+    if (combined.includes("cloud") || combined.includes("devops") || combined.includes("kubernetes") || combined.includes("docker") || combined.includes("serverless") || combined.includes("aws") || combined.includes("azure")) {
+      return "Cloud Infrastructure & DevOps";
     }
     if (combined.includes("web3") || combined.includes("blockchain") || combined.includes("crypto") || combined.includes("solana") || combined.includes("ethereum") || combined.includes("smart contract") || combined.includes("dorahacks")) {
       return "Web3 & Blockchain";
@@ -1602,12 +1657,13 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     if (combined.includes("android") || combined.includes("ios") || combined.includes("swift") || combined.includes("flutter") || combined.includes("react native") || combined.includes("mobile")) {
       return "Mobile App Development";
     }
-    if (combined.includes("sih") || combined.includes("smart india") || combined.includes("space apps") || combined.includes("naan mudhalvan") || combined.includes("govt") || combined.includes("social good")) {
-      return "Open Innovation & Govt Tech";
-    }
     if (combined.includes("full stack") || combined.includes("fullstack") || combined.includes("frontend") || combined.includes("backend") || combined.includes("react") || combined.includes("web development") || combined.includes("software")) {
       return "Full Stack Development (FSD)";
     }
+    if (combined.includes("sih") || combined.includes("smart india") || combined.includes("space apps") || combined.includes("naan mudhalvan") || combined.includes("govt") || combined.includes("social good")) {
+      return "Open Innovation & Govt Tech";
+    }
+
     return "Open Innovation & Govt Tech";
   }
 
@@ -1616,12 +1672,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       // 1. Ensure CANONICAL_HACKATHONS are in both Hackathon and Opportunity collections
       for (const item of CANONICAL_HACKATHONS) {
         const hExists = await Hackathon.findOne({
-          $or: [{ hackathonId: item.hackathonId }, { name: item.name }, { registrationLink: item.registrationLink }]
+          $or: [{ _id: item.id }, { hackathonId: item.hackathonId }, { name: item.title }]
         });
-        if (!hExists) {
-          await Hackathon.create({
+        if (hExists) {
+          await Hackathon.findByIdAndUpdate(hExists._id, {
             hackathonId: item.hackathonId,
-            name: item.name,
+            name: item.title,
             organizer: item.organizer,
             description: item.description,
             domain: item.domain,
@@ -1632,15 +1688,65 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             status: item.status || "Active",
             mode: item.mode,
             location: item.location,
-            tags: item.tags
+            tags: item.tags,
+            prizePool: item.prizePool
+          });
+        } else {
+          await Hackathon.create({
+            _id: item.id,
+            hackathonId: item.hackathonId,
+            name: item.title,
+            organizer: item.organizer,
+            description: item.description,
+            domain: item.domain,
+            startDate: new Date(item.startDate || item.eventStartDate),
+            endDate: new Date(item.endDate || item.eventEndDate),
+            registrationDeadline: new Date(item.registrationDeadline),
+            registrationLink: item.registrationLink,
+            status: item.status || "Active",
+            mode: item.mode,
+            location: item.location,
+            tags: item.tags,
+            prizePool: item.prizePool
           });
         }
 
         const oExists = await Opportunity.findOne({
-          $or: [{ title: item.title }, { website: item.website }, { registrationLink: item.registrationLink }]
+          $or: [{ _id: item.id }, { id: item.id }, { title: item.title }]
         });
-        if (!oExists) {
+        if (oExists) {
+          await Opportunity.findByIdAndUpdate(oExists._id, {
+            title: item.title,
+            description: item.description,
+            category: "Hackathons",
+            organizer: item.organizer,
+            organizerLogo: item.organizerLogo,
+            bannerImage: item.bannerImage,
+            website: item.website,
+            registrationLink: item.registrationLink,
+            location: item.location,
+            mode: item.mode,
+            freeOrPaid: item.freeOrPaid,
+            targetAudience: item.targetAudience,
+            prizePool: item.prizePool,
+            registrationDeadline: new Date(item.registrationDeadline),
+            eventStartDate: new Date(item.eventStartDate || item.startDate),
+            eventEndDate: new Date(item.eventEndDate || item.endDate),
+            difficulty: item.difficulty,
+            eligibility: item.eligibility,
+            timeline: item.timeline,
+            rules: item.rules,
+            judgingCriteria: item.judgingCriteria,
+            tags: item.tags,
+            domain: item.domain,
+            featured: item.featured,
+            trending: item.trending,
+            approved: true
+          });
+        } else {
           await Opportunity.create({
+            _id: item.id,
+            id: item.id,
             title: item.title,
             description: item.description,
             category: "Hackathons",
@@ -1674,63 +1780,51 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
       // 2. Sync any existing opportunities with category 'Hackathons' into Hackathon collection
       const oppHackathons = await Opportunity.find({ category: /^hackathons$/i });
       for (const opp of oppHackathons) {
+        const canonicalMatch = CANONICAL_HACKATHONS.find(c => c.title.toLowerCase() === opp.title.toLowerCase());
+        const targetDomain = canonicalMatch ? canonicalMatch.domain : (
+          (!opp.domain || opp.domain === "Global Directory" || opp.domain === "Student Hackathon League")
+            ? detectHackathonDomain(opp.title, opp.tags || [], opp.description || "")
+            : opp.domain
+        );
+
+        if (opp.domain !== targetDomain) {
+          await Opportunity.findByIdAndUpdate(opp._id, { domain: targetDomain });
+        }
+
         const hExists = await Hackathon.findOne({
-          $or: [{ name: opp.title }, { registrationLink: opp.registrationLink || opp.website }]
+          $or: [{ _id: opp._id }, { hackathonId: opp._id }, { name: opp.title }]
         });
         if (!hExists) {
           await Hackathon.create({
-            hackathonId: `hack-${opp._id}`,
+            _id: opp._id,
+            hackathonId: opp._id,
             name: opp.title,
             organizer: opp.organizer || "Dev Community",
             description: opp.description || "",
-            domain: opp.domain || detectHackathonDomain(opp.title, opp.tags || [], opp.description || ""),
+            domain: targetDomain,
             startDate: opp.eventStartDate || new Date(),
             endDate: opp.eventEndDate || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
             registrationDeadline: opp.registrationDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             registrationLink: opp.registrationLink || opp.website || "https://devpost.com",
-            status: "Active",
+            status: opp.status || "Active",
             mode: opp.mode || "Online",
             location: opp.location || "Online",
             tags: opp.tags || []
           });
+        } else {
+          if (hExists.domain !== targetDomain) {
+            await Hackathon.findByIdAndUpdate(hExists._id, { domain: targetDomain });
+          }
         }
       }
 
-      // 3. Sync any hackathons in Hackathon collection into Opportunity collection
+      // 3. Fix domains for all other hackathons in Hackathon collection
       const allHacks = await Hackathon.find();
       for (const h of allHacks) {
-        const oExists = await Opportunity.findOne({
-          $or: [{ title: h.name }, { website: h.registrationLink }, { registrationLink: h.registrationLink }]
-        });
-        if (!oExists) {
-          await Opportunity.create({
-            title: h.name,
-            description: h.description || `Hackathon organized by ${h.organizer}`,
-            category: "Hackathons",
-            organizer: h.organizer || "Community",
-            organizerLogo: `https://avatar.vercel.sh/${(h.organizer || 'hackathon').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-            bannerImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
-            website: h.registrationLink,
-            registrationLink: h.registrationLink,
-            location: h.location || "Online",
-            mode: h.mode || "Online",
-            freeOrPaid: "Free",
-            targetAudience: "Student Only",
-            prizePool: "Platform Badges & Prizes",
-            registrationDeadline: h.registrationDeadline,
-            eventStartDate: h.startDate,
-            eventEndDate: h.endDate,
-            difficulty: "Intermediate",
-            eligibility: "Open to students and developers.",
-            timeline: "Active Registration",
-            rules: "Standard code of conduct applies.",
-            judgingCriteria: "Quality, innovation, and implementation.",
-            tags: (h.tags && h.tags.length > 0) ? h.tags : ["Hackathon", h.domain || "Tech"],
-            domain: h.domain,
-            featured: true,
-            trending: true,
-            approved: true
-          });
+        if (!h.domain || h.domain === "Global Directory" || h.domain === "Student Hackathon League") {
+          const canonicalMatch = CANONICAL_HACKATHONS.find(c => c.title.toLowerCase() === h.name.toLowerCase());
+          const newDomain = canonicalMatch ? canonicalMatch.domain : detectHackathonDomain(h.name, h.tags || [], h.description || "");
+          await Hackathon.findByIdAndUpdate(h._id, { domain: newDomain });
         }
       }
     } catch (err: any) {
@@ -2940,12 +3034,13 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             $or: [{ name: item.name }, { registrationLink: item.website }]
           });
           if (!exists) {
+            const detectedDomain = detectHackathonDomain(item.name, item.desc || "");
             await Hackathon.create({
               hackathonId: `hc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
               name: item.name,
               organizer: item.organization || "Hack Club Partner",
               description: `Live student hackathon. ${item.desc || 'Build projects, learn skills, and compete with developer community!'}`,
-              domain: "Student Hackathon League",
+              domain: detectedDomain,
               startDate,
               endDate,
               registrationDeadline: endDate,
@@ -2958,10 +3053,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             $or: [{ title: item.name }, { website: item.website }]
           });
           if (!oppExists) {
+            const detectedDomain = detectHackathonDomain(item.name, item.desc || "");
             await Opportunity.create({
               title: item.name,
               description: `Live Student Hackathon hosted by ${item.organization || 'Hack Club Community'}. Build projects and learn skills!`,
               category: "Hackathons",
+              domain: detectedDomain,
               organizer: item.organization || "Hack Club Partner",
               organizerLogo: item.logo || `https://avatar.vercel.sh/${(item.name || 'hc').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
               bannerImage: item.banner || "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
@@ -3005,12 +3102,13 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             $or: [{ name: contest.name }, { registrationLink: contest.url }]
           });
           if (!exists) {
+            const detectedDomain = detectHackathonDomain(contest.name, contest.site || "");
             await Hackathon.create({
               hackathonId: `kontest-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
               name: contest.name,
               organizer: contest.site || "Coding Platform",
               description: `Live coding competition & hackathon hosted on ${contest.site}. Test algorithms & problem solving skills.`,
-              domain: "Enterprise & Coding",
+              domain: detectedDomain,
               startDate,
               endDate,
               registrationDeadline: endDate,
@@ -3023,10 +3121,12 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
             $or: [{ title: contest.name }, { website: contest.url }]
           });
           if (!oppExists) {
+            const detectedDomain = detectHackathonDomain(contest.name, contest.site || "");
             await Opportunity.create({
               title: contest.name,
               description: `Live coding challenge / hackathon hosted on ${contest.site}. Solve algorithmic problem statements and compete globally.`,
               category: "Hackathons",
+              domain: detectedDomain,
               organizer: contest.site || "Coding Platform",
               organizerLogo: `https://avatar.vercel.sh/${(contest.site || 'kontest').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
               bannerImage: "https://images.unsplash.com/photo-1607799279861-4dd421887fb3?auto=format&fit=crop&w=800&q=80",
@@ -3122,13 +3222,15 @@ Do not include markdown tags. Return only raw JSON string.`;
             const itemMode = item.mode === "Offline" || (item.location && !item.location.toLowerCase().includes("online")) ? "Offline" : "Online";
             const itemLoc = item.location || (itemMode === "Offline" ? "On-Site / Campus" : "Online (Participate from Home)");
 
+            const detectedDomain = detectHackathonDomain(item.name, (item.description || "") + " " + (item.domain || ""));
+
             if (!existing && item.name && item.registrationLink) {
               await Hackathon.create({
                 hackathonId: item.hackathonId || `live-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                 name: item.name,
                 organizer: item.organizer || "Official Organizer",
                 description: item.description || "Live hackathon opportunity open for student registration.",
-                domain: item.domain || "Global Directory",
+                domain: detectedDomain,
                 mode: itemMode,
                 location: itemLoc,
                 startDate: new Date(),
@@ -3147,6 +3249,7 @@ Do not include markdown tags. Return only raw JSON string.`;
                 title: item.name,
                 description: item.description || "Live hackathon opportunity.",
                 category: "Hackathons",
+                domain: detectedDomain,
                 organizer: item.organizer || "Official Organizer",
                 organizerLogo: `https://avatar.vercel.sh/${(item.organizer || 'hack').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
                 bannerImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
@@ -3601,11 +3704,21 @@ Do not include markdown tags. Return only raw JSON string.`;
   app.post("/api/hackathons/:id/register", upload.single("screenshot"), async (req, res) => {
     try {
       const { studentId } = req.body;
-      const hackathon = await Hackathon.findById(req.params.id);
+      const hackathon = await Hackathon.findById(req.params.id) ||
+                        await Hackathon.findOne({ $or: [{ hackathonId: req.params.id }, { _id: req.params.id }, { id: req.params.id }] }) ||
+                        await Opportunity.findOne({ $or: [{ _id: req.params.id }, { id: req.params.id }] });
       if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
 
-      const user = await User.findOne({ userId: studentId });
+      const user = await User.findOne({ $or: [{ userId: studentId }, { _id: studentId }, { id: studentId }] });
       if (!user) return res.status(404).json({ error: "Student user not found", code: "ACCOUNT_NOT_FOUND" });
+
+      // STRICT PERMISSION: Only students can upload hackathon registration proofs
+      if (user.role !== 'student') {
+        return res.status(403).json({
+          error: "Access Denied: Only students are permitted to upload hackathon registration proofs. Coordinators and Admins can only view and verify proofs.",
+          code: "STUDENT_ROLE_REQUIRED"
+        });
+      }
 
       if (!req.file) {
         return res.status(400).json({ error: "Registration Screenshot Required! Upload proof of registration before submitting." });
@@ -3625,8 +3738,8 @@ Do not include markdown tags. Return only raw JSON string.`;
 
       const reg = new HackathonRegistration({
         registrationId: `reg-${Date.now()}`,
-        hackathonId: hackathon._id,
-        hackathonName: hackathon.name,
+        hackathonId: hackathon.hackathonId || hackathon._id || hackathon.id,
+        hackathonName: hackathon.name || hackathon.title,
         studentId: user.userId,
         studentName: user.name,
         studentEmail: user.email,
@@ -5768,6 +5881,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       const allStudents = await User.find({ role: { $in: ['student', 'STUDENT'] }, status: { $ne: 'rejected' } });
       const allProjects = await Project.find();
       const allHackathons = await Hackathon.find();
+      const allOppHackathons = await Opportunity.find({ category: /^hackathons$/i, approved: true });
       const allRegistrations = await HackathonRegistration.find();
       const allMappings = await HackathonMapping.find();
 
@@ -5800,7 +5914,14 @@ Do not include markdown tags. Return only raw JSON string.`;
 
       const activeStudentsCount = students.filter((s: any) => s.accountStatus === 'ACTIVE' || !s.accountStatus).length;
       const activeProjectsCount = projects.filter((p: any) => p.status === 'Active' || p.status === 'ACTIVE').length;
-      const activeHackathonsCount = allHackathons.filter((h: any) => h.status === 'Active' || !h.status).length;
+      
+      const nowTime = now.getTime();
+      const activeOppHackathons = allOppHackathons.filter((h: any) => {
+        const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < nowTime;
+        const endExpired = (h.eventEndDate || h.endDate) && new Date(h.eventEndDate || h.endDate).getTime() < nowTime;
+        return !deadlineExpired && !endExpired && h.status !== "Expired";
+      });
+      const activeHackathonsCount = activeOppHackathons.length;
       
       const verifiedParticipantsCount = registrations.filter((r: any) => r.verificationStatus === 'Verified').length;
       const pendingVerificationCount = registrations.filter((r: any) => r.verificationStatus === 'Pending').length;
@@ -5927,6 +6048,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       const allStudents = await User.find({ role: { $in: ['student', 'STUDENT'] }, status: { $ne: 'rejected' } });
       const allProjects = await Project.find();
       const allHackathons = await Hackathon.find();
+      const allOppHackathons = await Opportunity.find({ category: /^hackathons$/i });
       const allRegistrations = await HackathonRegistration.find();
       const allMappings = await HackathonMapping.find();
 
@@ -5944,7 +6066,31 @@ Do not include markdown tags. Return only raw JSON string.`;
 
       const hackathonMap = new Map<string, any>();
       allHackathons.forEach((h: any) => {
-        hackathonMap.set(String(h.hackathonId || h._id || h.id), h);
+        if (h.hackathonId) hackathonMap.set(String(h.hackathonId), h);
+        if (h._id) hackathonMap.set(String(h._id), h);
+        if (h.id) hackathonMap.set(String(h.id), h);
+        if (h.name) hackathonMap.set(String(h.name).toLowerCase(), h);
+      });
+      allOppHackathons.forEach((h: any) => {
+        const oppId = String(h._id || h.id);
+        const existing = hackathonMap.get(oppId);
+        const normalized = {
+          hackathonId: oppId,
+          id: oppId,
+          _id: oppId,
+          name: h.title || h.name,
+          title: h.title || h.name,
+          organizer: h.organizer,
+          domain: h.domain,
+          status: h.status || "Active",
+          registrationLink: h.registrationLink || h.website,
+          registrationDeadline: h.registrationDeadline,
+          ...existing
+        };
+        hackathonMap.set(oppId, normalized);
+        if (h.title && !hackathonMap.has(String(h.title).toLowerCase())) {
+          hackathonMap.set(String(h.title).toLowerCase(), normalized);
+        }
       });
 
       const now = new Date();
@@ -5958,7 +6104,9 @@ Do not include markdown tags. Return only raw JSON string.`;
         if (!student) return;
 
         const reg = allRegistrations.find((r: any) => r.studentId === m.studentId && r.hackathonId === m.hackathonId);
-        const hackathon = hackathonMap.get(String(m.hackathonId));
+        const hackathon = hackathonMap.get(String(m.hackathonId)) || 
+                          (m.hackathonName ? hackathonMap.get(String(m.hackathonName).toLowerCase()) : null) ||
+                          (reg?.hackathonName ? hackathonMap.get(String(reg.hackathonName).toLowerCase()) : null);
         const project = m.projectId ? projectMap.get(String(m.projectId)) : (
           allProjects.find((p: any) => Array.isArray(p.teamMembers) && p.teamMembers.includes(m.studentId))
         );
@@ -6031,7 +6179,8 @@ Do not include markdown tags. Return only raw JSON string.`;
         if (!visitedKeys.has(key) && (r.verificationStatus === 'Verified' || r.verificationStatus === 'Pending')) {
           const student = studentMap.get(String(r.studentId));
           if (!student) return;
-          const hackathon = hackathonMap.get(String(r.hackathonId));
+          const hackathon = hackathonMap.get(String(r.hackathonId)) || 
+                            (r.hackathonName ? hackathonMap.get(String(r.hackathonName).toLowerCase()) : null);
           const project = allProjects.find((p: any) => Array.isArray(p.teamMembers) && p.teamMembers.includes(r.studentId));
 
           consolidated.push({
@@ -6665,14 +6814,32 @@ Do not include markdown tags. Return only raw JSON string.`;
       }
 
       if (type === "hackathon") {
-        const hackathon = await Hackathon.findOne({ $or: [{ hackathonId: id }, { _id: id }] }) ||
-                          await Opportunity.findOne({ $or: [{ id }, { _id: id }] });
+        const cleanId = String(id).trim();
+        const escapedId = cleanId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const hackathon = await Hackathon.findOne({ $or: [{ hackathonId: cleanId }, { _id: cleanId }, { id: cleanId }] }) ||
+                          await Opportunity.findOne({ $or: [{ id: cleanId }, { _id: cleanId }] }) ||
+                          await Hackathon.findOne({ name: new RegExp(`^${escapedId}$`, 'i') }) ||
+                          await Opportunity.findOne({ title: new RegExp(`^${escapedId}$`, 'i') });
         if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
 
-        const hId = hackathon.hackathonId || hackathon.id || id;
-        const registrations = await HackathonRegistration.find({ hackathonId: hId });
-        const interests = await HackathonInterest.find({ hackathonId: hId });
-        const mappings = await HackathonMapping.find({ hackathonId: hId });
+        const hName = hackathon.name || hackathon.title || "";
+        const possibleIds = Array.from(new Set([
+          cleanId,
+          hackathon.hackathonId,
+          hackathon._id?.toString(),
+          hackathon.id?.toString()
+        ].filter(Boolean)));
+
+        const regQuery: any = { $or: [{ hackathonId: { $in: possibleIds } }] };
+        const mapQuery: any = { $or: [{ hackathonId: { $in: possibleIds } }] };
+        if (hName) {
+          regQuery.$or.push({ hackathonName: hName });
+          mapQuery.$or.push({ hackathonName: hName });
+        }
+
+        const registrations = await HackathonRegistration.find(regQuery);
+        const interests = await HackathonInterest.find({ hackathonId: { $in: possibleIds } });
+        const mappings = await HackathonMapping.find(mapQuery);
 
         const projectIds = Array.from(new Set(mappings.map((m: any) => m.projectId).filter(Boolean)));
         const projects = await Project.find({ _id: { $in: projectIds } });

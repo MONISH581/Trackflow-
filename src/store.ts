@@ -1157,6 +1157,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   registerHackathonWithProof: async (hackathonId, studentId, screenshotFile) => {
+    const user = get().currentUser;
+    if (!user || user.role !== "student") {
+      get().addToast("Access Denied: Only students are permitted to upload hackathon registration proofs.", "error");
+      return false;
+    }
+
     if (!screenshotFile) {
       get().addToast("Registration Screenshot Required! Upload proof screenshot.", "error");
       return false;

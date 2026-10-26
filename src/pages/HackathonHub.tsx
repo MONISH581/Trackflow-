@@ -75,7 +75,7 @@ export default function HackathonHub() {
   const paramHackathonName = searchParams.get("name");
 
   useEffect(() => {
-    if (paramHackathonId || paramHackathonName) {
+    if ((paramHackathonId || paramHackathonName) && currentUser?.role === "student") {
       const match = hackathons.find((h) =>
         (paramHackathonId && (h._id === paramHackathonId || h.id === paramHackathonId || h.hackathonId === paramHackathonId)) ||
         (paramHackathonName && h.name && h.name.toLowerCase() === paramHackathonName.toLowerCase())
@@ -96,7 +96,7 @@ export default function HackathonHub() {
         } as HackathonInfo);
       }
     }
-  }, [paramHackathonId, paramHackathonName, hackathons]);
+  }, [paramHackathonId, paramHackathonName, hackathons, currentUser]);
 
   const [activeTab, setActiveTab] = useState<"available" | "registrations" | "interests" | "verification" | "matrix">("matrix");
   const [domainFilter, setDomainFilter] = useState<string>("ALL");
@@ -255,6 +255,11 @@ export default function HackathonHub() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedHackathon || !screenshotFile || !currentUser) return;
+
+    if (currentUser.role !== "student") {
+      alert("Access Denied: Only students are permitted to upload hackathon registration proofs.");
+      return;
+    }
 
     setIsUploading(true);
     const ok = await registerHackathonWithProof(
@@ -1219,8 +1224,8 @@ export default function HackathonHub() {
         </div>
       )}
 
-      {/* Upload Proof Screenshot Modal */}
-      {selectedHackathon && (
+      {/* Upload Proof Screenshot Modal (STUDENTS ONLY) */}
+      {selectedHackathon && currentUser?.role === "student" && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-5 border border-slate-200 shadow-2xl max-h-[85vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
