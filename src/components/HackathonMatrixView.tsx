@@ -35,7 +35,8 @@ import {
   GraduationCap,
   School,
   Upload,
-  Check
+  Check,
+  Trash2
 } from "lucide-react";
 
 export type DomainCategory =
@@ -72,6 +73,7 @@ export interface UnifiedHackathon {
   status?: string;
   bannerImage?: string;
   isUnadvertised?: boolean;
+  isManual?: boolean;
 }
 
 export interface DomainMeta {
@@ -582,7 +584,8 @@ export default function HackathonMatrixView({
         location: h.location || "Global",
         tags: h.tags || [],
         status: h.status || "Active",
-        isUnadvertised: (h.tags || []).some((t) => /unadvertised|internal/i.test(t))
+        isUnadvertised: (h.tags || []).some((t) => /unadvertised|internal/i.test(t)),
+        isManual: (h.tags || []).some((t) => /manual addition|manual entry/i.test(t)) || (h as any).isManual
       });
     }
 
@@ -622,7 +625,8 @@ export default function HackathonMatrixView({
         tags: o.tags || [],
         status: o.status || "Active",
         bannerImage: o.bannerImage,
-        isUnadvertised: (o.tags || []).some((t) => /unadvertised|internal/i.test(t))
+        isUnadvertised: (o.tags || []).some((t) => /unadvertised|internal/i.test(t)),
+        isManual: (o.tags || []).some((t) => /manual addition|manual entry/i.test(t)) || (o as any).isManual
       });
     }
 
@@ -686,6 +690,15 @@ export default function HackathonMatrixView({
         } else {
           cellItems.FSD.push(item);
         }
+      });
+
+      // Sort items within each cell: upcoming deadline ascending (soonest deadline first)
+      (Object.keys(cellItems) as DomainCategory[]).forEach((domKey) => {
+        cellItems[domKey].sort((a, b) => {
+          const timeA = a.registrationDeadline ? new Date(a.registrationDeadline).getTime() : (a.startDate ? new Date(a.startDate).getTime() : 9999999999999);
+          const timeB = b.registrationDeadline ? new Date(b.registrationDeadline).getTime() : (b.startDate ? new Date(b.startDate).getTime() : 9999999999999);
+          return timeA - timeB;
+        });
       });
 
       return {
@@ -752,13 +765,19 @@ export default function HackathonMatrixView({
     items: UnifiedHackathon[]
   ) => {
     const domainDef = ALL_DOMAINS.find((d) => d.id === domain) || ALL_DOMAINS[0];
+    const sortedItems = [...items].sort((a, b) => {
+      const timeA = a.registrationDeadline ? new Date(a.registrationDeadline).getTime() : (a.startDate ? new Date(a.startDate).getTime() : 9999999999999);
+      const timeB = b.registrationDeadline ? new Date(b.registrationDeadline).getTime() : (b.startDate ? new Date(b.startDate).getTime() : 9999999999999);
+      return timeA - timeB;
+    });
+
     setActiveCellModal({
       sourceName,
       sourceType,
       domain,
       domainLabel: domainDef.fullName,
       domainTheme: domainDef.theme,
-      hackathons: items
+      hackathons: sortedItems
     });
   };
 
@@ -1368,15 +1387,46 @@ export default function HackathonMatrixView({
                           <span className="text-[10px] font-black uppercase text-indigo-300 bg-indigo-950/70 px-2 py-0.5 rounded border border-indigo-500/30">
                             by {hackathon.organizer}
                           </span>
+                          {(hackathon.isManual || (hackathon.tags || []).some(t => /manual addition|manual entry/i.test(t))) && (
+                            <span className="text-[10px] font-black uppercase text-amber-300 bg-amber-950/70 px-2 py-0.5 rounded border border-amber-500/30">
+                              Manual Entry
+                            </span>
+                          )}
                         </div>
                         <h4 className="font-extrabold text-sm text-white">
                           {hackathon.title}
                         </h4>
                       </div>
 
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex-shrink-0">
-                        {hackathon.mode || "Online"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex-shrink-0">
+                          {hackathon.mode || "Online"}
+                        </span>
+                        {/* Manual Removal Button */}
+                        {(hackathon.isManual || (hackathon.tags || []).some(t => /manual addition|manual entry/i.test(t)) || store.currentUser?.role === 'master_admin' || store.currentUser?.role === 'coordinator') && (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Are you sure you want to permanently delete hackathon "${hackathon.title}"?`)) {
+                                const ok = await store.deleteHackathon(hackathon.id);
+                                if (ok) {
+                                  setActiveCellModal(prev => prev ? {
+                                    ...prev,
+                                    hackathons: prev.hackathons.filter(h => h.id !== hackathon.id)
+                                  } : null);
+                                  await store.fetchHackathons();
+                                  await store.fetchOpportunities();
+                                }
+                              }
+                            }}
+                            className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition cursor-pointer"
+                            title="Delete Hackathon (Manual Removal)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed font-medium">
@@ -1404,6 +1454,31 @@ export default function HackathonMatrixView({
                       </span>
 
                       <div className="flex items-center gap-2">
+                        {/* Manual Deletion button for admins / creators */}
+                        {(hackathon.isManual || (hackathon.tags || []).some(t => /manual addition|manual entry/i.test(t)) || store.currentUser?.role === 'master_admin' || store.currentUser?.role === 'coordinator') && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm(`Are you sure you want to delete hackathon "${hackathon.title}"?`)) {
+                                const ok = await store.deleteHackathon(hackathon.id);
+                                if (ok) {
+                                  setActiveCellModal(prev => prev ? {
+                                    ...prev,
+                                    hackathons: prev.hackathons.filter(h => h.id !== hackathon.id)
+                                  } : null);
+                                  await store.fetchHackathons();
+                                  await store.fetchOpportunities();
+                                }
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-rose-500/40 cursor-pointer"
+                            title="Delete this hackathon (Manual Removal)"
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-400" />
+                            <span>Delete</span>
+                          </button>
+                        )}
+
                         {/* Direct link to Hackathon Proof submission page - STUDENT ONLY */}
                         {store.currentUser?.role === 'student' ? (
                           <Link
@@ -1596,17 +1671,22 @@ export default function HackathonMatrixView({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-300">Registration Deadline</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-300">Registration Deadline *</label>
+                    <span className="text-[10px] text-indigo-300 font-semibold">Timeline Sorting</span>
+                  </div>
                   <input
                     type="date"
+                    required
                     value={newHackForm.registrationDeadline}
                     onChange={(e) => setNewHackForm({ ...newHackForm, registrationDeadline: e.target.value })}
                     className="w-full p-2.5 text-xs bg-slate-900 border border-indigo-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
                   />
+                  <p className="text-[10px] text-slate-400">Manual hackathons are preserved across 6-hour syncs and stay active until manual removal.</p>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-300">Event Date</label>
+                  <label className="text-xs font-bold text-slate-300">Event Start Date</label>
                   <input
                     type="date"
                     value={newHackForm.startDate}

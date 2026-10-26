@@ -23,7 +23,8 @@ import {
   Info,
   ChevronDown,
   Globe,
-  Upload
+  Upload,
+  Trash2
 } from "lucide-react";
 
 
@@ -39,6 +40,7 @@ export default function OpportunityDetails() {
     fetchOpportunities,
     expressHackathonInterest,
     hackathonInterests,
+    deleteOpportunity,
     addToast
   } = useStore();
 
@@ -448,6 +450,25 @@ export default function OpportunityDetails() {
                 <span>Go to Official Website</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
+
+              {(currentUser?.role === "master_admin" || currentUser?.role === "coordinator" || (opp as any).isManual || (opp.tags || []).some((t: string) => /manual addition|manual entry/i.test(t))) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm(`Are you sure you want to delete "${opp.title}"?`)) {
+                      const ok = await deleteOpportunity(opp.id || opp._id);
+                      if (ok) {
+                        navigate((opp.category || "").toLowerCase() === "hackathons" ? "/hackathons" : "/opportunities");
+                      }
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 border border-rose-200 hover:border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                  title="Permanently remove this event"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Delete Event (Manual Removal)</span>
+                </button>
+              )}
             </div>
 
           </div>

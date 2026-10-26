@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useStore, HackathonInfo, HackathonRegistrationInfo, API_BASE, getAuthHeaders } from "../store.ts";
 import { OFFICIAL_DEPARTMENTS } from "../constants/departments.ts";
@@ -227,6 +227,7 @@ export default function HackathonHub() {
     description: "",
     domain: "Kaggle / Machine Learning",
     registrationLink: "",
+    registrationDeadline: "",
   });
 
   // Coordinator Verification Reason
@@ -281,10 +282,13 @@ export default function HackathonHub() {
     e.preventDefault();
     if (!newHackathon.name || !newHackathon.registrationLink) return;
 
-    const ok = await createHackathon(newHackathon);
+    const ok = await createHackathon({
+      ...newHackathon,
+      tags: [newHackathon.organizer, newHackathon.domain, "Manual Addition"]
+    });
     if (ok) {
       setShowAddModal(false);
-      setNewHackathon({ name: "", organizer: "", description: "", domain: "Kaggle / Machine Learning", registrationLink: "" });
+      setNewHackathon({ name: "", organizer: "", description: "", domain: "Kaggle / Machine Learning", registrationLink: "", registrationDeadline: "" });
     }
   };
 
@@ -305,10 +309,11 @@ export default function HackathonHub() {
 
   const filteredHackathons = hackathons.filter(h => {
     const now = Date.now();
-    const deadlinePassed = h.registrationDeadline ? new Date(h.registrationDeadline).getTime() < now : false;
-    const endPassed = h.endDate ? new Date(h.endDate).getTime() < now : false;
+    const isManual = (h.tags || []).some(t => /manual addition|manual entry/i.test(t)) || (h as any).isManual;
+    const deadlinePassed = !isManual && h.registrationDeadline ? new Date(h.registrationDeadline).getTime() < now : false;
+    const endPassed = !isManual && h.endDate ? new Date(h.endDate).getTime() < now : false;
     const isExpired = (deadlinePassed && endPassed) || h.status === "Expired";
-    if (isExpired) return false;
+    if (isExpired && !isManual) return false;
 
     const isOffline = h.mode === "Offline" || (h.location && !h.location.toLowerCase().includes("online"));
     const matchesMode = modeFilter === "ALL" ||
@@ -336,6 +341,15 @@ export default function HackathonHub() {
     const matchesSearch = !searchQuery || h.name.toLowerCase().includes(searchQuery.toLowerCase()) || h.organizer.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesMode && matchesDomain && matchesSearch;
   });
+
+  // Timeline sorting: soonest registration deadline first
+  const sortedHackathons = useMemo(() => {
+    return [...filteredHackathons].sort((a, b) => {
+      const timeA = a.registrationDeadline ? new Date(a.registrationDeadline).getTime() : (a.startDate ? new Date(a.startDate).getTime() : 9999999999999);
+      const timeB = b.registrationDeadline ? new Date(b.registrationDeadline).getTime() : (b.startDate ? new Date(b.startDate).getTime() : 9999999999999);
+      return timeA - timeB;
+    });
+  }, [filteredHackathons]);
 
 
   return (
@@ -646,7 +660,7 @@ export default function HackathonHub() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredHackathons.map((h) => {
+            {sortedHackathons.map((h) => {
               const hId = h._id || h.id || "";
               const userRegistration = hackathonRegistrations.find(r => r.hackathonId === hId);
               const userInterested = hackathonInterests.some(i => i.hackathonId === hId && i.studentId === currentUser?.userId);
@@ -731,25 +745,27 @@ export default function HackathonHub() {
                       </div>
                     )}
 
-                    {isTeacher && (
+                    {(isTeacher || (h.tags || []).some(t => /manual addition|manual entry/i.test(t)) || (h as any).isManual) && (
                       <div className="flex items-center gap-2 pt-2.5 border-t border-slate-100 mt-2.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingHackathon(h);
-                            setEditHackForm({
-                              name: h.name,
-                              organizer: h.organizer,
-                              description: h.description,
-                              domain: h.domain,
-                              registrationLink: h.registrationLink,
-                            });
-                          }}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1"
-                        >
-                          <Edit3 className="w-3 h-3 text-slate-500" />
-                          <span>Edit</span>
-                        </button>
+                        {isTeacher && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingHackathon(h);
+                              setEditHackForm({
+                                name: h.name,
+                                organizer: h.organizer,
+                                description: h.description,
+                                domain: h.domain,
+                                registrationLink: h.registrationLink,
+                              });
+                            }}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1"
+                          >
+                            <Edit3 className="w-3 h-3 text-slate-500" />
+                            <span>Edit</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={async () => {
@@ -758,6 +774,7 @@ export default function HackathonHub() {
                             }
                           }}
                           className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 transition flex items-center gap-1"
+                          title="Delete this hackathon (Manual Removal)"
                         >
                           <Trash2 className="w-3 h-3 text-rose-600" />
                           <span>Delete</span>
@@ -1346,6 +1363,21 @@ export default function HackathonHub() {
                   required
                   className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Registration Deadline *:</label>
+                  <span className="text-[10px] text-indigo-600 font-bold">Timeline Sorting</span>
+                </div>
+                <input
+                  type="date"
+                  required
+                  value={newHackathon.registrationDeadline}
+                  onChange={(e) => setNewHackathon({ ...newHackathon, registrationDeadline: e.target.value })}
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                />
+                <p className="text-[10px] text-slate-500">Manual hackathons are preserved across 6-hour refresh jobs. Delete them manually anytime.</p>
               </div>
 
               <div className="space-y-1">

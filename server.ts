@@ -1849,6 +1849,14 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
       for (const h of allHackathons) {
         const isMock = removedMockIds.includes(h.hackathonId || h.id || h._id);
+        const isManual = (h.tags && h.tags.some((t: string) => /manual addition|manual entry/i.test(t))) || (h as any).isManual;
+
+        // Manual hackathons MUST NOT be automatically deleted by background cron or 6-hour refresh!
+        // They persist safely until explicit manual removal.
+        if (isManual) {
+          continue;
+        }
+
         const deadlineExpired = h.registrationDeadline ? new Date(h.registrationDeadline).getTime() < now.getTime() : false;
         const endExpired = h.endDate ? new Date(h.endDate).getTime() < now.getTime() : false;
         const isStatusExpired = h.status === "Expired";
@@ -1895,6 +1903,13 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
       for (const opp of allOpps) {
         const isMock = removedMockTitles.includes(opp.title) || removedMockIds.includes(opp.id || opp._id);
+        const isManual = (opp.tags && opp.tags.some((t: string) => /manual addition|manual entry/i.test(t))) || (opp as any).isManual;
+
+        // Manual opportunities/hackathons MUST NOT be purged by automated sweeps!
+        if (isManual) {
+          continue;
+        }
+
         const deadlineExpired = opp.registrationDeadline && new Date(opp.registrationDeadline).getTime() < now.getTime();
         const endExpired = opp.eventEndDate && new Date(opp.eventEndDate).getTime() < now.getTime();
         const isStatusExpired = opp.status === "Expired";
@@ -3390,10 +3405,18 @@ Do not include markdown tags. Return only raw JSON string.`;
       });
 
       const activeList = oppHackathons.filter(h => {
+        const isManual = (h.tags && h.tags.some((t: string) => /manual addition|manual entry/i.test(t))) || (h as any).isManual;
+        if (isManual) return true; // Manual hackathons are preserved and displayed until explicit manual deletion
+
         const deadlineExpired = h.registrationDeadline && new Date(h.registrationDeadline).getTime() < nowTime;
         const endExpired = (h.eventEndDate || h.endDate) && new Date(h.eventEndDate || h.endDate).getTime() < nowTime;
         return !deadlineExpired && !endExpired && h.status !== "Expired";
-      }).sort((a, b) => new Date(a.eventStartDate || a.startDate || 0).getTime() - new Date(b.eventStartDate || b.startDate || 0).getTime());
+      }).sort((a, b) => {
+        // Timeline sorting: Hackathons with upcoming registration deadlines sorted ascending (closing soonest first)
+        const timeA = a.registrationDeadline ? new Date(a.registrationDeadline).getTime() : (a.eventStartDate ? new Date(a.eventStartDate).getTime() : 9999999999999);
+        const timeB = b.registrationDeadline ? new Date(b.registrationDeadline).getTime() : (b.eventStartDate ? new Date(b.eventStartDate).getTime() : 9999999999999);
+        return timeA - timeB;
+      });
 
       // Ensure each active opportunity is indexed in Hackathon collection efficiently
       const existingHackathons = await Hackathon.find();
@@ -3455,6 +3478,7 @@ Do not include markdown tags. Return only raw JSON string.`;
           difficulty: h.difficulty,
           tags: h.tags || [],
           status: h.status || "Active",
+          isManual: (h.tags && h.tags.some((t: string) => /manual addition|manual entry/i.test(t))) || (h as any).isManual,
           approved: h.approved,
           featured: h.featured,
           trending: h.trending
@@ -3559,6 +3583,7 @@ Do not include markdown tags. Return only raw JSON string.`;
       }
 
       const hId = `hack-${Date.now()}`;
+      const defaultDeadline = registrationDeadline ? new Date(registrationDeadline) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
       const hackathon = new Hackathon({
         hackathonId: hId,
         name,
@@ -3566,12 +3591,13 @@ Do not include markdown tags. Return only raw JSON string.`;
         description: description || "",
         domain: domain || "General Tech",
         startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: endDate ? new Date(endDate) : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        endDate: endDate ? new Date(endDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        registrationDeadline: defaultDeadline,
         registrationLink,
         status: "Active",
         mode: mode || "Offline",
         location: location || "Campus Lab",
+        isManual: true,
         tags: [organizer || "Internal", domain || "Hackathon", "Manual Addition"]
       });
       await hackathon.save();
@@ -3591,9 +3617,9 @@ Do not include markdown tags. Return only raw JSON string.`;
         freeOrPaid: "Free",
         targetAudience: "Student Only",
         prizePool: prizePool || "₹50,000 + Merit Trophy",
-        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        registrationDeadline: defaultDeadline,
         eventStartDate: startDate ? new Date(startDate) : new Date(),
-        eventEndDate: endDate ? new Date(endDate) : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        eventEndDate: endDate ? new Date(endDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         difficulty: "Intermediate",
         eligibility: "Open to students.",
         timeline: "Active Registration",
@@ -3601,6 +3627,7 @@ Do not include markdown tags. Return only raw JSON string.`;
         judgingCriteria: "Novelty, technical complexity, presentation.",
         tags: [organizer || "Internal", domain || "Hackathon", "Manual Addition"],
         domain: domain || "General Tech",
+        isManual: true,
         featured: true,
         trending: true,
         approved: true
@@ -3664,21 +3691,34 @@ Do not include markdown tags. Return only raw JSON string.`;
     try {
       const { id } = req.params;
       const hackathon = await Hackathon.findOne({ $or: [{ _id: id }, { id }, { hackathonId: id }] });
-      if (!hackathon) return res.status(404).json({ error: "Hackathon not found" });
+      const opp = await Opportunity.findOne({ $or: [{ _id: id }, { id }, { title: id }] });
+      if (!hackathon && !opp) return res.status(404).json({ error: "Hackathon not found" });
 
-      const targetId = hackathon._id || hackathon.id;
-      const hackName = hackathon.name;
-      const hackLink = hackathon.registrationLink;
-      await Hackathon.findByIdAndDelete(targetId);
+      const targetId = hackathon ? (hackathon._id || hackathon.id) : (opp ? (opp._id || opp.id) : id);
+      const hackName = hackathon?.name || opp?.title;
+      const hackLink = hackathon?.registrationLink || opp?.registrationLink || opp?.website;
+
+      if (hackathon) {
+        await Hackathon.findByIdAndDelete(targetId);
+      }
+      await Hackathon.deleteMany({
+        $or: [{ _id: id }, { id }, { hackathonId: id }, { name: hackName }, { registrationLink: hackLink }]
+      });
 
       // Clean up linked registrations and interests
-      await HackathonRegistration.deleteMany({ hackathonId: targetId });
-      await HackathonInterest.deleteMany({ hackathonId: targetId });
+      await HackathonRegistration.deleteMany({ $or: [{ hackathonId: targetId }, { hackathonId: id }] });
+      await HackathonInterest.deleteMany({ $or: [{ hackathonId: targetId }, { hackathonId: id }] });
 
       // Clean up mirror Opportunity
       await Opportunity.deleteMany({
-        category: /^hackathons$/i,
-        $or: [{ title: hackName }, { website: hackLink }, { registrationLink: hackLink }]
+        $or: [
+          { _id: id },
+          { _id: targetId },
+          { id },
+          { title: hackName },
+          { website: hackLink },
+          { registrationLink: hackLink }
+        ]
       });
 
       io.emit("hackathons_updated");
