@@ -399,31 +399,43 @@ export default function OpportunityDetails() {
                 </button>
               )}
 
-              <button
-                onClick={handleApplyToggle}
-                className={`w-full py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                  isApplied
-                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-900"
-                    : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/10"
-                }`}
-              >
-                {isApplied ? (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Applied Internally</span>
-                  </>
-                ) : (
-                  <span>Record Applied Interest</span>
-                )}
-              </button>
+              {currentUser?.role === "student" && (
+                <button
+                  onClick={handleApplyToggle}
+                  className={`w-full py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                    isApplied
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-900"
+                      : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/10"
+                  }`}
+                >
+                  {isApplied ? (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Applied Internally</span>
+                    </>
+                  ) : (
+                    <span>Record Applied Interest</span>
+                  )}
+                </button>
+              )}
 
-              {(opp.category || "").toLowerCase() === "hackathons" && (
+              {(opp.category || "").toLowerCase() === "hackathons" && currentUser?.role === "student" && (
                 <Link
                   to={`/hackathons?hackathonId=${opp.id || opp._id}&name=${encodeURIComponent(opp.title)}`}
                   className="w-full flex items-center justify-center gap-1.5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   <span>📸 Submit Hackathon Proof</span>
+                </Link>
+              )}
+
+              {(opp.category || "").toLowerCase() === "hackathons" && currentUser?.role !== "student" && (
+                <Link
+                  to={`/hackathons?hackathonId=${opp.id || opp._id}&name=${encodeURIComponent(opp.title)}`}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 border border-indigo-200 hover:border-indigo-300 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>View in Hackathon Hub</span>
                 </Link>
               )}
 

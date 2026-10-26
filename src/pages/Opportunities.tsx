@@ -913,7 +913,7 @@ function OpportunityCard({ opp, onBookmark, onShare, currentUser }: OpportunityC
               <Share2 className="w-4 h-4" />
             </button>
 
-            {(opp.category || "").toLowerCase() === "hackathons" && (
+            {(opp.category || "").toLowerCase() === "hackathons" && currentUser?.role === "student" && (
               <Link
                 to={`/hackathons?hackathonId=${opp.id || opp._id}&name=${encodeURIComponent(opp.title)}`}
                 className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-emerald-500/20 flex items-center gap-1.5"
