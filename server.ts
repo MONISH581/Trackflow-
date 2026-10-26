@@ -137,7 +137,7 @@ async function startServer() {
 
       const reqSessionToken = req.headers["x-session-token"] || req.query.sessionToken;
       if (user.activeSessionToken && reqSessionToken && reqSessionToken !== user.activeSessionToken) {
-        return res.status(401).json({ error: "CONCURRENT_LOGIN_LOGOUT", message: "Account logged in on another device." });
+        return res.status(401).json({ error: "CONCURRENT_LOGIN_LOGOUT", code: "SESSION_REVOKED", message: "Account logged in on another device." });
       }
 
       res.json({ user: sanitizeUser(user) });
@@ -683,6 +683,11 @@ async function startServer() {
                 results.push(formatted);
               }
             }
+            results.sort((a, b) => {
+              const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+              const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+              return timeB - timeA;
+            });
             return results;
           } catch (pgErr) {
             console.warn(`PostgreSQL read warning on ${this.collectionName}:`, pgErr);
@@ -1983,20 +1988,10 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
           return res.status(401).json({ error: "Invalid email or password.", code: "INVALID_CREDENTIALS" });
         }
 
-        // Check if active session exists on another device
-        const { overrideSession, forceLogoutAll } = req.body;
+        // Single Active Device Policy:
+        // Automatically revoke any prior active sessions so this login becomes the only active session
         const now = new Date();
-        const activeSessions = await Session.find({ userId: user.userId, isActive: true, expiresAt: { $gt: now } });
-
-        if (activeSessions.length > 0 && !overrideSession && !forceLogoutAll) {
-          return res.status(409).json({
-            error: "Your account is already logged in on another device. Please log out from that device or log out from all devices.",
-            code: "SESSION_ALREADY_ACTIVE",
-            userId: user.userId
-          });
-        }
-
-        // If overriding session or logging in after global logout, revoke old active sessions
+        const activeSessions = await Session.find({ userId: user.userId, isActive: true });
         if (activeSessions.length > 0) {
           for (const s of activeSessions) {
             s.isActive = false;
@@ -2018,7 +2013,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         await user.save();
       }
 
-      // Generate fresh session token & DB Session record
+      // Generate single active device session token lock
       const sessionToken = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       user.activeSessionToken = sessionToken;
       await user.save();
@@ -2083,22 +2078,25 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
         console.warn("Activity log warning:", logErr);
       }
 
-      // Generate single active device session token lock
-      const activeSessionToken = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      user.activeSessionToken = activeSessionToken;
-      await user.save();
-
-      // Force logout any existing socket connection for this user on other devices
+      // Force logout only OTHER devices/sockets (sockets whose token does NOT match this new sessionToken)
       try {
-        io.to(`user_${user.userId}`).emit("force_logout", {
-          message: "Your account was logged in from another device."
-        });
-      } catch (sErr) {}
+        const roomSockets = await io.in(`user_${user.userId}`).fetchSockets();
+        for (const s of roomSockets) {
+          if (s.data?.sessionToken && s.data.sessionToken !== sessionToken) {
+            s.emit("force_logout", {
+              message: "Your account was logged in from another device."
+            });
+            s.leave(`user_${user.userId}`);
+          }
+        }
+      } catch (sErr) {
+        console.warn("Socket force_logout broadcast warning:", sErr);
+      }
 
       // Issue JWT
       const secretKey = JWT_SECRET || "trackflow_secure_jwt_secret_production_fallback_2026";
       const token = jwt.sign({ id: user.userId, role: user.role, email: user.email }, secretKey, { expiresIn: "7d" });
-      res.json({ token, activeSessionToken, user: sanitizeUser(user) });
+      res.json({ token, activeSessionToken: sessionToken, user: sanitizeUser(user) });
     } catch (e: any) {
       console.error("Login endpoint uncaught exception:", e);
       res.status(500).json({ error: e.message || "Internal server error during login processing" });
@@ -2110,6 +2108,21 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
     try {
       const { userId } = req.body;
       if (userId) {
+        // Invalidate active session token on user profile
+        const user = await User.findOne({ $or: [{ userId }, { _id: userId }] });
+        if (user) {
+          user.activeSessionToken = "";
+          await user.save();
+        }
+
+        // Invalidate all active sessions in sessions collection
+        const activeSessions = await Session.find({ userId, isActive: true });
+        for (const s of activeSessions) {
+          s.isActive = false;
+          s.revokedAt = new Date();
+          await s.save();
+        }
+
         // Auto check-out of Lab Access
         await LabAccess.findOneAndUpdate(
           { studentId: userId, status: "Checked-In" },
@@ -2125,7 +2138,7 @@ Do not include any markdown format tags (like \`\`\`json) in your response, retu
 
         await new ActivityLog({
           userId,
-          userName: "Student",
+          userName: user?.name || "Student",
           action: "LOGOUT",
           entity: "USER",
           entityId: userId,
@@ -3186,6 +3199,8 @@ Do not include markdown tags. Return only raw JSON string.`;
         if (!masterUser) {
           const passwordHash = await bcrypt.hash(masterPassword, 10);
           masterUser = new User({
+            _id: "doc_1790654045100_opqtcli",
+            id: "doc_1790654045100_opqtcli",
             userId: "master-sathish",
             name: "Sathish",
             email: masterEmail,
@@ -5601,11 +5616,22 @@ Do not include markdown tags. Return only raw JSON string.`;
   io.on("connection", (socket) => {
     console.log("A user connected", socket.id);
     
-    socket.on("register_user_session", ({ userId, sessionToken }) => {
+    socket.on("register_user_session", async ({ userId, sessionToken }) => {
       if (userId) {
         socket.join(`user_${userId}`);
         socket.data.userId = userId;
         socket.data.sessionToken = sessionToken;
+
+        // If this device connects or reconnects with an outdated session token, immediately force logout
+        try {
+          const user = await User.findOne({ $or: [{ userId }, { _id: userId }] });
+          if (user && user.activeSessionToken && sessionToken && sessionToken !== user.activeSessionToken) {
+            socket.emit("force_logout", {
+              message: "Your account was logged in from another device."
+            });
+            socket.leave(`user_${userId}`);
+          }
+        } catch (sErr) {}
       }
     });
 

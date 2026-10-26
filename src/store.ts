@@ -578,7 +578,7 @@ interface AppState {
   
   // Auth
   login: (userData: Partial<UserInfo> & { overrideSession?: boolean; forceLogoutAll?: boolean }) => Promise<{ success: boolean; code?: string; message?: string }>;
-  logout: () => void;
+  logout: (showToast?: boolean) => void;
   logoutAllDevices: (email?: string) => Promise<boolean>;
   updateProfile: (userId: string, data: Partial<UserInfo>) => Promise<boolean>;
   checkSession: () => void;
@@ -821,7 +821,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  logout: () => {
+  logout: (showToast: boolean = true) => {
     const user = get().currentUser;
     if (user?.userId) {
       fetch(`${API_BASE}/api/logout`, {
@@ -835,7 +835,9 @@ export const useStore = create<AppState>((set, get) => ({
     localStorage.removeItem("trackflow_token");
     localStorage.removeItem("trackflow_session_token");
     set({ currentUser: null, activeProject: null, projects: [], tasks: [], notifications: [], messages: [] });
-    get().addToast("Logged out successfully", "info");
+    if (showToast) {
+      get().addToast("Logged out successfully", "info");
+    }
   },
 
   logoutAllDevices: async (email?: string) => {
@@ -849,7 +851,7 @@ export const useStore = create<AppState>((set, get) => ({
       });
       const data = await safeJson(response, {});
       if (response.ok && data.success) {
-        get().logout();
+        get().logout(true);
         get().addToast("Successfully logged out from all devices.", "success");
         return true;
       } else {
@@ -907,11 +909,13 @@ export const useStore = create<AppState>((set, get) => ({
         });
         if (res.status === 401) {
           const errData = await res.json().catch(() => ({}));
-          if (errData.error === "CONCURRENT_LOGIN_LOGOUT") {
-            get().logout();
+          get().logout(false);
+          if (errData.error === "CONCURRENT_LOGIN_LOGOUT" || errData.code === "SESSION_REVOKED") {
             get().addToast("🔒 Logged out: Your account was logged in on another device.", "info");
-            return;
+          } else {
+            get().addToast("Your session has expired. Please log in again.", "info");
           }
+          return;
         }
         if (res.ok) {
           const data = await res.json();
@@ -919,6 +923,9 @@ export const useStore = create<AppState>((set, get) => ({
             const user = data.user;
             set({ currentUser: user });
             localStorage.setItem("trackflow_user", JSON.stringify(user));
+            if (user.activeSessionToken && !localStorage.getItem("trackflow_session_token")) {
+              localStorage.setItem("trackflow_session_token", user.activeSessionToken);
+            }
             get().connectSocket();
             get().fetchNotifications();
 
@@ -933,14 +940,10 @@ export const useStore = create<AppState>((set, get) => ({
             }
             return;
           }
-        } else if (res.status === 401) {
-          // Token expired or invalid -> clear session
-          localStorage.removeItem("trackflow_user");
-          localStorage.removeItem("trackflow_token");
-          set({ currentUser: null, activeProject: null });
-          return;
         }
-      } catch (syncErr) {}
+      } catch (syncErr) {
+        console.warn("Session check network error:", syncErr);
+      }
     }
 
     if (savedUser) {
@@ -1925,7 +1928,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     socket.on("force_logout", (data) => {
       console.warn("Forced logout event received:", data);
-      get().logout();
+      get().logout(false);
       get().addToast("🔒 Logged out: Your account was logged in on another device.", "info");
     });
 

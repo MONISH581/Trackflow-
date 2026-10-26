@@ -31,6 +31,12 @@ export default function App() {
 
   React.useEffect(() => {
     checkSession();
+
+    const handleFocus = () => {
+      checkSession();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [checkSession]);
 
   // 4-Minute Frontend Keep-Alive Heartbeat for Render Server Warmup
