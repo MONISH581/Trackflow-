@@ -85,6 +85,19 @@ export default function Dashboard() {
     };
 
     loadMetrics();
+
+    const socket = useStore.getState().socket;
+    if (socket) {
+      const handleSocketUpdate = () => {
+        loadMetrics();
+      };
+      socket.on("hackathons_updated", handleSocketUpdate);
+      socket.on("opportunities_updated", handleSocketUpdate);
+      return () => {
+        socket.off("hackathons_updated", handleSocketUpdate);
+        socket.off("opportunities_updated", handleSocketUpdate);
+      };
+    }
   }, [currentUser]);
 
   // Fetch commits for each active project

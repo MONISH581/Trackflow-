@@ -1141,6 +1141,37 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteHackathon: async (hackathonId) => {
     try {
+      const targetHack = get().hackathons.find(h => h.id === hackathonId || (h as any)._id === hackathonId || h.hackathonId === hackathonId);
+      const targetOpp = get().opportunities.find(o => o.id === hackathonId || (o as any)._id === hackathonId || (targetHack && o.title?.toLowerCase().trim() === targetHack.name?.toLowerCase().trim()));
+      const targetName = (targetHack?.name || targetOpp?.title || "").toLowerCase().trim();
+
+      // Immediate optimistic update across hackathons, opportunities, registrations, mappings, interests
+      set(state => ({
+        hackathons: state.hackathons.filter(h =>
+          h.id !== hackathonId &&
+          (h as any)._id !== hackathonId &&
+          h.hackathonId !== hackathonId &&
+          (!targetName || h.name?.toLowerCase().trim() !== targetName)
+        ),
+        opportunities: state.opportunities.filter(o =>
+          o.id !== hackathonId &&
+          (o as any)._id !== hackathonId &&
+          (!targetName || o.title?.toLowerCase().trim() !== targetName)
+        ),
+        hackathonRegistrations: state.hackathonRegistrations.filter(r =>
+          r.hackathonId !== hackathonId &&
+          (!targetName || r.hackathonName?.toLowerCase().trim() !== targetName)
+        ),
+        hackathonMappings: state.hackathonMappings.filter(m =>
+          m.hackathonId !== hackathonId &&
+          (!targetName || m.hackathonName?.toLowerCase().trim() !== targetName)
+        ),
+        hackathonInterests: state.hackathonInterests.filter(i =>
+          i.hackathonId !== hackathonId &&
+          (!targetName || i.hackathonName?.toLowerCase().trim() !== targetName)
+        )
+      }));
+
       const response = await fetch(`${API_BASE}/api/hackathons/${hackathonId}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
@@ -1148,10 +1179,17 @@ export const useStore = create<AppState>((set, get) => ({
       const data = await safeJson(response, {});
       if (!response.ok) throw new Error(data.error || "Failed to delete hackathon");
       get().addToast("Hackathon deleted successfully", "success");
-      get().fetchHackathons();
+
+      await Promise.all([
+        get().fetchHackathons(),
+        get().fetchOpportunities(),
+        get().fetchCategoryCounts()
+      ]);
       return true;
     } catch (e: any) {
       get().addToast(e.message || "Failed to delete hackathon", "error");
+      get().fetchHackathons();
+      get().fetchOpportunities();
       return false;
     }
   },
@@ -2016,6 +2054,14 @@ export const useStore = create<AppState>((set, get) => ({
 
     socket.on("opportunities_updated", () => {
       get().fetchOpportunities();
+      get().fetchHackathons();
+      get().fetchCategoryCounts();
+    });
+
+    socket.on("hackathons_updated", () => {
+      get().fetchHackathons();
+      get().fetchOpportunities();
+      get().fetchCategoryCounts();
     });
   },
 
@@ -2096,15 +2142,44 @@ export const useStore = create<AppState>((set, get) => ({
   deleteOpportunity: async (oppId) => {
     get().setLoading(true);
     try {
+      const targetOpp = get().opportunities.find(o => o.id === oppId || (o as any)._id === oppId);
+      const targetName = (targetOpp?.title || "").toLowerCase().trim();
+
+      // Optimistic update across opportunities, hackathons, registrations, mappings
+      set(state => ({
+        opportunities: state.opportunities.filter(o => o.id !== oppId && (o as any)._id !== oppId),
+        hackathons: state.hackathons.filter(h =>
+          h.id !== oppId &&
+          (h as any)._id !== oppId &&
+          h.hackathonId !== oppId &&
+          (!targetName || h.name?.toLowerCase().trim() !== targetName)
+        ),
+        hackathonRegistrations: state.hackathonRegistrations.filter(r =>
+          r.hackathonId !== oppId &&
+          (!targetName || r.hackathonName?.toLowerCase().trim() !== targetName)
+        ),
+        hackathonMappings: state.hackathonMappings.filter(m =>
+          m.hackathonId !== oppId &&
+          (!targetName || m.hackathonName?.toLowerCase().trim() !== targetName)
+        )
+      }));
+
       const res = await fetch(`${API_BASE}/api/opportunities/${oppId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete opportunity");
       get().addToast("Opportunity deleted successfully", "success");
-      get().fetchOpportunities();
+
+      await Promise.all([
+        get().fetchOpportunities(),
+        get().fetchHackathons(),
+        get().fetchCategoryCounts()
+      ]);
       return true;
     } catch (err: any) {
       get().addToast(err.message, "error");
+      get().fetchOpportunities();
+      get().fetchHackathons();
       return false;
     } finally {
       get().setLoading(false);

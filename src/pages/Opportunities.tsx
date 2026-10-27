@@ -158,6 +158,19 @@ export default function Opportunities() {
       fetchRecommendations(currentUser.userId).then(data => setRecommendations(data));
       fetchBookmarks();
     }
+
+    const socket = useStore.getState().socket;
+    if (socket) {
+      const handleSocketUpdate = () => {
+        fetchCategoryCounts().then(data => setCategoryCounts(data));
+      };
+      socket.on("hackathons_updated", handleSocketUpdate);
+      socket.on("opportunities_updated", handleSocketUpdate);
+      return () => {
+        socket.off("hackathons_updated", handleSocketUpdate);
+        socket.off("opportunities_updated", handleSocketUpdate);
+      };
+    }
   }, [currentUser, fetchCategoryCounts, fetchRecommendations, fetchBookmarks]);
 
   const handleShare = (opp: OpportunityInfo) => {

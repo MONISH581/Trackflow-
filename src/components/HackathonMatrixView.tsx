@@ -552,9 +552,15 @@ export default function HackathonMatrixView({
       return { sourceType: "Platform" as SourceType, sourceId: "devpost", sourceName: organizer || "Devpost" };
     };
 
+    const seenTitles = new Set<string>();
+    const seenLinks = new Set<string>();
+
     // 1. Process HackathonInfo
     for (const h of hackathons) {
       const id = h._id || h.id || h.hackathonId || "";
+      const normTitle = (h.name || "").trim().toLowerCase();
+      const normLink = (h.registrationLink || "").trim().toLowerCase();
+
       const { sourceType, sourceId, sourceName } = resolveSource(
         h.name || "",
         h.organizer || "",
@@ -587,13 +593,22 @@ export default function HackathonMatrixView({
         isUnadvertised: (h.tags || []).some((t) => /unadvertised|internal/i.test(t)),
         isManual: (h.tags || []).some((t) => /manual addition|manual entry/i.test(t)) || (h as any).isManual
       });
+
+      if (normTitle) seenTitles.add(normTitle);
+      if (normLink) seenLinks.add(normLink);
     }
 
     // 2. Process OpportunityInfo where category == "Hackathons"
     for (const o of opportunities) {
       if ((o.category || "").toLowerCase() !== "hackathons") continue;
       const id = o._id || o.id || o.title;
+      const normTitle = (o.title || "").trim().toLowerCase();
+      const normLink = (o.registrationLink || o.website || "").trim().toLowerCase();
+
+      // Skip duplicates already indexed by ID, name, or link
       if (map.has(id)) continue;
+      if (normTitle && seenTitles.has(normTitle)) continue;
+      if (normLink && seenLinks.has(normLink)) continue;
 
       const { sourceType, sourceId, sourceName } = resolveSource(
         o.title || "",
@@ -1411,12 +1426,19 @@ export default function HackathonMatrixView({
                               if (window.confirm(`Are you sure you want to permanently delete hackathon "${hackathon.title}"?`)) {
                                 const ok = await store.deleteHackathon(hackathon.id);
                                 if (ok) {
-                                  setActiveCellModal(prev => prev ? {
-                                    ...prev,
-                                    hackathons: prev.hackathons.filter(h => h.id !== hackathon.id)
-                                  } : null);
-                                  await store.fetchHackathons();
-                                  await store.fetchOpportunities();
+                                  setActiveCellModal(prev => {
+                                    if (!prev) return null;
+                                    const remaining = prev.hackathons.filter(h =>
+                                      h.id !== hackathon.id &&
+                                      h.title?.toLowerCase().trim() !== hackathon.title?.toLowerCase().trim()
+                                    );
+                                    if (remaining.length === 0) return null;
+                                    return { ...prev, hackathons: remaining };
+                                  });
+                                  await Promise.all([
+                                    store.fetchHackathons(),
+                                    store.fetchOpportunities()
+                                  ]);
                                 }
                               }
                             }}
@@ -1462,12 +1484,19 @@ export default function HackathonMatrixView({
                               if (window.confirm(`Are you sure you want to delete hackathon "${hackathon.title}"?`)) {
                                 const ok = await store.deleteHackathon(hackathon.id);
                                 if (ok) {
-                                  setActiveCellModal(prev => prev ? {
-                                    ...prev,
-                                    hackathons: prev.hackathons.filter(h => h.id !== hackathon.id)
-                                  } : null);
-                                  await store.fetchHackathons();
-                                  await store.fetchOpportunities();
+                                  setActiveCellModal(prev => {
+                                    if (!prev) return null;
+                                    const remaining = prev.hackathons.filter(h =>
+                                      h.id !== hackathon.id &&
+                                      h.title?.toLowerCase().trim() !== hackathon.title?.toLowerCase().trim()
+                                    );
+                                    if (remaining.length === 0) return null;
+                                    return { ...prev, hackathons: remaining };
+                                  });
+                                  await Promise.all([
+                                    store.fetchHackathons(),
+                                    store.fetchOpportunities()
+                                  ]);
                                 }
                               }
                             }}

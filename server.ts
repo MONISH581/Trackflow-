@@ -3687,43 +3687,146 @@ Do not include markdown tags. Return only raw JSON string.`;
     }
   });
 
+  // Comprehensive, synchronized hackathon purger ensuring 100% removal across all DB collections
+  async function purgeHackathon(identifier: string): Promise<boolean> {
+    const id = String(identifier || "").trim();
+    if (!id) return false;
+
+    const allHacks = await Hackathon.find();
+    const allOpps = await Opportunity.find();
+
+    const targetLower = id.toLowerCase();
+
+    // 1. Initial matching across Hackathons & Opportunities
+    const matchedHacks = allHacks.filter((h: any) => {
+      const hId = String(h._id || h.id || "").trim();
+      const hHackId = String(h.hackathonId || "").trim();
+      const hName = String(h.name || h.title || "").trim().toLowerCase();
+      return hId === id || hHackId === id || (hName && hName === targetLower);
+    });
+
+    const matchedOpps = allOpps.filter((o: any) => {
+      const oId = String(o._id || o.id || "").trim();
+      const oHackId = String(o.hackathonId || "").trim();
+      const oTitle = String(o.title || o.name || "").trim().toLowerCase();
+      return oId === id || oHackId === id || (oTitle && oTitle === targetLower);
+    });
+
+    if (matchedHacks.length === 0 && matchedOpps.length === 0) {
+      await Hackathon.findByIdAndDelete(id);
+      await Opportunity.findByIdAndDelete(id);
+      io.emit("hackathons_updated");
+      io.emit("opportunities_updated");
+      return true;
+    }
+
+    // 2. Aggregate all aliases, IDs, names, and registration links
+    const idsToDelete = new Set<string>();
+    const namesToDelete = new Set<string>();
+    const linksToDelete = new Set<string>();
+
+    idsToDelete.add(id);
+
+    matchedHacks.forEach((h: any) => {
+      if (h._id) idsToDelete.add(String(h._id).trim());
+      if (h.id) idsToDelete.add(String(h.id).trim());
+      if (h.hackathonId) idsToDelete.add(String(h.hackathonId).trim());
+      if (h.name) namesToDelete.add(String(h.name).trim().toLowerCase());
+      if (h.title) namesToDelete.add(String(h.title).trim().toLowerCase());
+      if (h.registrationLink) linksToDelete.add(String(h.registrationLink).trim().toLowerCase());
+      if (h.website) linksToDelete.add(String(h.website).trim().toLowerCase());
+    });
+
+    matchedOpps.forEach((o: any) => {
+      if (o._id) idsToDelete.add(String(o._id).trim());
+      if (o.id) idsToDelete.add(String(o.id).trim());
+      if (o.hackathonId) idsToDelete.add(String(o.hackathonId).trim());
+      if (o.title) namesToDelete.add(String(o.title).trim().toLowerCase());
+      if (o.name) namesToDelete.add(String(o.name).trim().toLowerCase());
+      if (o.registrationLink) linksToDelete.add(String(o.registrationLink).trim().toLowerCase());
+      if (o.website) linksToDelete.add(String(o.website).trim().toLowerCase());
+    });
+
+    // Cross-match second-order entities
+    allHacks.forEach((h: any) => {
+      const hName = String(h.name || h.title || "").trim().toLowerCase();
+      const hLink = String(h.registrationLink || h.website || "").trim().toLowerCase();
+      if ((hName && namesToDelete.has(hName)) || (hLink && linksToDelete.has(hLink))) {
+        if (h._id) idsToDelete.add(String(h._id).trim());
+        if (h.id) idsToDelete.add(String(h.id).trim());
+        if (h.hackathonId) idsToDelete.add(String(h.hackathonId).trim());
+      }
+    });
+
+    allOpps.forEach((o: any) => {
+      const oTitle = String(o.title || o.name || "").trim().toLowerCase();
+      const oLink = String(o.registrationLink || o.website || "").trim().toLowerCase();
+      if ((oTitle && namesToDelete.has(oTitle)) || (oLink && linksToDelete.has(oLink))) {
+        if (o._id) idsToDelete.add(String(o._id).trim());
+        if (o.id) idsToDelete.add(String(o.id).trim());
+        if (o.hackathonId) idsToDelete.add(String(o.hackathonId).trim());
+      }
+    });
+
+    // 3. Purge from Hackathon collection
+    for (const h of allHacks) {
+      const hId = String(h._id || h.id || "").trim();
+      const hHackId = String(h.hackathonId || "").trim();
+      const hName = String(h.name || h.title || "").trim().toLowerCase();
+      if (idsToDelete.has(hId) || idsToDelete.has(hHackId) || (hName && namesToDelete.has(hName))) {
+        await Hackathon.findByIdAndDelete(h._id || h.id);
+      }
+    }
+
+    // 4. Purge from Opportunity collection
+    for (const o of allOpps) {
+      const oId = String(o._id || o.id || "").trim();
+      const oHackId = String(o.hackathonId || "").trim();
+      const oTitle = String(o.title || o.name || "").trim().toLowerCase();
+      if (idsToDelete.has(oId) || idsToDelete.has(oHackId) || (oTitle && namesToDelete.has(oTitle))) {
+        await Opportunity.findByIdAndDelete(o._id || o.id);
+      }
+    }
+
+    // 5. Clean up linked registrations, interests, and mappings
+    const allRegs = await HackathonRegistration.find();
+    for (const r of allRegs) {
+      const rHId = String(r.hackathonId || "").trim();
+      const rHName = String(r.hackathonName || "").trim().toLowerCase();
+      if (idsToDelete.has(rHId) || (rHName && namesToDelete.has(rHName))) {
+        await HackathonRegistration.findByIdAndDelete(r._id || r.id);
+      }
+    }
+
+    const allInterests = await HackathonInterest.find();
+    for (const i of allInterests) {
+      const iHId = String(i.hackathonId || "").trim();
+      const iHName = String(i.hackathonName || "").trim().toLowerCase();
+      if (idsToDelete.has(iHId) || (iHName && namesToDelete.has(iHName))) {
+        await HackathonInterest.findByIdAndDelete(i._id || i.id);
+      }
+    }
+
+    const allMaps = await HackathonMapping.find();
+    for (const m of allMaps) {
+      const mHId = String(m.hackathonId || "").trim();
+      const mHName = String(m.hackathonName || "").trim().toLowerCase();
+      if (idsToDelete.has(mHId) || (mHName && namesToDelete.has(mHName))) {
+        await HackathonMapping.findByIdAndDelete(m._id || m.id);
+      }
+    }
+
+    io.emit("hackathons_updated");
+    io.emit("opportunities_updated");
+    return true;
+  }
+
   app.delete("/api/hackathons/:id", async (req: any, res: any) => {
     try {
       const { id } = req.params;
-      const hackathon = await Hackathon.findOne({ $or: [{ _id: id }, { id }, { hackathonId: id }] });
-      const opp = await Opportunity.findOne({ $or: [{ _id: id }, { id }, { title: id }] });
-      if (!hackathon && !opp) return res.status(404).json({ error: "Hackathon not found" });
-
-      const targetId = hackathon ? (hackathon._id || hackathon.id) : (opp ? (opp._id || opp.id) : id);
-      const hackName = hackathon?.name || opp?.title;
-      const hackLink = hackathon?.registrationLink || opp?.registrationLink || opp?.website;
-
-      if (hackathon) {
-        await Hackathon.findByIdAndDelete(targetId);
-      }
-      await Hackathon.deleteMany({
-        $or: [{ _id: id }, { id }, { hackathonId: id }, { name: hackName }, { registrationLink: hackLink }]
-      });
-
-      // Clean up linked registrations and interests
-      await HackathonRegistration.deleteMany({ $or: [{ hackathonId: targetId }, { hackathonId: id }] });
-      await HackathonInterest.deleteMany({ $or: [{ hackathonId: targetId }, { hackathonId: id }] });
-
-      // Clean up mirror Opportunity
-      await Opportunity.deleteMany({
-        $or: [
-          { _id: id },
-          { _id: targetId },
-          { id },
-          { title: hackName },
-          { website: hackLink },
-          { registrationLink: hackLink }
-        ]
-      });
-
-      io.emit("hackathons_updated");
-      io.emit("opportunities_updated");
-      res.json({ success: true, message: "Hackathon deleted successfully" });
+      const success = await purgeHackathon(id);
+      if (!success) return res.status(404).json({ error: "Hackathon not found" });
+      res.json({ success: true, message: "Hackathon deleted successfully across all systems" });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -4145,17 +4248,16 @@ Do not include markdown tags. Return only raw JSON string.`;
           io.emit("hackathons_updated");
         }
         io.emit("opportunities_updated");
-        res.json({ success: true, opportunity: opp });
+        return res.json({ success: true, opportunity: opp });
       } else {
-        const opp = await Opportunity.findByIdAndDelete(req.params.id);
-        if (opp && (opp.category || "").toLowerCase() === "hackathons") {
-          await Hackathon.deleteMany({
-            $or: [{ hackathonId: `hack-${opp._id}` }, { name: opp.title }, { registrationLink: opp.registrationLink }]
-          });
-          io.emit("hackathons_updated");
+        const declinedOpp = await Opportunity.findById(req.params.id);
+        if (declinedOpp && (declinedOpp.category || "").toLowerCase() === "hackathons") {
+          await purgeHackathon(req.params.id);
+        } else {
+          await Opportunity.findByIdAndDelete(req.params.id);
+          io.emit("opportunities_updated");
         }
-        io.emit("opportunities_updated");
-        res.json({ success: true, message: "Opportunity request declined." });
+        return res.json({ success: true, message: "Opportunity request declined." });
       }
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -5416,18 +5518,25 @@ Do not include markdown tags. Return only raw JSON string.`;
 
   app.get("/api/categories", async (req, res) => {
     try {
-      const opportunities = await Opportunity.find({ approved: true });
-      const countsMap: Record<string, number> = {};
-      for (const opp of opportunities) {
-        if (opp.category) {
-          countsMap[opp.category] = (countsMap[opp.category] || 0) + 1;
-        }
-      }
-      const categories = Object.entries(countsMap).map(([category, count]) => ({
-        category,
-        count
-      }));
-      res.json({ categories });
+      const categories = [
+        "Jobs", "Hackathons", "Internships", "Coding Contests", "Scholarships", "Workshops",
+        "Webinars", "Conferences", "Open Source", "Research", "Bootcamps",
+        "Fellowships", "Innovation Challenges", "Competitions", "Tech Events"
+      ];
+      const nowTime = Date.now();
+      const allApproved = await Opportunity.find({ approved: true });
+      const counts = categories.map((cat) => {
+        const matching = allApproved.filter(o => {
+          if (!o.category || o.category.toLowerCase() !== cat.toLowerCase()) return false;
+          const isManual = (o.tags && o.tags.some((t: string) => /manual addition|manual entry/i.test(t))) || (o as any).isManual;
+          if (isManual) return true;
+          const deadlineExpired = o.registrationDeadline && new Date(o.registrationDeadline).getTime() < nowTime;
+          const endExpired = (o.eventEndDate || o.endDate) && new Date(o.eventEndDate || o.endDate).getTime() < nowTime;
+          return !deadlineExpired && !endExpired && o.status !== "Expired";
+        });
+        return { category: cat, count: matching.length };
+      });
+      res.json({ categories: counts });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -5556,42 +5665,18 @@ Do not include markdown tags. Return only raw JSON string.`;
 
   app.delete("/api/opportunities/:id", async (req, res) => {
     try {
-      const opp = await Opportunity.findByIdAndDelete(req.params.id);
+      const { id } = req.params;
+      const opp = await Opportunity.findById(id);
       if (!opp) return res.status(404).json({ error: "Opportunity not found" });
 
       if ((opp.category || "").toLowerCase() === "hackathons") {
-        await Hackathon.deleteMany({
-          $or: [{ hackathonId: `hack-${opp._id}` }, { name: opp.title }, { registrationLink: opp.registrationLink }]
-        });
-        io.emit("hackathons_updated");
+        await purgeHackathon(id);
+      } else {
+        await Opportunity.findByIdAndDelete(id);
+        io.emit("opportunities_updated");
       }
 
-      io.emit("opportunities_updated");
-      res.json({ success: true });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  app.get("/api/categories", async (req, res) => {
-    try {
-      const categories = [
-        "Hackathons", "Internships", "Coding Contests", "Scholarships", "Workshops",
-        "Webinars", "Conferences", "Open Source", "Research", "Bootcamps",
-        "Fellowships", "Innovation Challenges", "Competitions", "Tech Events"
-      ];
-      const nowTime = Date.now();
-      const allApproved = await Opportunity.find({ approved: true });
-      const counts = categories.map((cat) => {
-        const matching = allApproved.filter(o => {
-          if (!o.category || o.category.toLowerCase() !== cat.toLowerCase()) return false;
-          const deadlineExpired = o.registrationDeadline && new Date(o.registrationDeadline).getTime() < nowTime;
-          const endExpired = (o.eventEndDate || o.endDate) && new Date(o.eventEndDate || o.endDate).getTime() < nowTime;
-          return !deadlineExpired && !endExpired && o.status !== "Expired";
-        });
-        return { category: cat, count: matching.length };
-      });
-      res.json({ categories: counts });
+      res.json({ success: true, message: "Opportunity deleted successfully" });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

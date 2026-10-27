@@ -111,10 +111,23 @@ export default function CommandCenter() {
     addToast
   ]);
 
-  // Load when lab filter changes
+  // Load when lab filter changes or real-time event occurs
   useEffect(() => {
     loadCommandCenterData();
-  }, [filters.lab]);
+
+    const socket = useStore.getState().socket;
+    if (socket) {
+      const handleSocketUpdate = () => {
+        loadCommandCenterData();
+      };
+      socket.on("hackathons_updated", handleSocketUpdate);
+      socket.on("opportunities_updated", handleSocketUpdate);
+      return () => {
+        socket.off("hackathons_updated", handleSocketUpdate);
+        socket.off("opportunities_updated", handleSocketUpdate);
+      };
+    }
+  }, [filters.lab, loadCommandCenterData]);
 
   // Load Entity 360 Drawer
   const handleOpenEntity = async (
