@@ -7,12 +7,13 @@ dotenv.config();
 
 const { Pool } = pg;
 
-const pgConnectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PG_URL;
+// For schema migrations, always prefer the unpooled direct connection to avoid PgBouncer transaction/session limits
+const rawUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PG_URL;
+const pgConnectionString = rawUrl ? rawUrl.replace('-pooler.', '.') : null;
 
 if (!pgConnectionString && !process.env.PGHOST) {
   console.error('\x1b[31m[Error] No PostgreSQL connection string found!\x1b[0m');
-  console.log('Please set DATABASE_URL or POSTGRES_URL in your .env file.');
-  console.log('Example: DATABASE_URL="postgresql://user:password@host:port/database?sslmode=require"');
+  console.log('Please set DATABASE_URL or DATABASE_URL_UNPOOLED in your .env file.');
   process.exit(1);
 }
 
@@ -25,7 +26,7 @@ const pool = new Pool(
     ? {
         connectionString: pgConnectionString,
         ssl: isLocalhost ? false : { rejectUnauthorized: false },
-        connectionTimeoutMillis: 10000,
+        connectionTimeoutMillis: 15000,
       }
     : {
         host: process.env.PGHOST,
@@ -34,7 +35,7 @@ const pool = new Pool(
         database: process.env.PGDATABASE,
         port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
         ssl: isLocalhost ? false : { rejectUnauthorized: false },
-        connectionTimeoutMillis: 10000,
+        connectionTimeoutMillis: 15000,
       }
 );
 
@@ -48,15 +49,17 @@ const ALL_COLLECTIONS = [
 
 async function runMigration() {
   console.log('\n\x1b[36m========================================================\x1b[0m');
-  console.log('\x1b[36m        TrackFlow PostgreSQL Migration & Setup Tool     \x1b[0m');
+  console.log('\x1b[36m   TrackFlow Neon PostgreSQL Complete Migration Tool    \x1b[0m');
   console.log('\x1b[36m========================================================\x1b[0m\n');
 
   try {
     const client = await pool.connect();
-    console.log('\x1b[32m[+] Connected successfully to PostgreSQL database!\x1b[0m');
+    console.log('\x1b[32m[+] Connected successfully to Neon PostgreSQL database!\x1b[0m');
+    const info = await client.query('SELECT current_database(), current_user, version()');
+    console.log(`    Database: ${info.rows[0].current_database} | User: ${info.rows[0].current_user}`);
     client.release();
 
-    console.log('\n[1/3] Initializing tables and GIN indices...');
+    console.log('\n[1/3] Initializing 20 TrackFlow tables and indices (low-egress optimized)...');
     for (const col of ALL_COLLECTIONS) {
       const safeTable = col.replace(/[^a-zA-Z0-9_]/g, '_');
       await pool.query(`
@@ -67,11 +70,12 @@ async function runMigration() {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS "idx_${safeTable}_gin" ON "${safeTable}" USING gin (data);
+        CREATE INDEX IF NOT EXISTS "idx_${safeTable}_updated_at" ON "${safeTable}" (updated_at DESC);
       `);
     }
-    console.log('\x1b[32m[+] All 20 tables and GIN indices verified.\x1b[0m');
+    console.log('\x1b[32m[+] All 20 tables, GIN indices, and updated_at indices verified.\x1b[0m');
 
-    console.log('\n[2/3] Checking for existing data in uploads/db_store.json...');
+    console.log('\n[2/3] Checking for local data store in uploads/db_store.json...');
     const dbFilePath = path.join(process.cwd(), 'uploads', 'db_store.json');
     if (!fs.existsSync(dbFilePath)) {
       console.log('\x1b[33m[!] No uploads/db_store.json found. Database tables are ready for new records.\x1b[0m');
@@ -82,34 +86,48 @@ async function runMigration() {
     const raw = fs.readFileSync(dbFilePath, 'utf8');
     const store = JSON.parse(raw);
 
-    console.log('\n[3/3] Migrating collection records to PostgreSQL...');
+    console.log('\n[3/3] Migrating collection records to PostgreSQL with batch optimization (low egress)...');
     let totalMigrated = 0;
+    const BATCH_SIZE = 50;
+
     for (const [colName, docs] of Object.entries(store)) {
       const safeTable = colName.replace(/[^a-zA-Z0-9_]/g, '_');
       const docEntries = Object.entries(docs as Record<string, any>);
       if (docEntries.length === 0) continue;
 
       let colCount = 0;
-      for (const [docId, docVal] of docEntries) {
-        const id = String(docVal._id || docVal.id || docId);
-        const createdAt = docVal.createdAt ? new Date(docVal.createdAt) : new Date();
-        const updatedAt = docVal.updatedAt ? new Date(docVal.updatedAt) : new Date();
+      for (let i = 0; i < docEntries.length; i += BATCH_SIZE) {
+        const chunk = docEntries.slice(i, i + BATCH_SIZE);
+        const values: any[] = [];
+        const placeholders: string[] = [];
+
+        chunk.forEach(([docId, docVal], idx) => {
+          const id = String(docVal._id || docVal.id || docId);
+          const createdAt = docVal.createdAt ? new Date(docVal.createdAt) : new Date();
+          const updatedAt = docVal.updatedAt ? new Date(docVal.updatedAt) : new Date();
+
+          const baseIdx = idx * 4;
+          placeholders.push(`($${baseIdx + 1}, $${baseIdx + 2}, $${baseIdx + 3}, $${baseIdx + 4})`);
+          values.push(id, JSON.stringify(docVal), createdAt, updatedAt);
+        });
 
         await pool.query(
           `INSERT INTO "${safeTable}" (id, data, created_at, updated_at)
-           VALUES ($1, $2, $3, $4)
+           VALUES ${placeholders.join(', ')}
            ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
-          [id, JSON.stringify(docVal), createdAt, updatedAt]
+          values
         );
-        colCount++;
-        totalMigrated++;
+
+        colCount += chunk.length;
+        totalMigrated += chunk.length;
       }
       console.log(`  - \x1b[32m${colName.padEnd(25)}\x1b[0m: ${colCount} records migrated`);
     }
 
-    console.log(`\n\x1b[32m[SUCCESS] Migration finished! Total records migrated: ${totalMigrated}\x1b[0m\n`);
+    console.log(`\n\x1b[32m[SUCCESS] Complete migration finished! Total records migrated: ${totalMigrated}\x1b[0m\n`);
   } catch (err: any) {
     console.error('\x1b[31m[Migration Failed]:\x1b[0m', err.message);
+    process.exit(1);
   } finally {
     await pool.end();
   }

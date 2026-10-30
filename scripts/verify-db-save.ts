@@ -48,7 +48,8 @@ async function verifyDatabaseSave() {
   try {
     const client = await pool.connect();
     console.log('\x1b[32m[✓] Connected to Neon PostgreSQL Database!\x1b[0m');
-    console.log(`    Host: ep-jolly-bar-az0r6ezg-pooler.c-3.ap-southeast-1.aws.neon.tech`);
+    const hostMatch = connectionString.match(/@([^:\/]+)/);
+    console.log(`    Host: ${hostMatch ? hostMatch[1] : 'Neon PostgreSQL'}`);
     console.log(`    Database: neondb\n`);
 
     // 0. Ensure NO foreign tables exist
@@ -149,7 +150,7 @@ async function verifyDatabaseSave() {
     // 6. Strict Verification of Staff (@siet.ac.in)
     console.log('\x1b[33m--- [3] Staff / Teachers / Mentors / Coordinators (@siet.ac.in) ---\x1b[0m');
     const staffRes = await client.query(`
-      SELECT id, data 
+      SELECT id, data->>'name' AS name, data->>'role' AS role, data->>'email' AS email
       FROM "users" 
       WHERE data->>'role' IN ('master_admin', 'coordinator', 'admin')
       ORDER BY created_at ASC;
@@ -157,32 +158,37 @@ async function verifyDatabaseSave() {
 
     let staffValid = true;
     for (const s of staffRes.rows) {
-      const email = (s.data.email || '').toLowerCase().trim();
+      const email = (s.email || '').toLowerCase().trim();
       const isSiet = email.endsWith('@siet.ac.in');
       if (!isSiet) staffValid = false;
       const statusIcon = isSiet ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
-      console.log(`  ${statusIcon} ${(s.data.name || '').padEnd(20)} | Role: ${(s.data.role || '').padEnd(14)} | Email: \x1b[32m${email}\x1b[0m`);
+      console.log(`  ${statusIcon} ${(s.name || '').padEnd(20)} | Role: ${(s.role || '').padEnd(14)} | Email: \x1b[32m${email}\x1b[0m`);
     }
 
-    const mentorRes = await client.query(`SELECT id, data FROM "mentors" ORDER BY created_at ASC;`);
+    const mentorRes = await client.query(`SELECT id, data->>'name' AS name, data->>'email' AS email FROM "mentors" ORDER BY created_at ASC;`);
     for (const m of mentorRes.rows) {
-      const email = (m.data.email || '').toLowerCase().trim();
+      const email = (m.email || '').toLowerCase().trim();
       const isSiet = email.endsWith('@siet.ac.in');
       if (!isSiet) staffValid = false;
       const statusIcon = isSiet ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
-      console.log(`  ${statusIcon} ${(m.data.name || '').padEnd(20)} | Role: ${'mentor'.padEnd(14)} | Email: \x1b[32m${email}\x1b[0m`);
+      console.log(`  ${statusIcon} ${(m.name || '').padEnd(20)} | Role: ${'mentor'.padEnd(14)} | Email: \x1b[32m${email}\x1b[0m`);
     }
 
     // 7. Strict Verification of Registered Students (@srishakthi.ac.in)
     console.log('\n\x1b[33m--- [4] Registered Students (@srishakthi.ac.in) ---\x1b[0m');
-    const studentsRes = await client.query(`SELECT id, data FROM "users" WHERE data->>'role' = 'student' ORDER BY created_at ASC;`);
+    const studentsRes = await client.query(`
+      SELECT id, data->>'name' AS name, data->>'department' AS department, data->>'email' AS email 
+      FROM "users" 
+      WHERE data->>'role' = 'student' 
+      ORDER BY created_at ASC;
+    `);
     let studentsValid = true;
     for (const s of studentsRes.rows) {
-      const email = (s.data.email || '').toLowerCase().trim();
+      const email = (s.email || '').toLowerCase().trim();
       const isSriShakthi = email.endsWith('@srishakthi.ac.in');
       if (!isSriShakthi) studentsValid = false;
       const statusIcon = isSriShakthi ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
-      console.log(`  ${statusIcon} ${(s.data.name || '').padEnd(28)} | Dept: ${(s.data.department || 'N/A').padEnd(35)} | Email: \x1b[32m${email}\x1b[0m`);
+      console.log(`  ${statusIcon} ${(s.name || '').padEnd(28)} | Dept: ${(s.department || 'N/A').padEnd(35)} | Email: \x1b[32m${email}\x1b[0m`);
     }
 
     console.log(`\n  \x1b[1mTotal Staff/Mentors:\x1b[0m \x1b[32m${staffRes.rows.length + mentorRes.rows.length}\x1b[0m (all @siet.ac.in)`);
